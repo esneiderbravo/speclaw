@@ -4,7 +4,7 @@
 
 <br/>
 
-<a href="https://www.npmjs.com/package/speclaw"><img src="https://img.shields.io/npm/v/speclaw?color=0E8E8E&labelColor=0B0F10&style=flat-square&label=npm" alt="npm"></a>
+<a href="https://www.npmjs.com/package/@esneiderbravo/speclaw"><img src="https://img.shields.io/npm/v/@esneiderbravo/speclaw?color=0E8E8E&labelColor=0B0F10&style=flat-square&label=npm" alt="npm"></a>
 &nbsp;<a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-0E8E8E?labelColor=0B0F10&style=flat-square" alt="MIT"></a>
 &nbsp;<img src="https://img.shields.io/badge/node-%E2%89%A522-0E8E8E?labelColor=0B0F10&style=flat-square" alt="Node >= 22">
 
@@ -29,7 +29,7 @@ One command. No cloud, no LLM, no API keys — <b>everything runs on your machin
 <br/>
 
 > [!TIP]
-> **One command sets everything up.** Run `npx speclaw init`, pick the agents you
+> **One command sets everything up.** Run `npx @esneiderbravo/speclaw init`, pick the agents you
 > use, and speclaw scaffolds the project, indexes your code, and hands your agent
 > a ready-to-paste prompt to finish the setup.
 
@@ -38,10 +38,10 @@ One command. No cloud, no LLM, no API keys — <b>everything runs on your machin
 ## ◆ Quick start
 
 <p align="center">
-  <img src="brand/terminal-quickstart.svg" width="800" alt="npx speclaw init">
+  <img src="brand/terminal-quickstart.svg" width="800" alt="npx @esneiderbravo/speclaw init">
 </p>
 
-<p align="center">Copy &amp; run in your project root: <code>npx speclaw init</code></p>
+<p align="center">Copy &amp; run in your project root: <code>npx @esneiderbravo/speclaw init</code></p>
 
 `init` will:
 
@@ -53,7 +53,7 @@ One command. No cloud, no LLM, no API keys — <b>everything runs on your machin
 5. Print a prompt to paste into your agent so it fills the constitution with your
    project's real architecture and conventions.
 
-Works with `npm`, `pnpm` (`pnpm dlx speclaw init`), and `yarn`.
+Works with `npm`, `pnpm` (`pnpm dlx @esneiderbravo/speclaw init`), and `yarn`.
 
 <br/>
 

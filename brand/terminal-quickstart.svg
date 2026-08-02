@@ -7,6 +7,6 @@
   <line x1="1" y1="50" x2="799" y2="50" stroke="#1B2225"/>
   <circle cx="32" cy="26" r="7" fill="#EB5A5A"/><circle cx="56" cy="26" r="7" fill="#E3B341"/><circle cx="80" cy="26" r="7" fill="#3FB950"/>
   <text x="400" y="31" text-anchor="middle" class="mu" font-size="14">your project</text>
-  <text x="40" y="98"><tspan class="gr">$ </tspan><tspan class="mu">npx </tspan><tspan class="cy">speclaw</tspan><tspan class="cr"> init</tspan></text>
+  <text x="40" y="98"><tspan class="gr">$ </tspan><tspan class="mu">npx </tspan><tspan class="cy">@esneiderbravo/speclaw</tspan><tspan class="cr"> init</tspan></text>
   <text x="40" y="128" class="mu" font-size="15"># pick your agents · scaffold · index · get the prompt</text>
 </svg>

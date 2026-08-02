@@ -35,7 +35,7 @@ export function agentById(id: string): AgentDef | undefined {
   return AGENTS.find((a) => a.id === id);
 }
 
-const MCP_ENTRY = { type: "stdio", command: "npx", args: ["-y", "speclaw", "mcp"] };
+const MCP_ENTRY = { type: "stdio", command: "npx", args: ["-y", "@esneiderbravo/speclaw", "mcp"] };
 
 /** True when `p` exists as a filesystem entry (including a symlink), without following it. */
 function isSymlink(p: string): boolean {
