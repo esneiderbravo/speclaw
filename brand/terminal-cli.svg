@@ -1,28 +1,28 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 452" width="760" height="452" role="img" aria-label="speclaw CLI commands">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 560" width="800" height="560" role="img" aria-label="speclaw CLI commands">
   <defs>
     <linearGradient id="win" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0C1113"/><stop offset="1" stop-color="#0A0E0F"/></linearGradient>
-    <style>text{font-family:'SF Mono','JetBrains Mono','Fira Code',Menlo,Consolas,monospace;font-size:14px;}.cy{fill:#17C1C1;}.cr{fill:#F4F1EA;}.mu{fill:#6E7B80;}.hd{fill:#8B989E;font-weight:700;}</style>
+    <style>text{font-family:'SF Mono','JetBrains Mono','Fira Code',Menlo,Consolas,monospace;font-size:18px;}.cy{fill:#17C1C1;}.cr{fill:#F4F1EA;}.mu{fill:#6E7B80;}.hd{fill:#8B989E;font-weight:700;}</style>
   </defs>
-  <rect x="1" y="1" width="758" height="450" rx="14" fill="url(#win)" stroke="#232A2D" stroke-width="1.5"/>
-  <line x1="1" y1="44" x2="759" y2="44" stroke="#1B2225"/>
-  <circle cx="28" cy="23" r="6" fill="#EB5A5A"/><circle cx="50" cy="23" r="6" fill="#E3B341"/><circle cx="72" cy="23" r="6" fill="#3FB950"/>
-  <text x="380" y="28" text-anchor="middle" class="mu" font-size="13">speclaw — commands</text>
+  <rect x="1" y="1" width="798" height="558" rx="16" fill="url(#win)" stroke="#232A2D" stroke-width="1.5"/>
+  <line x1="1" y1="50" x2="799" y2="50" stroke="#1B2225"/>
+  <circle cx="32" cy="26" r="7" fill="#EB5A5A"/><circle cx="56" cy="26" r="7" fill="#E3B341"/><circle cx="80" cy="26" r="7" fill="#3FB950"/>
+  <text x="400" y="31" text-anchor="middle" class="mu" font-size="14">speclaw — commands</text>
 
-  <text x="30" y="78" class="hd">SETUP</text>
-  <text x="30" y="102"><tspan class="cy">  speclaw </tspan><tspan class="cr">init            </tspan><tspan class="mu">interactive setup</tspan></text>
-  <text x="30" y="124"><tspan class="cy">  speclaw </tspan><tspan class="cr">agent add &lt;id&gt;  </tspan><tspan class="mu">configure an agent later</tspan></text>
+  <text x="34" y="92" class="hd">SETUP</text>
+  <text x="34" y="122"><tspan class="cy">  speclaw </tspan><tspan class="cr">init           </tspan><tspan class="mu">interactive setup</tspan></text>
+  <text x="34" y="150"><tspan class="cy">  speclaw </tspan><tspan class="cr">agent add &lt;id&gt; </tspan><tspan class="mu">configure an agent later</tspan></text>
 
-  <text x="30" y="160" class="hd">COMPASS  <tspan class="mu" font-weight="400">— code intelligence</tspan></text>
-  <text x="30" y="184"><tspan class="cy">  speclaw </tspan><tspan class="cr">index / watch   </tspan><tspan class="mu">build / refresh the graph</tspan></text>
-  <text x="30" y="206"><tspan class="cy">  speclaw </tspan><tspan class="cr">explore &lt;node&gt;  </tspan><tspan class="mu">source + callers/callees</tspan></text>
-  <text x="30" y="228"><tspan class="cy">  speclaw </tspan><tspan class="cr">recall "&lt;q&gt;"     </tspan><tspan class="mu">find code by meaning</tspan></text>
-  <text x="30" y="250"><tspan class="cy">  speclaw </tspan><tspan class="cr">impact &lt;node&gt;   </tspan><tspan class="mu">blast radius</tspan></text>
-  <text x="30" y="272"><tspan class="cy">  speclaw </tspan><tspan class="cr">trace &lt;a&gt; &lt;b&gt;   </tspan><tspan class="mu">call path</tspan></text>
+  <text x="34" y="194" class="hd">COMPASS <tspan class="mu" font-weight="400">— code intelligence</tspan></text>
+  <text x="34" y="224"><tspan class="cy">  speclaw </tspan><tspan class="cr">index / watch  </tspan><tspan class="mu">build / refresh the graph</tspan></text>
+  <text x="34" y="252"><tspan class="cy">  speclaw </tspan><tspan class="cr">explore &lt;node&gt; </tspan><tspan class="mu">source + callers/callees</tspan></text>
+  <text x="34" y="280"><tspan class="cy">  speclaw </tspan><tspan class="cr">recall "&lt;q&gt;"    </tspan><tspan class="mu">find code by meaning</tspan></text>
+  <text x="34" y="308"><tspan class="cy">  speclaw </tspan><tspan class="cr">impact &lt;node&gt;  </tspan><tspan class="mu">blast radius</tspan></text>
+  <text x="34" y="336"><tspan class="cy">  speclaw </tspan><tspan class="cr">trace &lt;a&gt; &lt;b&gt;  </tspan><tspan class="mu">call path</tspan></text>
 
-  <text x="30" y="308" class="hd">SPEC WORKFLOW</text>
-  <text x="30" y="332"><tspan class="cy">  speclaw </tspan><tspan class="cr">spec &lt;cmd&gt;      </tspan><tspan class="mu">draft · build · sync · archive</tspan></text>
+  <text x="34" y="380" class="hd">SPEC WORKFLOW</text>
+  <text x="34" y="410"><tspan class="cy">  speclaw </tspan><tspan class="cr">spec &lt;cmd&gt;     </tspan><tspan class="mu">draft · build · sync · archive</tspan></text>
 
-  <text x="30" y="368" class="hd">OTHER</text>
-  <text x="30" y="392"><tspan class="cy">  speclaw </tspan><tspan class="cr">doctor          </tspan><tspan class="mu">verify the installation</tspan></text>
-  <text x="30" y="414"><tspan class="cy">  speclaw </tspan><tspan class="cr">mcp             </tspan><tspan class="mu">start the MCP server</tspan></text>
+  <text x="34" y="454" class="hd">OTHER</text>
+  <text x="34" y="484"><tspan class="cy">  speclaw </tspan><tspan class="cr">doctor         </tspan><tspan class="mu">verify the installation</tspan></text>
+  <text x="34" y="512"><tspan class="cy">  speclaw </tspan><tspan class="cr">mcp            </tspan><tspan class="mu">start the MCP server</tspan></text>
 </svg>

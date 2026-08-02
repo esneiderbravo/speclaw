@@ -38,7 +38,7 @@ One command. No cloud, no LLM, no API keys — <b>everything runs on your machin
 ## ◆ Quick start
 
 <p align="center">
-  <img src="brand/terminal-quickstart.svg" width="720" alt="npx speclaw init">
+  <img src="brand/terminal-quickstart.svg" width="800" alt="npx speclaw init">
 </p>
 
 <sub>Copy &amp; run in your project root: <code>npx speclaw init</code></sub>
@@ -60,7 +60,7 @@ One command. No cloud, no LLM, no API keys — <b>everything runs on your machin
 ## ◆ It looks like this
 
 <p align="center">
-  <img src="brand/terminal-init.svg" width="720" alt="speclaw init — terminal output">
+  <img src="brand/terminal-init.svg" width="800" alt="speclaw init — terminal output">
 </p>
 
 <sub>Teal steps, green checks, a live progress bar — themed with the speclaw palette.</sub>
@@ -88,17 +88,17 @@ for a smoother, integrated experience once configured. An agent without MCP can
 still use Compass and the spec engine by calling the CLI from its shell.
 
 <p align="center"><b>CLI</b> — the installer &amp; operator, runs anywhere <code>node</code> does</p>
-<p align="center"><img src="brand/terminal-cli.svg" width="720" alt="speclaw CLI commands"></p>
+<p align="center"><img src="brand/terminal-cli.svg" width="800" alt="speclaw CLI commands"></p>
 
 <p align="center"><b>MCP</b> — the integrated agent surface, auto-registered by <code>init</code></p>
-<p align="center"><img src="brand/terminal-mcp.svg" width="720" alt="speclaw MCP tools"></p>
+<p align="center"><img src="brand/terminal-mcp.svg" width="800" alt="speclaw MCP tools"></p>
 
 <br/>
 
 ## ◆ What lands in your project
 
 <p align="center">
-  <img src="brand/terminal-tree.svg" width="720" alt="what speclaw writes into your project">
+  <img src="brand/terminal-tree.svg" width="800" alt="what speclaw writes into your project">
 </p>
 
 <br/>
