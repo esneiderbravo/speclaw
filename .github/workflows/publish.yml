@@ -1,9 +1,9 @@
 name: Publish to npm
 
-# Publishes automatically when a NEW version reaches main.
-# Bump the version in package.json (via a PR), merge it, and this workflow
-# publishes it. If the version is already on npm, it skips — so ordinary
-# pushes never republish. Can also be run manually.
+# Publishes automatically when a NEW version reaches main, using npm
+# Trusted Publishing (OIDC) — no token, nothing to rotate. Bump the version
+# in package.json, merge to main, and this publishes it. If the version is
+# already on npm, it skips. Can also be run manually.
 on:
   push:
     branches: [main]
@@ -13,7 +13,7 @@ on:
 
 permissions:
   contents: read
-  id-token: write # required for npm provenance
+  id-token: write # lets npm authenticate this workflow via OIDC
 
 jobs:
   publish:
@@ -26,6 +26,9 @@ jobs:
           node-version: 22
           registry-url: https://registry.npmjs.org
 
+      # Trusted Publishing (OIDC) requires npm >= 11.5.1
+      - run: npm install -g npm@latest
+
       - run: npm ci
       - run: npm run build
 
@@ -36,8 +39,6 @@ jobs:
           if npm view "$NAME@$VER" version >/dev/null 2>&1; then
             echo "→ $NAME@$VER is already on npm — nothing to publish."
           else
-            echo "→ Publishing $NAME@$VER"
-            npm publish --provenance --access public
+            echo "→ Publishing $NAME@$VER via OIDC"
+            npm publish --access public
           fi
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
