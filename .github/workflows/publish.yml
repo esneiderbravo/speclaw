@@ -1,0 +1,43 @@
+name: Publish to npm
+
+# Publishes automatically when a NEW version reaches main.
+# Bump the version in package.json (via a PR), merge it, and this workflow
+# publishes it. If the version is already on npm, it skips — so ordinary
+# pushes never republish. Can also be run manually.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "package.json"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write # required for npm provenance
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org
+
+      - run: npm ci
+      - run: npm run build
+
+      - name: Publish if the version is new
+        run: |
+          NAME=$(node -p "require('./package.json').name")
+          VER=$(node -p "require('./package.json').version")
+          if npm view "$NAME@$VER" version >/dev/null 2>&1; then
+            echo "→ $NAME@$VER is already on npm — nothing to publish."
+          else
+            echo "→ Publishing $NAME@$VER"
+            npm publish --provenance --access public
+          fi
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
