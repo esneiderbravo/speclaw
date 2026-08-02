@@ -41,7 +41,7 @@ One command. No cloud, no LLM, no API keys — <b>everything runs on your machin
   <img src="brand/terminal-quickstart.svg" width="800" alt="npx speclaw init">
 </p>
 
-<sub>Copy &amp; run in your project root: <code>npx speclaw init</code></sub>
+<p align="center">Copy &amp; run in your project root: <code>npx speclaw init</code></p>
 
 `init` will:
 
@@ -53,7 +53,7 @@ One command. No cloud, no LLM, no API keys — <b>everything runs on your machin
 5. Print a prompt to paste into your agent so it fills the constitution with your
    project's real architecture and conventions.
 
-<sub>Works with <code>npm</code>, <code>pnpm</code> (<code>pnpm dlx speclaw init</code>), and <code>yarn</code>.</sub>
+Works with `npm`, `pnpm` (`pnpm dlx speclaw init`), and `yarn`.
 
 <br/>
 
@@ -63,7 +63,7 @@ One command. No cloud, no LLM, no API keys — <b>everything runs on your machin
   <img src="brand/terminal-init.svg" width="800" alt="speclaw init — terminal output">
 </p>
 
-<sub>Teal steps, green checks, a live progress bar — themed with the speclaw palette.</sub>
+<p align="center"><i>Teal steps, green checks, a live progress bar — themed with the speclaw palette.</i></p>
 
 <br/>
 
@@ -76,7 +76,7 @@ One command. No cloud, no LLM, no API keys — <b>everything runs on your machin
 | **Spec** | speclaw's own spec-driven workflow: `draft → build → sync → archive` (and `explore`), backed by `spec_*` engine tools. No external CLI. |
 | **Tools** | Opt-in packs of skills and subagents (currently the dev-agents) that agents use for specific tasks. |
 
-<sub>Compass is inspired by <a href="https://github.com/colbymchenry/codegraph">CodeGraph</a> and the Spec module by <a href="https://github.com/Fission-AI/openspec">OpenSpec</a> — both MIT. speclaw reimplements the ideas as its own code and gives full credit; see <a href="ATTRIBUTION.md">ATTRIBUTION.md</a>.</sub>
+Compass is inspired by [CodeGraph](https://github.com/colbymchenry/codegraph) and the Spec module by [OpenSpec](https://github.com/Fission-AI/openspec) — both MIT. speclaw reimplements the ideas as its own code and gives full credit; see [ATTRIBUTION.md](ATTRIBUTION.md).
 
 <br/>
 
@@ -129,6 +129,6 @@ still use Compass and the spec engine by calling the CLI from its shell.
 [CodeGraph](https://github.com/colbymchenry/codegraph) &nbsp;·&nbsp;
 see [ATTRIBUTION.md](ATTRIBUTION.md)
 
-<sub><i>speclaw · where specs become law</i></sub>
+<i>speclaw · where specs become law</i>
 
 </div>
