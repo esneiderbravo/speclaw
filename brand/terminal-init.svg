@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 478" width="760" height="478" role="img" aria-label="speclaw init — terminal output">
+  <defs>
+    <linearGradient id="win" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#0C1113"/>
+      <stop offset="1" stop-color="#0A0E0F"/>
+    </linearGradient>
+    <style>
+      text { font-family: 'SF Mono','JetBrains Mono','Fira Code',Menlo,Consolas,monospace; font-size: 14px; }
+      .cy { fill: #17C1C1; } .gr { fill: #3FB950; } .cr { fill: #F4F1EA; }
+      .mu { fill: #6E7B80; } .b { font-weight: 700; }
+    </style>
+  </defs>
+
+  <!-- window -->
+  <rect x="1" y="1" width="758" height="476" rx="14" fill="url(#win)" stroke="#232A2D" stroke-width="1.5"/>
+  <line x1="1" y1="44" x2="759" y2="44" stroke="#1B2225" stroke-width="1"/>
+  <circle cx="28" cy="23" r="6" fill="#EB5A5A"/>
+  <circle cx="50" cy="23" r="6" fill="#E3B341"/>
+  <circle cx="72" cy="23" r="6" fill="#3FB950"/>
+  <text x="380" y="28" text-anchor="middle" class="mu" font-size="13">speclaw — init</text>
+
+  <!-- body -->
+  <text x="34" y="76"><tspan class="cy">◇ </tspan><tspan class="cr b">Setting up acme-api</tspan></text>
+  <text x="34" y="100"><tspan class="gr">  ✓ </tspan><tspan class="cr">Foundation      </tspan><tspan class="mu">— LAWS.md + 8 standards + CLAUDE.md/AGENTS.md</tspan></text>
+  <text x="34" y="124"><tspan class="gr">  ✓ </tspan><tspan class="cr">Spec workflow   </tspan><tspan class="mu">— draft · build · sync · archive · explore</tspan></text>
+  <text x="34" y="148"><tspan class="gr">  ✓ </tspan><tspan class="cr">dev-agents </tspan><tspan class="mu">(backend · frontend · product)</tspan></text>
+  <text x="34" y="172"><tspan class="gr">  ✓ </tspan><tspan class="cr">Spec workspace  </tspan><tspan class="mu">— spec/</tspan></text>
+
+  <text x="34" y="206"><tspan class="cy">◇ </tspan><tspan class="cr b">Configuring agents</tspan></text>
+  <text x="34" y="230"><tspan class="gr">  ✓ </tspan><tspan class="cr">Claude Code     </tspan><tspan class="mu">— symlinks + MCP</tspan></text>
+  <text x="34" y="254"><tspan class="gr">  ✓ </tspan><tspan class="cr">Cursor          </tspan><tspan class="mu">— symlinks + MCP</tspan></text>
+
+  <text x="34" y="288"><tspan class="cy">◇ </tspan><tspan class="cr b">Indexing your code with Compass</tspan></text>
+  <rect x="58" y="300" width="300" height="12" rx="6" fill="#1A2427"/>
+  <rect x="58" y="300" width="300" height="12" rx="6" fill="#17C1C1"/>
+  <text x="372" y="311" class="cy">100%</text>
+  <text x="34" y="336"><tspan class="gr">  ✓ </tspan><tspan class="cr">342 </tspan><tspan class="mu">files · </tspan><tspan class="cr">1204 </tspan><tspan class="mu">nodes · </tspan><tspan class="cr">3891 </tspan><tspan class="mu">edges · </tspan><tspan class="cr">1204 </tspan><tspan class="mu">embeddings</tspan></text>
+
+  <text x="34" y="370"><tspan class="cy">◇ </tspan><tspan class="cr b">You're set — one last step</tspan></text>
+  <rect x="58" y="384" width="648" height="76" rx="8" fill="none" stroke="#17C1C1" stroke-opacity="0.55"/>
+  <text x="72" y="382" class="cy" font-size="12">prompt</text>
+  <text x="76" y="412" class="cr">Complete speclaw's foundation: analyze this repo and fill</text>
+  <text x="76" y="436" class="cr">LAWS.md and docs/standards/* — use init_project to start.</text>
+</svg>

@@ -58,37 +58,11 @@ npx speclaw init
 
 ## ◆ It looks like this
 
-```text
-  ╭────────╮
-  │ ────── │   s p e c l a w
-  │ ────   │   where specs become law
-  │ ─────  │
-  │ ▇▇▇▇▇▇ │
-  ╰────────╯
+<p align="center">
+  <img src="brand/terminal-init.svg" width="720" alt="speclaw init — terminal output">
+</p>
 
-  ◇ Setting up acme-api
-    ✓ Foundation      — LAWS.md + 8 standards + CLAUDE.md/AGENTS.md
-    ✓ Spec workflow   — draft · build · sync · archive · explore
-    ✓ dev-agents (backend · frontend · product)
-    ✓ Spec workspace  — spec/
-
-  ◇ Configuring agents
-    ✓ Claude Code     — symlinks + MCP
-    ✓ Cursor          — symlinks + MCP
-
-  ◇ Indexing your code with Compass
-    ██████████████████████████ 100%
-    ✓ 342 files · 1204 nodes · 3891 edges · 1204 embeddings
-
-  ◇ You're set — one last step
-    ╭─ prompt ───────────────────────────────────────────────╮
-    │ Complete speclaw's foundation: analyze this repo and    │
-    │ fill LAWS.md and docs/standards/* with the real         │
-    │ architecture, gates and conventions. Use init_project.  │
-    ╰─────────────────────────────────────────────────────────╯
-```
-
-<sub>Cyan steps, green checks, a live progress bar — themed with the speclaw palette.</sub>
+<sub>Teal steps, green checks, a live progress bar — themed with the speclaw palette.</sub>
 
 <br/>
 
