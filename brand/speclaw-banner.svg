@@ -5,11 +5,11 @@
       <stop offset="1" stop-color="#10181A"/>
     </linearGradient>
     <radialGradient id="glow" cx="0.85" cy="0.15" r="0.6">
-      <stop offset="0" stop-color="#2EE6E6" stop-opacity="0.13"/>
-      <stop offset="1" stop-color="#2EE6E6" stop-opacity="0"/>
+      <stop offset="0" stop-color="#17C1C1" stop-opacity="0.09"/>
+      <stop offset="1" stop-color="#17C1C1" stop-opacity="0"/>
     </radialGradient>
     <filter id="cyanGlow" x="-40%" y="-40%" width="180%" height="180%">
-      <feGaussianBlur stdDeviation="4.5" result="b"/>
+      <feGaussianBlur stdDeviation="2.2" result="b"/>
       <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
     </filter>
     <style>
@@ -29,16 +29,16 @@
     <rect x="31" y="39" width="86" height="9" rx="4.5" fill="#6E7B80"/>
     <rect x="31" y="64" width="64" height="9" rx="4.5" fill="#6E7B80"/>
     <rect x="31" y="89" width="77" height="9" rx="4.5" fill="#6E7B80"/>
-    <rect x="24" y="113" width="99" height="15" rx="7.5" fill="#2EE6E6" filter="url(#cyanGlow)"/>
+    <rect x="24" y="113" width="99" height="15" rx="7.5" fill="#17C1C1" filter="url(#cyanGlow)"/>
   </g>
 
   <!-- wordmark: spec (cream) + law (cyan). Sized to fit even without textLength. -->
   <text x="300" y="196" class="wm" font-size="86" textLength="392" lengthAdjust="spacingAndGlyphs">
-    <tspan fill="#F4F1EA">spec</tspan><tspan fill="#2EE6E6" filter="url(#cyanGlow)">law</tspan>
+    <tspan fill="#F4F1EA">spec</tspan><tspan fill="#17C1C1" filter="url(#cyanGlow)">law</tspan>
   </text>
 
   <!-- the "law" motif: a cyan underline bar -->
-  <rect x="302" y="214" width="388" height="10" rx="5" fill="#2EE6E6" opacity="0.9"/>
+  <rect x="302" y="214" width="388" height="10" rx="5" fill="#17C1C1" opacity="0.9"/>
 
   <!-- tagline -->
   <text x="304" y="270" class="tag" font-size="22" textLength="392" lengthAdjust="spacing" fill="#8B989E">WHERE SPECS BECOME LAW</text>

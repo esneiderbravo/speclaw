@@ -4,9 +4,9 @@
 
 <br/>
 
-<a href="https://www.npmjs.com/package/speclaw"><img src="https://img.shields.io/npm/v/speclaw?color=2EE6E6&labelColor=0B0F10&style=flat-square&label=npm" alt="npm"></a>
-&nbsp;<a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-2EE6E6?labelColor=0B0F10&style=flat-square" alt="MIT"></a>
-&nbsp;<img src="https://img.shields.io/badge/node-%E2%89%A522-2EE6E6?labelColor=0B0F10&style=flat-square" alt="Node >= 22">
+<a href="https://www.npmjs.com/package/speclaw"><img src="https://img.shields.io/npm/v/speclaw?color=0E8E8E&labelColor=0B0F10&style=flat-square&label=npm" alt="npm"></a>
+&nbsp;<a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-0E8E8E?labelColor=0B0F10&style=flat-square" alt="MIT"></a>
+&nbsp;<img src="https://img.shields.io/badge/node-%E2%89%A522-0E8E8E?labelColor=0B0F10&style=flat-square" alt="Node >= 22">
 
 <br/><br/>
 
@@ -19,10 +19,10 @@ navigate it without burning tokens, and a <b>disciplined workflow</b> for every 
 One command. No cloud, no LLM, no API keys — <b>everything runs on your machine.</b>
 </p>
 
-<img src="https://img.shields.io/badge/100%25_local-2EE6E6?labelColor=0B0F10&style=flat-square" alt="100% local">
-&nbsp;<img src="https://img.shields.io/badge/no_LLM_·_no_cloud-2EE6E6?labelColor=0B0F10&style=flat-square" alt="no LLM">
-&nbsp;<img src="https://img.shields.io/badge/CLI_+_MCP-2EE6E6?labelColor=0B0F10&style=flat-square" alt="CLI + MCP">
-&nbsp;<img src="https://img.shields.io/badge/any_agent-2EE6E6?labelColor=0B0F10&style=flat-square" alt="any agent">
+<img src="https://img.shields.io/badge/100%25_local-0E8E8E?labelColor=0B0F10&style=flat-square" alt="100% local">
+&nbsp;<img src="https://img.shields.io/badge/no_LLM_·_no_cloud-0E8E8E?labelColor=0B0F10&style=flat-square" alt="no LLM">
+&nbsp;<img src="https://img.shields.io/badge/CLI_+_MCP-0E8E8E?labelColor=0B0F10&style=flat-square" alt="CLI + MCP">
+&nbsp;<img src="https://img.shields.io/badge/any_agent-0E8E8E?labelColor=0B0F10&style=flat-square" alt="any agent">
 
 </div>
 
