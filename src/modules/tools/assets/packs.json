@@ -1,0 +1,6 @@
+{
+  "agents": {
+    "description": "Subagent definitions rendered with the project profile: backend-developer, frontend-developer, product-strategy-analyst. They read the project's standards (docs/standards/*) for the stack, so they stay accurate as the standards are filled.",
+    "path": "agents"
+  }
+}

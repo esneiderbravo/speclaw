@@ -1,0 +1,113 @@
+import fs from "node:fs";
+import path from "node:path";
+import { InstallReport } from "./install.js";
+
+/** Describes an AI coding agent speclaw knows how to wire into a project. */
+export interface AgentDef {
+  /** Stable identifier used on the CLI and in reports. */
+  id: string;
+  /** Human-readable name for display. */
+  label: string;
+  /** IDE directory that mirrors ai-specs via symlinks. */
+  ideDir: string;
+  /** ai-specs subdirectories this agent reads. */
+  linkTargets: string[];
+  /** Where this agent looks for its MCP server config (relative to project). Omit if it has no MCP. */
+  mcpFile?: string;
+}
+
+/** The agents speclaw can configure. Add one here and the CLI picks it up. */
+export const AGENTS: AgentDef[] = [
+  { id: "claude", label: "Claude Code", ideDir: ".claude", linkTargets: ["skills", "commands", "agents"], mcpFile: ".mcp.json" },
+  { id: "cursor", label: "Cursor", ideDir: ".cursor", linkTargets: ["skills", "commands", "rules"], mcpFile: ".cursor/mcp.json" },
+  { id: "codex", label: "Codex", ideDir: ".codex", linkTargets: ["skills", "commands"], mcpFile: ".codex/mcp.json" },
+  { id: "windsurf", label: "Windsurf", ideDir: ".windsurf", linkTargets: ["skills", "commands"], mcpFile: ".windsurf/mcp.json" },
+  { id: "agents", label: "Generic (AGENTS.md)", ideDir: ".agents", linkTargets: ["skills", "agents"] },
+];
+
+/**
+ * Look up a known agent definition by its id.
+ *
+ * @param id - The agent identifier (e.g. `"claude"`, `"cursor"`).
+ * @returns The matching {@link AgentDef}, or `undefined` if no agent has that id.
+ */
+export function agentById(id: string): AgentDef | undefined {
+  return AGENTS.find((a) => a.id === id);
+}
+
+const MCP_ENTRY = { type: "stdio", command: "npx", args: ["-y", "speclaw", "mcp"] };
+
+/** True when `p` exists as a filesystem entry (including a symlink), without following it. */
+function isSymlink(p: string): boolean {
+  try {
+    fs.lstatSync(p);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** Register the speclaw stdio MCP server in an agent's config file, merging into any existing config and skipping if already present. */
+function writeMcpConfig(projectPath: string, mcpFile: string, report: InstallReport): void {
+  const mcpPath = path.join(projectPath, mcpFile);
+  let config: { mcpServers?: Record<string, unknown> } = {};
+  if (fs.existsSync(mcpPath)) config = JSON.parse(fs.readFileSync(mcpPath, "utf8"));
+  config.mcpServers = config.mcpServers ?? {};
+  if (config.mcpServers["speclaw"]) {
+    report.skipped.push(`${mcpPath} (speclaw already registered)`);
+    return;
+  }
+  config.mcpServers["speclaw"] = { ...MCP_ENTRY };
+  fs.mkdirSync(path.dirname(mcpPath), { recursive: true });
+  fs.writeFileSync(mcpPath, JSON.stringify(config, null, 2) + "\n");
+  report.written.push(`${mcpPath} (speclaw MCP server)`);
+}
+
+/**
+ * Configure one agent: create its symlinks into ai-specs and register the MCP server.
+ *
+ * @param projectPath - Project root to configure.
+ * @param agentId - Id of a known agent (see {@link AGENTS}).
+ * @param report - Report mutated in place with created symlinks and written/skipped paths.
+ * @throws Error if `agentId` does not match any known agent.
+ */
+export function configureAgent(projectPath: string, agentId: string, report: InstallReport): void {
+  const agent = agentById(agentId);
+  if (!agent) throw new Error(`Unknown agent "${agentId}". Known: ${AGENTS.map((a) => a.id).join(", ")}`);
+
+  const ideRoot = path.join(projectPath, agent.ideDir);
+  for (const target of agent.linkTargets) {
+    const sourceDir = path.join(projectPath, "ai-specs", target);
+    if (!fs.existsSync(sourceDir)) continue;
+    fs.mkdirSync(ideRoot, { recursive: true });
+    const linkPath = path.join(ideRoot, target);
+    if (fs.existsSync(linkPath) || isSymlink(linkPath)) {
+      report.skipped.push(linkPath);
+      continue;
+    }
+    fs.symlinkSync(path.join("..", "ai-specs", target), linkPath);
+    report.symlinks.push(`${linkPath} -> ../ai-specs/${target}`);
+  }
+
+  if (agent.mcpFile) writeMcpConfig(projectPath, agent.mcpFile, report);
+}
+
+/**
+ * List the agents already set up in this project (their IDE dir exists).
+ *
+ * @param projectPath - Project root to inspect.
+ * @returns The ids of agents whose IDE directory is present.
+ */
+export function detectConfiguredAgents(projectPath: string): string[] {
+  return AGENTS.filter((a) => fs.existsSync(path.join(projectPath, a.ideDir))).map((a) => a.id);
+}
+
+/**
+ * Re-run configuration for every already-configured agent (e.g. after adding a pack).
+ *
+ * @param projectPath - Project root whose configured agents should be refreshed.
+ * @param report - Report mutated in place across all refreshed agents.
+ */
+export function refreshAgents(projectPath: string, report: InstallReport): void {
+  for (const id of detectConfiguredAgents(projectPath)) configureAgent(projectPath, id, report);
+}

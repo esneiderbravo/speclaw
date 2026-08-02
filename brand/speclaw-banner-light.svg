@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 380" width="1200" height="380" role="img" aria-label="speclaw — where specs become law">
+  <defs>
+    <linearGradient id="bgl" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#FBFAF6"/>
+      <stop offset="1" stop-color="#F1EDE3"/>
+    </linearGradient>
+    <style>
+      .wm  { font-family: 'SF Mono','JetBrains Mono','Fira Code',Menlo,Consolas,monospace; font-weight: 700; }
+      .tag { font-family: 'SF Mono','JetBrains Mono',Menlo,Consolas,monospace; font-weight: 500; }
+      .sub { font-family: -apple-system,'Segoe UI',Helvetica,Arial,sans-serif; font-weight: 400; }
+    </style>
+  </defs>
+
+  <rect x="0" y="0" width="1200" height="380" rx="22" fill="url(#bgl)"/>
+  <rect x="1" y="1" width="1198" height="378" rx="21" fill="none" stroke="#E0DACB" stroke-width="1.5"/>
+
+  <g transform="translate(100,116)">
+    <rect x="4" y="4" width="140" height="140" rx="9" fill="none" stroke="#14181A" stroke-width="6.5"/>
+    <rect x="31" y="39" width="86" height="9" rx="4.5" fill="#A9B2B6"/>
+    <rect x="31" y="64" width="64" height="9" rx="4.5" fill="#A9B2B6"/>
+    <rect x="31" y="89" width="77" height="9" rx="4.5" fill="#A9B2B6"/>
+    <rect x="24" y="113" width="99" height="15" rx="7.5" fill="#0E8E8E"/>
+  </g>
+
+  <text x="300" y="196" class="wm" font-size="86" textLength="392" lengthAdjust="spacingAndGlyphs">
+    <tspan fill="#14181A">spec</tspan><tspan fill="#0B7A7C">law</tspan>
+  </text>
+
+  <rect x="302" y="214" width="388" height="10" rx="5" fill="#17C1C1"/>
+
+  <text x="304" y="270" class="tag" font-size="22" textLength="392" lengthAdjust="spacing" fill="#5C716D">WHERE SPECS BECOME LAW</text>
+</svg>

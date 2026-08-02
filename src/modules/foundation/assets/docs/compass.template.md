@@ -1,0 +1,43 @@
+# Compass — code intelligence for agents in {{project_name}}
+
+**Compass** is speclaw's local code graph: a pre-indexed map of every symbol
+(node) and relationship (edge) in this workspace, plus a local vector store for
+semantic recall. Agents MUST use it **before** manual grep/read loops when
+exploring or editing code — this is Rule 1 of the agent contract (`AGENTS.md`).
+
+It runs entirely on your machine, needs no LLM and no external service, and
+stores everything in `.speclaw/` (gitignored). It ships inside speclaw — there
+is nothing extra to install.
+
+## Why use it
+
+| Without Compass | With Compass |
+|-----------------|--------------|
+| Many `Grep` + `Read` round-trips (tokens spent scanning) | One `compass_explore` call returns just the relevant node |
+| Guess which file matters | `compass_recall` finds code by meaning |
+| Edit without knowing the blast radius | callers/callees returned with the node |
+| Whole files dumped into context | verbatim source of the node + its neighbors only |
+
+The point is token economy: the agent gets exactly the code it needs to answer
+a request, not whole files.
+
+## The tools
+
+| Tool | Use it to |
+|------|-----------|
+| `compass_index` | Build/refresh the graph (`.speclaw/index.db`). Incremental — unchanged files are skipped by hash. Run once after init and after significant edits. |
+| `compass_explore` | Read a node's verbatim source plus its callers and callees. The default before editing. |
+| `compass_search` | Structural search: find nodes by name/keyword. |
+| `compass_recall` | Semantic search: describe what you want in natural language and get nodes ranked by meaning. |
+| `compass_impact` | Blast radius: every node that transitively calls a target — "what could break if I change this?" before editing. |
+| `compass_trace` | Trace a call path between two nodes — how an entrypoint reaches a sink. |
+| `compass_watch` | Keep the index fresh automatically (start/stop a debounced incremental re-index on file change). |
+
+If the graph is missing (no `.speclaw/index.db`), run `compass_index` first;
+until then, fall back to Grep/Read.
+
+## Project-specific starting points
+
+<!-- Filled in during speclaw init: the project's real entrypoints, core
+modules, and the traces agents need most often. -->
+{{compass_hints}}

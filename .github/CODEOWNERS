@@ -1,0 +1,4 @@
+# Every path in this repository is owned by the maintainer.
+# Combined with branch protection, no change to `main` can be merged
+# without an approving review from the owner.
+* @esneiderbravo

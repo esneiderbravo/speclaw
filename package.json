@@ -1,0 +1,46 @@
+{
+  "name": "speclaw",
+  "version": "0.1.0",
+  "description": "Where specs become law. A self-contained MCP suite that turns any repo into a spec-driven, agent-ready project: its own constitution (foundation), its own local code graph (Compass), its own spec workflow (Spec), and opt-in skill packs (Tools). No external CLIs, no LLM to install.",
+  "keywords": [
+    "mcp",
+    "mcp-server",
+    "spec-driven-development",
+    "ai-agents",
+    "claude-code",
+    "cursor",
+    "code-graph",
+    "skills"
+  ],
+  "author": "Esneider Bravo",
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "speclaw": "dist/cli/index.js"
+  },
+  "main": "dist/server.js",
+  "files": [
+    "dist",
+    "ATTRIBUTION.md"
+  ],
+  "scripts": {
+    "build": "tsc && node scripts/copy-assets.mjs",
+    "start": "node dist/cli/index.js",
+    "prepublishOnly": "npm run build"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "dependencies": {
+    "@clack/prompts": "^1.7.0",
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "picocolors": "^1.1.1",
+    "tree-sitter-wasms": "^0.1.13",
+    "web-tree-sitter": "^0.25.10",
+    "zod": "^3.23.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.6.0"
+  }
+}
