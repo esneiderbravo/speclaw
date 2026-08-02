@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 128" width="760" height="128" role="img" aria-label="npx speclaw init">
+  <defs>
+    <linearGradient id="win" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0C1113"/><stop offset="1" stop-color="#0A0E0F"/></linearGradient>
+    <style>text{font-family:'SF Mono','JetBrains Mono','Fira Code',Menlo,Consolas,monospace;font-size:15px;}.cy{fill:#17C1C1;}.cr{fill:#F4F1EA;}.mu{fill:#6E7B80;}.gr{fill:#3FB950;}</style>
+  </defs>
+  <rect x="1" y="1" width="758" height="126" rx="14" fill="url(#win)" stroke="#232A2D" stroke-width="1.5"/>
+  <line x1="1" y1="44" x2="759" y2="44" stroke="#1B2225"/>
+  <circle cx="28" cy="23" r="6" fill="#EB5A5A"/><circle cx="50" cy="23" r="6" fill="#E3B341"/><circle cx="72" cy="23" r="6" fill="#3FB950"/>
+  <text x="380" y="28" text-anchor="middle" class="mu" font-size="13">your project</text>
+  <text x="34" y="82"><tspan class="gr">$ </tspan><tspan class="mu">npx </tspan><tspan class="cy">speclaw</tspan><tspan class="cr"> init</tspan></text>
+  <text x="34" y="108" class="mu" font-size="13"># pick your agents · scaffold · index your code · get the prompt</text>
+</svg>

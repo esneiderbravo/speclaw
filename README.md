@@ -37,10 +37,11 @@ One command. No cloud, no LLM, no API keys — <b>everything runs on your machin
 
 ## ◆ Quick start
 
-```bash
-# in your project root
-npx speclaw init
-```
+<p align="center">
+  <img src="brand/terminal-quickstart.svg" width="720" alt="npx speclaw init">
+</p>
+
+<sub>Copy &amp; run in your project root: <code>npx speclaw init</code></sub>
 
 `init` will:
 
@@ -86,53 +87,19 @@ is blocked by MCP setup — and the same capabilities are exposed as **MCP tools
 for a smoother, integrated experience once configured. An agent without MCP can
 still use Compass and the spec engine by calling the CLI from its shell.
 
-<table>
-<tr><th align="left">CLI — installer & operator</th><th align="left">MCP — integrated agent surface</th></tr>
-<tr valign="top"><td>
+<p align="center"><b>CLI</b> — the installer &amp; operator, runs anywhere <code>node</code> does</p>
+<p align="center"><img src="brand/terminal-cli.svg" width="720" alt="speclaw CLI commands"></p>
 
-```
-speclaw init            interactive setup
-speclaw agent add <id>  add an agent later
-speclaw index / watch   build / refresh graph
-speclaw explore <node>  source + callers/callees
-speclaw recall "<q>"    find code by meaning
-speclaw impact <node>   blast radius
-speclaw trace <a> <b>   call path
-speclaw spec <cmd>      workflow ops
-speclaw doctor          health check
-speclaw mcp             start the server
-```
-
-</td><td>
-
-`init_project` · `scaffold` · `configure_agent` · `doctor`
-
-`compass_index` · `compass_explore` · `compass_search` · `compass_recall` · `compass_impact` · `compass_trace` · `compass_watch`
-
-`spec_init` · `spec_validate` · `spec_sync` · `spec_archive` · `spec_list`
-
-`list_packs` · `add_pack`
-
-</td></tr>
-</table>
+<p align="center"><b>MCP</b> — the integrated agent surface, auto-registered by <code>init</code></p>
+<p align="center"><img src="brand/terminal-mcp.svg" width="720" alt="speclaw MCP tools"></p>
 
 <br/>
 
 ## ◆ What lands in your project
 
-```
-your-repo/
-├── LAWS.md                 the constitution — binds the standards
-├── CLAUDE.md · AGENTS.md   strict agent operating contracts
-├── docs/
-│   ├── compass.md          Compass usage cheat sheet
-│   └── standards/*.md      the granular laws (one file per concern)
-├── ai-specs/               canonical skills, commands, rules, agents
-├── spec/                   spec-driven workflow: specs, changes, archive
-├── .claude/ .cursor/ …     symlinks into ai-specs (only for chosen agents)
-├── .mcp.json               speclaw MCP server registration
-└── .speclaw/               the local Compass index (gitignored)
-```
+<p align="center">
+  <img src="brand/terminal-tree.svg" width="720" alt="what speclaw writes into your project">
+</p>
 
 <br/>
 
