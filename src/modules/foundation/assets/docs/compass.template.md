@@ -2,8 +2,12 @@
 
 **Compass** is speclaw's local code graph: a pre-indexed map of every symbol
 (node) and relationship (edge) in this workspace, plus a local vector store for
-semantic recall. Agents MUST use it **before** manual grep/read loops when
-exploring or editing code — this is Rule 1 of the agent contract (`AGENTS.md`).
+semantic recall. Agents **MUST** call Compass first for any code question —
+before any `grep`/`sed`/`cat`/Read, and before opening a file whose name they
+already know. Manual file tools are a fallback used **only after** a Compass
+call returns nothing useful, the graph is missing, or the target isn't indexed
+code (stylesheets, config, logs). This is Rule 1 of the agent contract
+(`AGENTS.md`).
 
 It runs entirely on your machine, needs no LLM and no external service, and
 stores everything in `.speclaw/` (gitignored). It ships inside speclaw — there
@@ -33,8 +37,10 @@ a request, not whole files.
 | `compass_trace` | Trace a call path between two nodes — how an entrypoint reaches a sink. |
 | `compass_watch` | Keep the index fresh automatically (start/stop a debounced incremental re-index on file change). |
 
-If the graph is missing (no `.speclaw/index.db`), run `compass_index` first;
-until then, fall back to Grep/Read.
+If the graph is missing (no `.speclaw/index.db`), run `compass_index` first —
+a missing graph is not license to skip Compass. The only legitimate fallbacks
+to Grep/Read: a Compass call returned nothing useful for your query, or the
+target isn't indexed code (stylesheets, JSON/config, markdown, logs).
 
 ## Project-specific starting points
 
