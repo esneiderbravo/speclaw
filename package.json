@@ -17,6 +17,14 @@
   ],
   "author": "Esneider Bravo",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/esneiderbravo/speclaw.git"
+  },
+  "homepage": "https://github.com/esneiderbravo/speclaw#readme",
+  "bugs": {
+    "url": "https://github.com/esneiderbravo/speclaw/issues"
+  },
   "type": "module",
   "bin": {
     "speclaw": "dist/cli/index.js"
