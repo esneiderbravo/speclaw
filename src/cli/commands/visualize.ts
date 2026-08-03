@@ -18,6 +18,7 @@ function openInBrowser(file: string): void {
  * .speclaw/graph.html and open it.
  *
  * @param flags - `_[0]` optionally focuses on a node; `--depth`, `--limit`, `--no-open`.
+ * @throws Exits the process with code 1 if the index is missing or generation fails.
  */
 export async function runVisualize(flags: Flags): Promise<void> {
   const cwd = process.cwd();

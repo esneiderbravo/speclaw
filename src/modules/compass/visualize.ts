@@ -2,25 +2,38 @@ import fs from "node:fs";
 import path from "node:path";
 import { openDb, indexExists } from "./db.js";
 
+/** A definition rendered as a graph vertex, with its location and degree. */
 export interface GraphNode {
+  /** Node id from the Compass index. */
   id: number;
   name: string;
+  /** Symbol kind (function, class, method, …) — drives the node color. */
   kind: string;
   file: string;
   line: number;
+  /** Number of incident call edges — drives the node radius. */
   deg: number;
 }
+
+/** A directed call edge between two nodes, referenced by their ids. */
 export interface GraphLink {
+  /** Caller node id. */
   s: number;
+  /** Callee node id. */
   t: number;
 }
+
+/** The renderable graph plus the totals shown in the visualization's HUD. */
 export interface GraphData {
   nodes: GraphNode[];
   links: GraphLink[];
+  /** Total node count in the index (nodes may be a capped subset). */
   total: number;
+  /** The focus node name if the graph is a neighborhood, else null. */
   focus: string | null;
 }
 
+/** Controls which slice of the graph the visualization renders. */
 export interface VisualizeOptions {
   /** Center on this node's neighborhood instead of the whole graph. */
   focus?: string;
@@ -104,7 +117,15 @@ export function graphData(projectPath: string, opts: VisualizeOptions = {}): Gra
   }
 }
 
-/** Write the interactive graph to <projectPath>/.speclaw/graph.html and return its path. */
+/**
+ * Build the graph and write it as an interactive HTML page to
+ * `<projectPath>/.speclaw/graph.html` (the gitignored index directory).
+ *
+ * @param projectPath - Absolute path to the project root.
+ * @param opts - Focus/depth/limit controlling which nodes are included.
+ * @returns The output path plus the shown/link/total counts for reporting.
+ * @throws If no Compass index exists yet.
+ */
 export function visualize(projectPath: string, opts: VisualizeOptions = {}): {
   path: string;
   shown: number;
@@ -119,7 +140,14 @@ export function visualize(projectPath: string, opts: VisualizeOptions = {}): {
   return { path: out, shown: data.nodes.length, links: data.links.length, total: data.total };
 }
 
-/** Render a self-contained, offline HTML page with an inline force-directed renderer. */
+/**
+ * Render the graph as a self-contained, offline HTML page: the data is embedded
+ * as JSON and drawn by an inline canvas force-directed renderer (no CDN, no
+ * dependencies).
+ *
+ * @param data - The nodes/links/totals to embed.
+ * @returns A complete HTML document as a string.
+ */
 export function renderHtml(data: GraphData): string {
   const payload = JSON.stringify(data);
   return `<!doctype html>
