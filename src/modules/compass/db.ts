@@ -73,14 +73,56 @@ CREATE TABLE IF NOT EXISTS node_embeddings (
 `;
 
 /** Schema version stamped into the `meta` table on first creation. */
-export const SCHEMA_VERSION = "2";
+export const SCHEMA_VERSION = "3";
+
+/** The stamped schema version, or null if the db predates versioning / has no meta table. */
+function readSchemaVersion(db: DatabaseSync): string | null {
+  try {
+    const row = db.prepare("SELECT value FROM meta WHERE key = 'schema_version'").get() as
+      | { value: string }
+      | undefined;
+    return row ? String(row.value) : null;
+  } catch {
+    return null; // meta table doesn't exist yet
+  }
+}
+
+/**
+ * Decide whether an existing database is from an incompatible schema and must be
+ * rebuilt. A fresh database (no tables) needs no reset — the schema will create
+ * them. An existing one is stale if its stamped version differs from the current
+ * one, or if the `edges` table is missing a column the current code writes to
+ * (guards against past schema changes that weren't version-bumped).
+ */
+function isStale(db: DatabaseSync): boolean {
+  const hasEdges = db
+    .prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'edges'")
+    .get();
+  if (!hasEdges) return false;
+  if (readSchemaVersion(db) !== SCHEMA_VERSION) return true;
+  const cols = (db.prepare("PRAGMA table_info(edges)").all() as { name: string }[]).map((c) => c.name);
+  return !cols.includes("src_node_id") || !cols.includes("dst_node_id");
+}
+
+/** Drop every table (children first) so the current schema can be recreated cleanly. */
+function resetSchema(db: DatabaseSync): void {
+  db.exec(`
+    DROP TABLE IF EXISTS node_embeddings;
+    DROP TABLE IF EXISTS edges;
+    DROP TABLE IF EXISTS nodes;
+    DROP TABLE IF EXISTS files;
+    DROP TABLE IF EXISTS meta;
+  `);
+}
 
 /**
  * Open (creating if needed) the index database at `<projectPath>/.speclaw/index.db`.
  *
- * Ensures the `.speclaw` directory exists, applies the schema (idempotently),
- * enables WAL journaling and foreign keys, and stamps the schema version on a
- * fresh database.
+ * Ensures the `.speclaw` directory exists, enables WAL journaling and foreign
+ * keys, and applies the schema. If an existing database is from an incompatible
+ * schema (e.g. after a speclaw upgrade), it is dropped and rebuilt — `.speclaw`
+ * is fully regenerable, so the next index just repopulates it. The schema
+ * version is stamped on a fresh (or freshly reset) database.
  *
  * @param projectPath - Absolute path to the project root.
  * @returns An open connection to the index database.
@@ -90,6 +132,9 @@ export function openDb(projectPath: string): DatabaseSync {
   fs.mkdirSync(dir, { recursive: true });
   const db = new DatabaseSync(path.join(dir, "index.db"));
   db.exec("PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON;");
+
+  if (isStale(db)) resetSchema(db);
+
   db.exec(SCHEMA);
   const row = db
     .prepare("SELECT value FROM meta WHERE key = 'schema_version'")
