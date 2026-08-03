@@ -248,7 +248,7 @@ function draw(){
   }
   ctx.globalAlpha=1;
 }
-function loop(){ tick(); draw(); requestAnimationFrame(loop); } loop();
+function loop(){ tick(); draw(); requestAnimationFrame(loop); }
 
 // interaction
 let dragging=null, panning=false, lastX=0, lastY=0;
@@ -269,5 +269,7 @@ addEventListener('mousemove', e=>{
 addEventListener('mouseup', ()=>{ dragging=null; panning=false; });
 cv.addEventListener('wheel', e=>{ e.preventDefault(); const f=e.deltaY<0?1.1:0.9;
   const mx=e.clientX, my=e.clientY; ox=mx-(mx-ox)*f; oy=my-(my-oy)*f; scale*=f; }, {passive:false});
+
+loop(); // start once every declaration above is initialized (avoids the TDZ on 'dragging')
 </script></body></html>`;
 }
