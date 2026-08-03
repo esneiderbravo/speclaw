@@ -13,7 +13,8 @@ const PACK_LABELS: Record<string, string> = {
   agents: "dev-agents (backend · frontend · product)",
 };
 
-function detectProjectName(cwd: string): string {
+/** Best-effort project name: the package.json name (unscoped) or the directory name. */
+export function detectProjectName(cwd: string): string {
   try {
     const pkg = JSON.parse(fs.readFileSync(path.join(cwd, "package.json"), "utf8"));
     if (pkg.name) return String(pkg.name).replace(/^@[^/]+\//, "");
@@ -79,14 +80,23 @@ export async function runInit(flags: Flags): Promise<void> {
 
   const profile: Profile = { project_name: projectName };
 
-  // 1. Content + chosen agents, with a check per piece installed
+  // 1. Content + chosen agents, with a check per piece installed. Re-running
+  // init is safe: every writer skips files that already exist, so anything you
+  // (or your agent) filled in is preserved — init only adds what's missing.
+  const reinit = fs.existsSync(path.join(cwd, "LAWS.md"));
   ui.step(`Setting up ${c.bold(c.cyan(projectName))}`);
-  scaffold(cwd, profile, packs, agents);
+  if (reinit) {
+    ui.info("speclaw is already set up here — your existing files are kept; only missing pieces are added.");
+  }
+  const report = scaffold(cwd, profile, packs, agents);
   ui.ok(`Foundation ${c.muted("— LAWS.md + 8 standards + CLAUDE.md/AGENTS.md")}`);
   ui.ok(`Lawbook workflow ${c.muted("— draft · build · sync · archive · explore")}`);
   for (const p of packs) ui.ok(`${PACK_LABELS[p] ?? p + " pack"}`);
   specInit(cwd);
   ui.ok(`Lawbook workspace ${c.muted("— lawbook/")}`);
+  if (reinit && report.skipped.length) {
+    ui.info(`${report.written.length} added · ${c.cream(String(report.skipped.length))} preserved untouched`);
+  }
 
   ui.step("Configuring agents");
   for (const id of agents) ui.ok(`${agentById(id)!.label} ${c.muted("— symlinks + MCP")}`);

@@ -29,23 +29,27 @@ One command. No cloud, no LLM, no API keys — <b>everything runs on your machin
 <br/>
 
 > [!TIP]
-> **One command sets everything up.** Run `npx @esneiderbravo/speclaw init`, pick the agents you
-> use, and speclaw scaffolds the project, indexes your code, and hands your agent
-> a ready-to-paste prompt to finish the setup.
+> **Install once, then one command sets everything up.** Install speclaw globally, run
+> `speclaw init`, pick the agents you use, and speclaw scaffolds the project, indexes
+> your code, and hands your agent a ready-to-paste prompt to finish the setup.
 
 <br/>
 
 ## ◆ Quick start
 
-In your project root:
+Install speclaw globally (once), then run `init` in your project root:
 
 ```bash
-npx @esneiderbravo/speclaw init
+npm i -g @esneiderbravo/speclaw
+speclaw init
 ```
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/esneiderbravo/speclaw/main/brand/terminal-quickstart.png" width="800" alt="npx @esneiderbravo/speclaw init">
+  <img src="https://raw.githubusercontent.com/esneiderbravo/speclaw/main/brand/terminal-quickstart.png" width="800" alt="speclaw init">
 </p>
+
+The `speclaw` command is now available everywhere — run `speclaw index`,
+`speclaw visualize`, or `speclaw lawbook …` directly in any project.
 
 `init` will:
 
@@ -57,7 +61,9 @@ npx @esneiderbravo/speclaw init
 5. Print a prompt to paste into your agent so it fills the constitution with your
    project's real architecture and conventions.
 
-Works with `npm`, `pnpm` (`pnpm dlx @esneiderbravo/speclaw init`), and `yarn`.
+Prefer not to install globally? A one-off `npx @esneiderbravo/speclaw init` works
+too (also `pnpm dlx` / `yarn dlx`) — but installing globally means you can run the
+`speclaw` commands directly afterwards.
 
 <br/>
 
@@ -115,6 +121,25 @@ still use Compass and the lawbook engine by calling the CLI from its shell.
 > tacit knowledge: the rules the team actually lives by. speclaw makes that
 > knowledge explicit, executable, and binding, and gives agents a local map
 > (Compass) and a disciplined workflow (Lawbook) to act on it — without burning tokens.
+
+<br/>
+
+## ◆ Staying up to date
+
+speclaw checks for new releases in the background (at most once a day) and nudges
+you when one lands. To upgrade:
+
+```bash
+speclaw update
+```
+
+`update` upgrades the global package **and** brings the current project up to date
+without a re-init: any new standards, skills, commands, or feature steps are added
+**additively** — your existing files are never touched. It re-applies only the tool
+packs this project already uses.
+
+- `speclaw update --check` — report whether an update exists, change nothing.
+- `NO_UPDATE_NOTIFIER=1` — silence the reminder.
 
 <br/>
 

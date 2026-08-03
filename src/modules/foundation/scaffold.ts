@@ -6,6 +6,8 @@ import { InstallReport, emptyReport, ensureGitignore } from "../../shared/instal
 import { configureAgent } from "../../shared/agents.js";
 import { installWorkflow } from "../lawbook/register.js";
 import { installPack, loadPacks } from "../tools/packs.js";
+import { writeManifest } from "../../shared/manifest.js";
+import { pkgVersion } from "../../shared/version.js";
 
 const ASSETS = assetsDir(import.meta.url);
 
@@ -134,6 +136,10 @@ export function scaffold(
 
   ensureGitignore(projectPath, ".speclaw/", "speclaw local code Compass (never commit)", report);
   for (const id of agents) configureAgent(projectPath, id, report); // only the chosen agents
+
+  // Record what was installed so `speclaw update` can re-apply only these packs
+  // (additively) and gate feature migrations by version — no full re-init.
+  writeManifest(projectPath, pkgVersion(), packNames);
 
   report.nextSteps = [
     "Run the `lawbook_init` tool to set up the spec-driven workflow (creates lawbook/). No external CLI needed — it's built into speclaw.",
