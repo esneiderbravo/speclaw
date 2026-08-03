@@ -108,8 +108,8 @@ non-trivial lands without a spec change. It's a loop of five steps:
 | **explore** | Think an idea through *before* committing to it — should we do this, and how. Writes nothing. |
 | **draft** | Capture the intent as a change under `lawbook/changes/<name>/` — four artifacts, always (see below). |
 | **build** | Implement the tasks in order, keeping code and spec in agreement. |
-| **sync** | Promote the change's delta specs into the canonical `lawbook/specs/` — the always-true description of how the system behaves. |
-| **archive** | Validate, promote, and move the change to `lawbook/changes/archive/` — **in the same PR**, never a post-merge chore. |
+| **sync** | Reconcile the delta specs against what was actually built, then promote them into the canonical `lawbook/specs/` — the always-true description of how the system behaves. |
+| **archive** | Reconciliation review (recommend a sync if the code drifted past the contracts), then validate, promote, and move the change to `lawbook/changes/archive/` — **in the same PR**, never a post-merge chore. |
 
 **Every `draft` writes four artifacts under `lawbook/changes/<name>/` — none optional:**
 
