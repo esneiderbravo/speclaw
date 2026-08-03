@@ -18,8 +18,6 @@ const profileShape = {
   branch_pattern: z.string().optional().describe("e.g. 'feature/<ticket-id>-<slug>'"),
   commit_style: z.string().optional().describe("e.g. 'conventional commits, imperative, English'"),
   custom_laws: z.string().optional().describe("Extra markdown appended to LAWS.md — project-specific binding rules the analysis surfaced"),
-  ticket_prefix: z.string().optional().describe("Ticket prefix in the team's tracker, e.g. 'FAR'"),
-  team_language: z.string().optional().describe("The team's working language for posted communication (reviews, replies, tickets), e.g. 'Spanish'. Repo artifacts stay in the repo's own language. Defaults to English."),
   compass_hints: z.string().optional().describe("Markdown bullets with the repo's real entrypoints and common traces, inserted into docs/compass.md"),
   base_standards_extra: z.string().optional().describe("Markdown with any project-specific cross-cutting rules, appended to docs/standards/base-standards.md"),
   modules_table: z.string().optional().describe("Markdown table of the repo's real modules/bounded contexts + one-line responsibility, for docs/standards/architecture.md"),
@@ -46,9 +44,9 @@ export function registerFoundation(server: McpServer): void {
       return text({
         instructions: [
           "1. Analyze the repository at projectPath and fill in every profile field below with REAL values from the codebase (read package.json / pyproject.toml / CI configs / README — do not invent).",
-          "2. The foundation is a set of GRANULAR standards under docs/standards/ (base, architecture, backend, frontend, testing, conventions, spec-workflow), bound by LAWS.md and referenced from CLAUDE.md/AGENTS.md. Fill their structured fields from the real repo: modules_table and layering_rules (architecture), backend_layers, frontend_layers, versioning_rules, and any base_standards_extra. Omit a field only when that standard genuinely doesn't apply to this stack.",
-          "3. Suggest packs: add stack packs whose 'detect' hints match dependencies you found; offer the rest. Ask the user which packs to install (the spec workflow is always installed).",
-          "4. If the 'workflow' pack is selected, ask the user for their tracker's ticket prefix and team working language.",
+          "2. The foundation is a set of GRANULAR standards under docs/standards/ (base, architecture, backend, frontend, testing, conventions, lawbook), bound by LAWS.md and referenced from CLAUDE.md/AGENTS.md. Fill their structured fields from the real repo: modules_table and layering_rules (architecture), backend_layers, frontend_layers, versioning_rules, and any base_standards_extra. Omit a field only when that standard genuinely doesn't apply to this stack.",
+          "3. Suggest packs: add stack packs whose 'detect' hints match dependencies you found; offer the rest. Ask the user which packs to install (the lawbook workflow is always installed).",
+          "4. Infer the working language and the branch/commit/tracker conventions from the repo itself — the language already used in docstrings, commit messages, branch names, and PR/ticket bodies. Do NOT ask the user or assume English; match what the repo does, and set branch_pattern/commit_style accordingly. speclaw does not prescribe a ticket tool — leave tracker linkage to the team's own convention.",
           "5. Draft any custom_laws (extra binding rules for LAWS.md) from conventions you observed that the standard set doesn't cover.",
           "6. Call the 'scaffold' tool with { projectPath, profile, packs }.",
           "7. Follow the nextSteps returned by scaffold: complete the HTML-comment sections still left in docs/standards/*, then run the lawbook_init and compass_index tools (both built into speclaw — no external installs).",
@@ -65,7 +63,7 @@ export function registerFoundation(server: McpServer): void {
     "scaffold",
     {
       description:
-        "Write the speclaw setup into a project: the foundation (LAWS.md constitution + granular docs/standards/* + CLAUDE.md + AGENTS.md + docs/compass.md), the spec workflow (always), the selected tool packs, multi-IDE symlinks (.claude/.cursor/.codex/.agents), .mcp.json wiring for speclaw, and .gitignore for .speclaw/. Never overwrites existing files. Call init_project first.",
+        "Write the speclaw setup into a project: the foundation (LAWS.md constitution + granular docs/standards/* + CLAUDE.md + AGENTS.md + docs/compass.md), the lawbook workflow (always), the selected tool packs, multi-IDE symlinks (.claude/.cursor/.codex/.agents), .mcp.json wiring for speclaw, and .gitignore for .speclaw/. Never overwrites existing files. Call init_project first.",
       inputSchema: {
         projectPath: z.string().describe("Absolute path to the project"),
         profile: z.object(profileShape).describe("Project profile gathered by analyzing the repo"),

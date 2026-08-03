@@ -25,8 +25,6 @@ export interface Profile {
   branch_pattern?: string;
   commit_style?: string;
   custom_laws?: string;
-  ticket_prefix?: string;
-  team_language?: string;
   compass_hints?: string;
   base_standards_extra?: string;
   modules_table?: string;
@@ -49,7 +47,6 @@ const FOUNDATION_DEFAULTS: Record<string, string> = {
   frontend_layers: "",
   versioning_rules: "",
   documentation_extra: "",
-  team_language: "English",
 };
 
 /** Install report for a scaffold run, plus the ordered follow-up actions. */

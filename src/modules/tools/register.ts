@@ -24,7 +24,7 @@ export function registerTools(server: McpServer): void {
     "add_pack",
     {
       description:
-        "Add a single pack to an already-initialized project, then refresh IDE symlinks. Pass template vars (organization, ticket_prefix, team_language, ...) if the pack needs them.",
+        "Add a single pack to an already-initialized project, then refresh IDE symlinks. Pass template vars (organization, ...) if the pack needs them.",
       inputSchema: {
         projectPath: z.string().describe("Absolute path to the project"),
         pack: z.string().describe("Pack name (see list_packs)"),

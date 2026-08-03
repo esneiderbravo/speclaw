@@ -32,7 +32,7 @@ the folder under `lawbook/changes/`.
 Create under `lawbook/changes/<name>/`:
 
 - **proposal.md** — the why, the what, non-goals, and whether migrations are
-  needed. Reference the tracker ticket ({{ticket_prefix}}-N) if there is one.
+  needed. Reference the team's tracker ticket if there is one.
 - **specs/<capability>/spec.md** — the delta spec for each affected capability.
   Use normative language and testable scenarios:
   ```markdown

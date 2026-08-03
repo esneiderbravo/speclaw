@@ -5,11 +5,16 @@ of layer or language. This is a law of the project — see [`../../LAWS.md`](../
 
 ## Languages
 
+The working language is **inferred from this repo's own conventions** — the
+language already used in docstrings, commit messages, branch names, and PR/ticket
+bodies. Match what the repo does; do not impose a language it doesn't use.
+
 - **Code, identifiers, comments, docstrings, commit messages, PR titles/bodies,
-  and technical docs**: the repo's artifact language (default English).
+  and technical docs**: the repo's artifact language (English unless the repo
+  clearly uses another).
 - **User-facing product copy**: as the product requires.
-- **Agent ↔ human communication** (review comments, thread replies, ticket
-  bodies): the team's working language ({{team_language}}). Technical terms
+- **Agent ↔ human communication** (review comments, thread replies): the same
+  language the team already uses in the repo's tickets and PRs. Technical terms
   stay in English within that prose — don't force-translate them.
 
 ## Commits & branches
@@ -25,8 +30,8 @@ of layer or language. This is a law of the project — see [`../../LAWS.md`](../
   edge cases, "why"). They never narrate history, restate the next line, or
   address the reviewer.
 - **Never** put ticket IDs, ticket text, or changelog narration
-  ("added for {{ticket_prefix}}-123", "fixed as part of…") in code or
-  docstrings. Traceability lives in the branch name, PR, and git history.
+  ("added for TICKET-123", "fixed as part of…") in code or docstrings.
+  Traceability lives in the branch name, PR, and git history.
 
 ## Dependencies
 

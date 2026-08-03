@@ -27,8 +27,7 @@ function detectProjectName(cwd: string): string {
  * Interactive setup: pick agents and packs, scaffold, index, and print the handoff prompt.
  *
  * @param flags - Parsed flags; runs interactively on a TTY unless `--agents`, `--yes`, or
- *   `-y` is set. Honors `--project-name`, `--ticket-prefix`, `--team-language`, `--packs`,
- *   and `--no-index`.
+ *   `-y` is set. Honors `--project-name`, `--packs`, and `--no-index`.
  */
 export async function runInit(flags: Flags): Promise<void> {
   const cwd = process.cwd();
@@ -38,8 +37,6 @@ export async function runInit(flags: Flags): Promise<void> {
 
   let agents: string[];
   let packs: string[];
-  let ticketPrefix: string | undefined = flags["ticket-prefix"] as string | undefined;
-  let teamLanguage: string | undefined = flags["team-language"] as string | undefined;
 
   banner();
 
@@ -64,17 +61,11 @@ export async function runInit(flags: Flags): Promise<void> {
             initialValues: ["agents"],
             required: false,
           }),
-        ticketPrefix: () =>
-          clack.text({ message: "Ticket prefix (optional, e.g. FAR)", defaultValue: "" }),
-        teamLanguage: () =>
-          clack.text({ message: "Team communication language", defaultValue: "English" }),
       },
       { onCancel: () => process.exit(1) }
     );
     agents = answers.agents as string[];
     packs = answers.packs as string[];
-    ticketPrefix = (answers.ticketPrefix as string) || undefined;
-    teamLanguage = (answers.teamLanguage as string) || undefined;
   } else {
     agents = list(flags.agents).length ? list(flags.agents) : ["claude"];
     packs = list(flags.packs).length ? list(flags.packs) : ["agents"];
@@ -86,11 +77,7 @@ export async function runInit(flags: Flags): Promise<void> {
     process.exit(1);
   }
 
-  const profile: Profile = {
-    project_name: projectName,
-    ...(ticketPrefix ? { ticket_prefix: ticketPrefix } : {}),
-    ...(teamLanguage ? { team_language: teamLanguage } : {}),
-  };
+  const profile: Profile = { project_name: projectName };
 
   // 1. Content + chosen agents, with a check per piece installed
   ui.step(`Setting up ${c.bold(c.cyan(projectName))}`);
@@ -128,6 +115,8 @@ export async function runInit(flags: Flags): Promise<void> {
     c.cream(
       "Complete speclaw's foundation: analyze this repo and fill LAWS.md and " +
         "docs/standards/* with its real architecture, quality gates and conventions. " +
+        "Infer the working language and conventions from the repo itself — docstrings, " +
+        "commit messages, branch names, PR and ticket language — don't assume. " +
         "Start with init_project."
     )
   );
