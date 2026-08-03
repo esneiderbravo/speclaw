@@ -10,7 +10,7 @@ No non-trivial change lands without a spec change:
 
 1. **explore** — think an idea through before committing (writes nothing).
 2. **draft** — create `lawbook/changes/<name>/`: `proposal.md`, delta specs under
-   `specs/<capability>/spec.md`, optional `design.md`, and `tasks.md`.
+   `specs/<capability>/spec.md`, `design.md`, and `tasks.md`.
 3. **build** — implement the tasks in order, keeping code and spec in
    agreement.
 4. **sync** — promote the change's delta specs into the canonical

@@ -93,26 +93,38 @@ Compass is inspired by [CodeGraph](https://github.com/colbymchenry/codegraph) an
 ## <img src="https://raw.githubusercontent.com/esneiderbravo/speclaw/main/brand/diamond.png" height="20" alt="◆" align="absmiddle">&nbsp; The spec-driven workflow (Lawbook)
 
 Lawbook is speclaw's answer to the biggest risk with AI agents: **code that
-drifts from intent.** No non-trivial change lands without a spec change — the
-intent is written first, the code is made to match it, and the spec is promoted
-to the project's canonical record. It's a loop of five steps:
+drifts from intent.** The intent is written first, the code is made to match it,
+and the spec is promoted to the project's canonical record — so nothing
+non-trivial lands without a spec change. It's a loop of five steps:
 
 ```
-explore  →  draft  →  build  →  sync  →  archive
+   ┌─────────┐    ┌───────┐    ┌───────┐    ┌──────┐    ┌─────────┐
+   │ explore │ ─▶ │ draft │ ─▶ │ build │ ─▶ │ sync │ ─▶ │ archive │
+   └─────────┘    └───────┘    └───────┘    └──────┘    └─────────┘
 ```
 
 | Step | What happens |
 | :-- | :-- |
 | **explore** | Think an idea through *before* committing to it — should we do this, and how. Writes nothing. |
-| **draft** | Create the change under `lawbook/changes/<name>/`: a `proposal.md` (why · what · non-goals), **delta specs** in `specs/<capability>/spec.md`, an optional `design.md`, and a `tasks.md` checklist. |
+| **draft** | Capture the intent as a change under `lawbook/changes/<name>/` — four artifacts, always (see below). |
 | **build** | Implement the tasks in order, keeping code and spec in agreement. |
 | **sync** | Promote the change's delta specs into the canonical `lawbook/specs/` — the always-true description of how the system behaves. |
 | **archive** | Validate, promote, and move the change to `lawbook/changes/archive/` — **in the same PR**, never a post-merge chore. |
 
-**Delta specs are normative and testable.** Requirements use `SHALL`/`MUST`
-under `### Requirement:` headers, each with one or more `#### Scenario:` blocks
-whose acceptance criteria hold without production integrations. `lawbook_validate`
-checks that the code matches what the spec promises before you sync or archive.
+**Every `draft` writes four artifacts under `lawbook/changes/<name>/` — none optional:**
+
+| Artifact | What it captures |
+| :-- | :-- |
+| `proposal.md` | The **why** — motivation, what changes, non-goals, and whether migrations are needed. |
+| `specs/<capability>/spec.md` | The **delta specs** — one per affected capability, normative and testable. |
+| `design.md` | The **how** — approach, alternatives weighed, and the trade-offs behind the decision. |
+| `tasks.md` | The **plan** — ordered, checkable steps, including the mandatory ones from `config.yaml`. |
+
+> [!NOTE]
+> **Delta specs are normative and testable.** Requirements use `SHALL`/`MUST`
+> under `### Requirement:` headers, each with one or more `#### Scenario:` blocks
+> whose acceptance criteria hold without production integrations. `lawbook_validate`
+> checks that the code matches what the spec promises before you sync or archive.
 
 **Three ways to drive it — same engine, no external CLI:**
 

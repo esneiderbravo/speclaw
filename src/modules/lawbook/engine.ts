@@ -44,7 +44,7 @@ This directory is managed by speclaw's **lawbook** module.
 
 - \`specs/\` — the canonical specifications (the current source of truth).
 - \`changes/<name>/\` — an in-flight change: \`proposal.md\`, \`tasks.md\`,
-  optional \`design.md\`, and \`specs/<capability>/spec.md\` delta specs.
+  \`design.md\`, and \`specs/<capability>/spec.md\` delta specs.
 - \`changes/archive/\` — completed, archived changes.
 - \`config.yaml\` — mandatory task steps and workflow rules.
 

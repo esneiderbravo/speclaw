@@ -46,8 +46,8 @@ Create under `lawbook/changes/<name>/`:
   - When <action>
   - Then <observable outcome>
   ```
-- **design.md** (optional) — for non-trivial changes: approach, alternatives,
-  trade-offs.
+- **design.md** — always: approach, alternatives weighed, and the trade-offs
+  behind the decision. For a small change, keep it short — but write it.
 - **tasks.md** — ordered, checkable steps. MUST include the mandatory steps
   from `lawbook/config.yaml` (feature branch first; tests reviewed and run;
   manual verification executed by the agent; docs updated; archive within the
