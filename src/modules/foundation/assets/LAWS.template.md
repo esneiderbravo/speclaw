@@ -22,7 +22,7 @@
 | Documentation | [`docs/standards/documentation.md`](docs/standards/documentation.md) | Docstring/API-comment convention per language |
 | Conventions | [`docs/standards/conventions.md`](docs/standards/conventions.md) | Branches, PRs, tracker, versioning |
 | Lawbook | [`docs/standards/lawbook.md`](docs/standards/lawbook.md) | Spec-driven workflow, mandatory task steps, archiving |
-| Compass | [`docs/compass.md`](docs/compass.md) | Using the code knowledge graph before grep |
+| Compass | [`docs/compass.md`](docs/compass.md) | Using the code knowledge graph first — before any grep/read |
 
 ## Binding rules
 

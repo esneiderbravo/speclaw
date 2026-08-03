@@ -27,13 +27,26 @@ When any instruction conflicts with a standard, **the standard wins** — and if
 you believe it is wrong, propose an amendment via a spec change; never silently
 ignore it.
 
-## Rule 1 — Compass before grep
+## Rule 1 — Compass first, always
 
-This repo is indexed by Compass, speclaw's local code graph (`.speclaw/`). Use
-the `compass_explore`, `compass_search`, and `compass_recall` tools **BEFORE**
-grep/find or reading files at random; run `compass_index` first if the graph
-is missing. See [`docs/compass.md`](docs/compass.md). Fall back to Grep/Read
-only when the graph doesn't cover what you need.
+This repo is indexed by Compass, speclaw's local code graph (`.speclaw/`). For
+**any** question about code — what a symbol is, what it uses, who calls it,
+where it lives, how a value flows — call Compass **first**: `compass_search` /
+`compass_recall` to locate, `compass_explore` to read a symbol with its callers
+and callees, `compass_impact` / `compass_trace` for blast radius and call paths.
+Run `compass_index` first if the graph is missing.
+
+This includes files you already know the name of: to learn what `Foo` imports,
+uses, or depends on, run `compass_explore Foo` — do **not** `cat`/`sed`/`grep`/
+Read the file to work it out by hand. "I know which file it is" is not an
+exemption.
+
+Fall back to Grep / Read / `sed` / `cat` **only after** you can name which of
+these holds: (1) a Compass call actually ran and returned nothing useful for the
+query, (2) the graph is missing and `compass_index` can't be run, or (3) the
+target is not indexed code — stylesheets, JSON/config, markdown, logs,
+generated files, lockfiles. Never skip Compass because grep "feels faster."
+See [`docs/compass.md`](docs/compass.md).
 
 ## Rule 2 — Spec-driven, always
 
