@@ -37,11 +37,15 @@ One command. No cloud, no LLM, no API keys — <b>everything runs on your machin
 
 ## ◆ Quick start
 
+In your project root:
+
+```bash
+npx @esneiderbravo/speclaw init
+```
+
 <p align="center">
   <img src="https://raw.githubusercontent.com/esneiderbravo/speclaw/main/brand/terminal-quickstart.png" width="800" alt="npx @esneiderbravo/speclaw init">
 </p>
-
-<p align="center">Copy &amp; run in your project root: <code>npx @esneiderbravo/speclaw init</code></p>
 
 `init` will:
 
