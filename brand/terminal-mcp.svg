@@ -11,7 +11,7 @@
   <text x="34" y="96"><tspan class="cy hd">foundation  </tspan><tspan class="cr">init_project · scaffold · configure_agent · doctor</tspan></text>
   <text x="34" y="150"><tspan class="cy hd">compass     </tspan><tspan class="cr">compass_index · explore · search · recall</tspan></text>
   <text x="34" y="178"><tspan class="cr">            impact · trace · watch</tspan></text>
-  <text x="34" y="232"><tspan class="cy hd">spec        </tspan><tspan class="cr">spec_init · validate · sync · archive · list</tspan></text>
+  <text x="34" y="232"><tspan class="cy hd">lawbook     </tspan><tspan class="cr">lawbook_init · validate · sync · archive · list</tspan></text>
   <text x="34" y="286"><tspan class="cy hd">tools       </tspan><tspan class="cr">list_packs · add_pack</tspan></text>
   <text x="34" y="332" class="mu" font-size="14">18 tools · auto-registered by speclaw init in each agent's config</text>
 </svg>

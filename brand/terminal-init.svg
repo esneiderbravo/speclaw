@@ -13,9 +13,9 @@
 
   <text x="36" y="94"><tspan class="cy">◇ </tspan><tspan class="cr b">Setting up acme-api</tspan></text>
   <text x="36" y="128"><tspan class="gr">  ✓ </tspan><tspan class="cr">Foundation     </tspan><tspan class="mu">— LAWS.md, standards, CLAUDE/AGENTS</tspan></text>
-  <text x="36" y="158"><tspan class="gr">  ✓ </tspan><tspan class="cr">Spec workflow  </tspan><tspan class="mu">— draft · build · sync · archive · explore</tspan></text>
+  <text x="36" y="158"><tspan class="gr">  ✓ </tspan><tspan class="cr">Lawbook workflow </tspan><tspan class="mu">— draft · build · sync · archive · explore</tspan></text>
   <text x="36" y="188"><tspan class="gr">  ✓ </tspan><tspan class="cr">dev-agents </tspan><tspan class="mu">(backend · frontend · product)</tspan></text>
-  <text x="36" y="218"><tspan class="gr">  ✓ </tspan><tspan class="cr">Spec workspace </tspan><tspan class="mu">— spec/</tspan></text>
+  <text x="36" y="218"><tspan class="gr">  ✓ </tspan><tspan class="cr">Lawbook workspace </tspan><tspan class="mu">— lawbook/</tspan></text>
 
   <text x="36" y="258"><tspan class="cy">◇ </tspan><tspan class="cr b">Configuring agents</tspan></text>
   <text x="36" y="292"><tspan class="gr">  ✓ </tspan><tspan class="cr">Claude Code    </tspan><tspan class="mu">— symlinks + MCP</tspan></text>
@@ -28,8 +28,7 @@
   <text x="36" y="422"><tspan class="gr">  ✓ </tspan><tspan class="cr">342 </tspan><tspan class="mu">files · </tspan><tspan class="cr">1204 </tspan><tspan class="mu">nodes · </tspan><tspan class="cr">3891 </tspan><tspan class="mu">edges · </tspan><tspan class="cr">1204 </tspan><tspan class="mu">embeddings</tspan></text>
 
   <text x="36" y="462"><tspan class="cy">◇ </tspan><tspan class="cr b">You're set — one last step</tspan></text>
-  <rect x="64" y="478" width="700" height="96" rx="9" fill="none" stroke="#17C1C1" stroke-opacity="0.55"/>
-  <text x="82" y="476" class="cy" font-size="13">prompt</text>
-  <text x="84" y="512" class="cr">Complete speclaw's foundation: analyze this repo</text>
-  <text x="84" y="544" class="cr">and fill LAWS.md and docs/standards/* — init_project.</text>
+  <text x="36" y="500" class="mu">Copy this and paste it into Claude Code:</text>
+  <text x="36" y="536" class="cr">Complete speclaw's foundation: analyze this repo and fill LAWS.md</text>
+  <text x="36" y="564" class="cr">and docs/standards/* … Start with init_project.</text>
 </svg>

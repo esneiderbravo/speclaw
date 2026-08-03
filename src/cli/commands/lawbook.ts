@@ -1,4 +1,4 @@
-import { specInit, specValidate, specSync, specArchive, specList } from "../../modules/spec/engine.js";
+import { specInit, specValidate, specSync, specArchive, specList } from "../../modules/lawbook/engine.js";
 import { Flags } from "../lib/args.js";
 import { ui } from "../lib/ui.js";
 
@@ -20,13 +20,13 @@ export async function runSpec(flags: Flags): Promise<void> {
     switch (sub) {
       case "init": {
         const r = specInit(cwd);
-        ui.ok(r.alreadyExisted ? "spec/ already present" : `spec/ created (${r.created.length} entries)`);
+        ui.ok(r.alreadyExisted ? "lawbook/ already present" : `lawbook/ created (${r.created.length} entries)`);
         return;
       }
       case "list": {
         const r = specList(cwd);
-        if (!r.initialized) return ui.warn("No spec/ — run `speclaw spec init`.");
-        ui.heading("Spec workspace");
+        if (!r.initialized) return ui.warn("No lawbook/ — run `speclaw lawbook init`.");
+        ui.heading("Lawbook workspace");
         ui.info(`active changes: ${r.activeChanges.join(", ") || "none"}`);
         ui.info(`archived: ${r.archivedChanges.join(", ") || "none"}`);
         ui.info(`capabilities: ${r.capabilities.join(", ") || "none"}`);
@@ -53,7 +53,7 @@ export async function runSpec(flags: Flags): Promise<void> {
         return;
       }
       default:
-        ui.err("Usage: speclaw spec <init|list|validate|sync|archive> [change]");
+        ui.err("Usage: speclaw lawbook <init|list|validate|sync|archive> [change]");
         process.exit(1);
     }
   } catch (err) {

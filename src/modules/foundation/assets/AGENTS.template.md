@@ -19,9 +19,9 @@ Claude-specific notes: [`CLAUDE.md`](CLAUDE.md). The law: [`LAWS.md`](LAWS.md).
 2. **Use Compass before file scanning** — the `compass_explore` /
    `compass_search` / `compass_recall` tools (run `compass_index` first if the
    graph is missing). Cheat sheet: [`docs/compass.md`](docs/compass.md).
-3. **Follow the spec workflow** for every non-trivial change; archive
+3. **Follow the lawbook workflow** for every non-trivial change; archive
    within the same PR. Rules:
-   [`docs/standards/spec-workflow.md`](docs/standards/spec-workflow.md).
+   [`docs/standards/lawbook.md`](docs/standards/lawbook.md).
 4. **Run the quality gates yourself** before declaring anything done — see
    [`docs/standards/testing-standards.md`](docs/standards/testing-standards.md):
    - Tests: `{{test_commands}}`
@@ -45,7 +45,7 @@ Claude-specific notes: [`CLAUDE.md`](CLAUDE.md). The law: [`LAWS.md`](LAWS.md).
 | [`docs/standards/testing-standards.md`](docs/standards/testing-standards.md) | Quality gates, testing rules |
 | [`docs/standards/documentation.md`](docs/standards/documentation.md) | Docstring/API-comment convention per language |
 | [`docs/standards/conventions.md`](docs/standards/conventions.md) | Branches, PRs, tracker, versioning |
-| [`docs/standards/spec-workflow.md`](docs/standards/spec-workflow.md) | Spec-driven workflow, archiving |
+| [`docs/standards/lawbook.md`](docs/standards/lawbook.md) | Spec-driven workflow, archiving |
 | [`docs/compass.md`](docs/compass.md) | Compass usage |
 
 ## Directory map for agents
@@ -57,5 +57,5 @@ Claude-specific notes: [`CLAUDE.md`](CLAUDE.md). The law: [`LAWS.md`](LAWS.md).
 | `AGENTS.md` / `CLAUDE.md` | Agent entry points (this contract) |
 | `ai-specs/` | Canonical skills, commands, rules, agents |
 | `.claude/` `.cursor/` `.codex/` `.agents/` | IDE mirrors (symlinks into `ai-specs/`) |
-| `spec/` | Spec-driven workflow: specs, changes, archive |
+| `lawbook/` | Spec-driven workflow: specs, changes, archive |
 | `.mcp.json` | MCP wiring (speclaw) |

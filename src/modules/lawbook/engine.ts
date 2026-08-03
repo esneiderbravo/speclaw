@@ -6,23 +6,23 @@ import path from "node:path";
 // deliberately simpler: a change's specs/ holds the full intended spec for each
 // affected capability, and sync promotes those into the canonical specs/.
 
-const SPEC_DIR = "spec";
+const SPEC_DIR = "lawbook";
 
 function specRoot(projectPath: string): string {
   return path.join(projectPath, SPEC_DIR);
 }
 
 /**
- * Report whether the spec workspace (spec/) has been initialized for a project.
+ * Report whether the lawbook workspace (lawbook/) has been initialized for a project.
  *
  * @param projectPath - Absolute path to the project root.
- * @returns True if the spec/ directory exists.
+ * @returns True if the lawbook/ directory exists.
  */
 export function specExists(projectPath: string): boolean {
   return fs.existsSync(specRoot(projectPath));
 }
 
-const CONFIG_YAML = `# speclaw spec module configuration
+const CONFIG_YAML = `# speclaw lawbook module configuration
 # The spec-driven workflow: draft -> build -> sync -> archive (explore anytime).
 
 # Mandatory steps every change's tasks.md must include, in order.
@@ -32,15 +32,15 @@ mandatory_task_steps:
   - "Run the quality gates and verify they pass (see docs/standards/testing-standards.md)."
   - "Perform manual verification of the behavior — the agent executes this itself, never the user."
   - "Update the technical documentation touched by the change."
-  - "Archive the change within the same PR (spec:archive)."
+  - "Archive the change within the same PR (lawbook:archive)."
 
 # A change is required for new behavior, endpoints, schema changes, or UI flows;
 # one-line fixes need not have one.
 `;
 
-const README_MD = `# spec/ — the spec-driven workflow (speclaw)
+const README_MD = `# lawbook/ — the spec-driven workflow (speclaw)
 
-This directory is managed by speclaw's **spec** module.
+This directory is managed by speclaw's **lawbook** module.
 
 - \`specs/\` — the canonical specifications (the current source of truth).
 - \`changes/<name>/\` — an in-flight change: \`proposal.md\`, \`tasks.md\`,
@@ -50,18 +50,18 @@ This directory is managed by speclaw's **spec** module.
 
 ## Workflow
 
-1. \`spec:draft\` — describe the change; generates proposal, delta specs, tasks.
-2. \`spec:build\` — implement the tasks.
-3. \`spec:sync\` — promote the change's delta specs into \`specs/\`.
-4. \`spec:archive\` — sync + move the change to \`changes/archive/\`.
-5. \`spec:explore\` — think through an idea before or during a change.
+1. \`lawbook:draft\` — describe the change; generates proposal, delta specs, tasks.
+2. \`lawbook:build\` — implement the tasks.
+3. \`lawbook:sync\` — promote the change's delta specs into \`specs/\`.
+4. \`lawbook:archive\` — sync + move the change to \`changes/archive/\`.
+5. \`lawbook:explore\` — think through an idea before or during a change.
 `;
 
 /** Outcome of initializing the spec workspace. */
 export interface InitResult {
   /** Workspace-relative paths created by this run (directories end in "/"). */
   created: string[];
-  /** True if spec/ already existed before this run. */
+  /** True if lawbook/ already existed before this run. */
   alreadyExisted: boolean;
 }
 
@@ -131,7 +131,7 @@ function deltaSpecFiles(changeDir: string): string[] {
  * header, and a "#### Scenario:" acceptance criterion.
  *
  * @param projectPath - Absolute path to the project root.
- * @param change - Change name (folder under spec/changes/).
+ * @param change - Change name (folder under lawbook/changes/).
  * @returns The validation verdict and the list of issues to fix; never throws
  *   for a missing change — it is reported as an issue with `valid: false`.
  */
@@ -139,7 +139,7 @@ export function specValidate(projectPath: string, change: string): ValidationRes
   const changeDir = path.join(specRoot(projectPath), "changes", change);
   const issues: string[] = [];
   if (!fs.existsSync(changeDir)) {
-    return { change, valid: false, issues: [`change "${change}" not found under spec/changes/`], deltaSpecs: [] };
+    return { change, valid: false, issues: [`change "${change}" not found under lawbook/changes/`], deltaSpecs: [] };
   }
   if (!fs.existsSync(path.join(changeDir, "proposal.md"))) issues.push("missing proposal.md");
   const tasksPath = path.join(changeDir, "tasks.md");
@@ -175,7 +175,7 @@ export interface SyncResult {
  * file for each affected capability.
  *
  * @param projectPath - Absolute path to the project root.
- * @param change - Change name (folder under spec/changes/).
+ * @param change - Change name (folder under lawbook/changes/).
  * @returns The change name and the list of promoted spec paths.
  * @throws If the change directory does not exist.
  */
@@ -195,7 +195,7 @@ export function specSync(projectPath: string, change: string): SyncResult {
         const dest = path.join(root, "specs", rel);
         fs.mkdirSync(path.dirname(dest), { recursive: true });
         fs.copyFileSync(full, dest);
-        promoted.push(path.join("spec/specs", rel));
+        promoted.push(path.join("lawbook/specs", rel));
       }
     }
   };
@@ -217,7 +217,7 @@ export interface ArchiveResult {
  * it to changes/archive/<date>-<name>/.
  *
  * @param projectPath - Absolute path to the project root.
- * @param change - Change name (folder under spec/changes/).
+ * @param change - Change name (folder under lawbook/changes/).
  * @param date - Archive date prefix, formatted YYYY-MM-DD.
  * @returns The promoted specs and the archive destination path.
  * @throws If the change does not exist, or the archive target already exists.

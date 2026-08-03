@@ -1,6 +1,6 @@
 ---
 name: build
-description: Implement the tasks of a drafted change, following its spec and the project's standards. Use when the user wants to start or continue implementing a change: "build X", "implement the change", "work through the tasks", "continue X". Part of speclaw's spec module (draft → build → sync → archive).
+description: Implement the tasks of a drafted change, following its spec and the project's standards. Use when the user wants to start or continue implementing a change: "build X", "implement the change", "work through the tasks", "continue X". Part of speclaw's lawbook module (draft → build → sync → archive).
 ---
 
 # build — Implement a change
@@ -10,8 +10,8 @@ in lockstep.
 
 ## Step 0 — Load the change
 
-- Read `spec/changes/<name>/proposal.md`, `tasks.md`, and the delta specs under
-  `specs/`. If unsure which change, run `spec_list`.
+- Read `lawbook/changes/<name>/proposal.md`, `tasks.md`, and the delta specs under
+  `specs/`. If unsure which change, run `lawbook_list`.
 - Read the governing standards in `docs/standards/` for the areas you'll touch.
 
 ## Step 1 — Branch first

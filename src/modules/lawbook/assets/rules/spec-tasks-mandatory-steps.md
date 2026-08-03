@@ -1,15 +1,15 @@
 ---
-description: Enforce the mandatory steps from spec/config.yaml when creating tasks.md, and ensure the agent executes all manual verification itself.
+description: Enforce the mandatory steps from lawbook/config.yaml when creating tasks.md, and ensure the agent executes all manual verification itself.
 alwaysApply: true
 ---
 
 # Spec Tasks: Mandatory Steps
 
-When creating or updating a `tasks.md` inside a `spec/changes/<name>/`, you MUST:
+When creating or updating a `tasks.md` inside a `lawbook/changes/<name>/`, you MUST:
 
-## 1. Read spec/config.yaml first
+## 1. Read lawbook/config.yaml first
 
-Before writing tasks, read `spec/config.yaml` for the project's mandatory task
+Before writing tasks, read `lawbook/config.yaml` for the project's mandatory task
 steps, branch convention, and testing/documentation requirements.
 
 ## 2. Include the mandatory steps, in order
@@ -22,7 +22,7 @@ steps, branch convention, and testing/documentation requirements.
 - Perform manual verification of the behavior — **the agent executes this
   itself, never the user.**
 - Update the technical documentation the change touches.
-- Archive the change within the same PR (the `archive` command / `spec_archive`
+- Archive the change within the same PR (the `archive` command / `lawbook_archive`
   tool).
 
 ## 3. Manual verification — the agent must execute it
@@ -33,5 +33,5 @@ not complete until the agent has verified it.
 
 ## 4. Archiving is part of the change
 
-A change is not done until it is archived with `spec_archive` (never a manual
+A change is not done until it is archived with `lawbook_archive` (never a manual
 `mv`). The archive lands in the same PR that implements the change.

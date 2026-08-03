@@ -21,7 +21,7 @@
 | Testing | [`docs/standards/testing-standards.md`](docs/standards/testing-standards.md) | Quality gates, what must be tested, verification |
 | Documentation | [`docs/standards/documentation.md`](docs/standards/documentation.md) | Docstring/API-comment convention per language |
 | Conventions | [`docs/standards/conventions.md`](docs/standards/conventions.md) | Branches, PRs, tracker, versioning |
-| Spec | [`docs/standards/spec-workflow.md`](docs/standards/spec-workflow.md) | Spec-driven workflow, mandatory task steps, archiving |
+| Lawbook | [`docs/standards/lawbook.md`](docs/standards/lawbook.md) | Spec-driven workflow, mandatory task steps, archiving |
 | Compass | [`docs/compass.md`](docs/compass.md) | Using the code knowledge graph before grep |
 
 ## Binding rules
@@ -30,8 +30,8 @@
    the map. Agents open the standard that governs the code they're changing.
 2. **The standards are enforced, not advisory.** A violation is a blocking
    finding in review.
-3. **Amendments go through the spec workflow.** A standard is changed like code — via a
-   reviewed change (see the spec-workflow law). An agent may propose an amendment;
+3. **Amendments go through the lawbook workflow.** A standard is changed like code — via a
+   reviewed change (see the lawbook law). An agent may propose an amendment;
    it may never silently ignore a standard.
 4. **Entry points reference the law.** [`CLAUDE.md`](CLAUDE.md) and
    [`AGENTS.md`](AGENTS.md) point every agent here first.

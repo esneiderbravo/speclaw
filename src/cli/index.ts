@@ -19,13 +19,14 @@ Compass (code intelligence — the same surface agents use via MCP)
   recall "<query>"         Find code by meaning (semantic)
   impact <node>            Blast radius: everything that (transitively) calls it
   trace <from> <to>        A call path between two nodes
+  visualize [node]         Interactive HTML graph → .speclaw/graph.html
 
-Spec workflow
-  spec init                Create the spec/ workspace
-  spec list                Active/archived changes and capabilities
-  spec validate <change>   Validate a change's artifacts
-  spec sync <change>       Promote delta specs to canonical
-  spec archive <change>    Finalize and archive a change
+Lawbook (spec-driven workflow)
+  lawbook init             Create the lawbook/ workspace
+  lawbook list             Active/archived changes and capabilities
+  lawbook validate <c>     Validate a change's artifacts
+  lawbook sync <c>         Promote delta specs to canonical
+  lawbook archive <c>      Finalize and archive a change
 
 Other
   doctor                   Verify the installation
@@ -64,8 +65,10 @@ async function main(): Promise<void> {
     case "impact":
     case "trace":
       return (await import("./commands/query.js")).runQuery(cmd, flags);
-    case "spec":
-      return (await import("./commands/spec.js")).runSpec(flags);
+    case "visualize":
+      return (await import("./commands/visualize.js")).runVisualize(flags);
+    case "lawbook":
+      return (await import("./commands/lawbook.js")).runSpec(flags);
     case "doctor":
       return (await import("./commands/doctor.js")).runDoctor(flags);
     default:

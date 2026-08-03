@@ -22,7 +22,7 @@ Output path:
 - [`docs/standards/backend-standards.md`](../../docs/standards/backend-standards.md) — layers, docstrings, typing, tests, migrations
 - [`docs/standards/architecture.md`](../../docs/standards/architecture.md) — modules and layer boundaries
 - [`docs/standards/testing-standards.md`](../../docs/standards/testing-standards.md) — quality gates
-- [`docs/standards/spec-workflow.md`](../../docs/standards/spec-workflow.md) — spec-driven workflow
+- [`docs/standards/lawbook.md`](../../docs/standards/lawbook.md) — spec-driven workflow
 - [`docs/standards/base-standards.md`](../../docs/standards/base-standards.md) — cross-cutting rules
 
 Use `compass_explore` to locate the real entrypoints, routers, schemas,

@@ -13,7 +13,7 @@ interface Check {
 /**
  * Run the speclaw installation health checks against a project: ai-specs and
  * LAWS.md presence, agent contracts, the docs/standards set, per-agent IDE
- * symlink health, the spec/ workflow, the Compass index, and .mcp.json wiring.
+ * symlink health, the lawbook/ workflow, the Compass index, and .mcp.json wiring.
  *
  * @param projectPath - Absolute path to the project root.
  * @returns One {@link Check} per verified item, each carrying a remediation hint.
@@ -52,7 +52,7 @@ export function doctor(projectPath: string): Check[] {
     "testing-standards",
     "documentation",
     "conventions",
-    "spec-workflow",
+    "lawbook",
   ];
   const missingStandards = standards.filter(
     (s) => !has(path.join("docs/standards", `${s}.md`))
@@ -99,11 +99,11 @@ export function doctor(projectPath: string): Check[] {
   }
 
   checks.push({
-    name: "spec workflow",
-    ok: has("spec"),
-    detail: has("spec")
-      ? "spec/ present"
-      : "missing — run the `spec_init` tool",
+    name: "lawbook workflow",
+    ok: has("lawbook"),
+    detail: has("lawbook")
+      ? "lawbook/ present"
+      : "missing — run the `lawbook_init` tool",
   });
 
   checks.push({

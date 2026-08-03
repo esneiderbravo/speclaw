@@ -4,6 +4,6 @@ description: Promote a change's delta specs into the canonical specs, without ar
 
 Sync the change's specs into canonical: $ARGUMENTS
 
-Follow the `sync` skill: validate the change (`spec_validate`), then run
-`spec_sync` to promote each delta spec into `spec/specs/`. Report what was
+Follow the `sync` skill: validate the change (`lawbook_validate`), then run
+`lawbook_sync` to promote each delta spec into `lawbook/specs/`. Report what was
 promoted; leave the change active.

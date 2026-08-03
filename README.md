@@ -51,7 +51,7 @@ npx @esneiderbravo/speclaw init
 
 1. **Ask which agents you use** (Claude Code, Cursor, Codex, …) — and configure
    only those. Add more later; nothing is forced on you.
-2. Write the **foundation** (constitution + standards) and the **spec workflow**.
+2. Write the **foundation** (constitution + standards) and the **lawbook workflow**.
 3. **Index your code** with a live progress bar and a summary of what it found.
 4. Register the speclaw **MCP server** in each chosen agent's config.
 5. Print a prompt to paste into your agent so it fills the constitution with your
@@ -75,12 +75,12 @@ Works with `npm`, `pnpm` (`pnpm dlx @esneiderbravo/speclaw init`), and `yarn`.
 
 | Module | What it does |
 | :-- | :-- |
-| **Foundation** | The project's constitution: `LAWS.md` binding a set of granular standards under `docs/standards/` (base, architecture, backend, frontend, testing, documentation, conventions, spec-workflow), plus strict `CLAUDE.md` / `AGENTS.md` agent contracts — filled from your real codebase. |
+| **Foundation** | The project's constitution: `LAWS.md` binding a set of granular standards under `docs/standards/` (base, architecture, backend, frontend, testing, documentation, conventions, lawbook), plus strict `CLAUDE.md` / `AGENTS.md` agent contracts — filled from your real codebase. |
 | **Compass** | speclaw's own local code graph. Parses your code (tree-sitter) into nodes + edges plus a local vector store, so an agent finds and understands code with a fraction of the tokens a grep/read loop would cost. No LLM, 100% local, lives in `.speclaw/` (gitignored). |
-| **Spec** | speclaw's own spec-driven workflow: `draft → build → sync → archive` (and `explore`), backed by `spec_*` engine tools. No external CLI. |
+| **Lawbook** | speclaw's own spec-driven workflow: `draft → build → sync → archive` (and `explore`), backed by `lawbook_*` engine tools. No external CLI. |
 | **Tools** | Opt-in packs of skills and subagents (currently the dev-agents) that agents use for specific tasks. |
 
-Compass is inspired by [CodeGraph](https://github.com/colbymchenry/codegraph) and the Spec module by [OpenSpec](https://github.com/Fission-AI/openspec) — both MIT. speclaw reimplements the ideas as its own code and gives full credit; see [ATTRIBUTION.md](ATTRIBUTION.md).
+Compass is inspired by [CodeGraph](https://github.com/colbymchenry/codegraph) and the Lawbook module by [OpenSpec](https://github.com/Fission-AI/openspec) — both MIT. speclaw reimplements the ideas as its own code and gives full credit; see [ATTRIBUTION.md](ATTRIBUTION.md).
 
 <br/>
 
@@ -89,7 +89,7 @@ Compass is inspired by [CodeGraph](https://github.com/colbymchenry/codegraph) an
 speclaw meets you where you are. Everything works through the **CLI** — so no one
 is blocked by MCP setup — and the same capabilities are exposed as **MCP tools**
 for a smoother, integrated experience once configured. An agent without MCP can
-still use Compass and the spec engine by calling the CLI from its shell.
+still use Compass and the lawbook engine by calling the CLI from its shell.
 
 <p align="center"><b>CLI</b> — the installer &amp; operator, runs anywhere <code>node</code> does</p>
 <p align="center"><img src="https://raw.githubusercontent.com/esneiderbravo/speclaw/main/brand/terminal-cli.png" width="800" alt="speclaw CLI commands"></p>
@@ -114,7 +114,7 @@ still use Compass and the spec engine by calling the CLI from its shell.
 > of AI coding agents isn't lack of capability — it's working without the project's
 > tacit knowledge: the rules the team actually lives by. speclaw makes that
 > knowledge explicit, executable, and binding, and gives agents a local map
-> (Compass) and a disciplined workflow (Spec) to act on it — without burning tokens.
+> (Compass) and a disciplined workflow (Lawbook) to act on it — without burning tokens.
 
 <br/>
 

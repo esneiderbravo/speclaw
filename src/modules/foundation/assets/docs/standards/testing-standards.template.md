@@ -30,5 +30,5 @@ suppressing a linter or deleting a test.
 - When a change affects runtime behavior and it's feasible, verify it works by
   exercising the endpoint/UI — don't assume green CI covers everything.
 - The mandatory spec task steps
-  ([`spec-workflow.md`](spec-workflow.md)) define which manual checks
+  ([`lawbook.md`](lawbook.md)) define which manual checks
   the agent must execute itself.

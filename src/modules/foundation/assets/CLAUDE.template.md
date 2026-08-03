@@ -21,7 +21,7 @@ governs the area you're touching **before** touching it:
 | Tests / gates | [`docs/standards/testing-standards.md`](docs/standards/testing-standards.md) |
 | Docstrings / API comments | [`docs/standards/documentation.md`](docs/standards/documentation.md) |
 | Branches / PRs / tickets | [`docs/standards/conventions.md`](docs/standards/conventions.md) |
-| Any non-trivial change | [`docs/standards/spec-workflow.md`](docs/standards/spec-workflow.md) |
+| Any non-trivial change | [`docs/standards/lawbook.md`](docs/standards/lawbook.md) |
 
 When any instruction conflicts with a standard, **the standard wins** — and if
 you believe it is wrong, propose an amendment via a spec change; never silently
@@ -39,8 +39,8 @@ only when the graph doesn't cover what you need.
 
 No non-trivial change lands without a spec change (propose → implement →
 verify → archive). The rules are in
-[`docs/standards/spec-workflow.md`](docs/standards/spec-workflow.md);
-the workflow skills live in `ai-specs/skills/` and the `/spec` commands wrap
+[`docs/standards/lawbook.md`](docs/standards/lawbook.md);
+the workflow skills live in `ai-specs/skills/` and the `/lawbook` commands wrap
 them. A change is not done until it is archived — archiving belongs in the PR.
 
 ## Rule 3 — Quality gates are non-negotiable

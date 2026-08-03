@@ -2,12 +2,12 @@ import fs from "node:fs";
 import path from "node:path";
 import * as clack from "@clack/prompts";
 import { scaffold, Profile } from "../../modules/foundation/scaffold.js";
-import { specInit } from "../../modules/spec/engine.js";
+import { specInit } from "../../modules/lawbook/engine.js";
 import { buildIndex } from "../../modules/compass/indexer.js";
 import { AGENTS, agentById } from "../../shared/agents.js";
 import { loadPacks } from "../../modules/tools/packs.js";
 import { Flags, list } from "../lib/args.js";
-import { ui, c, banner, renderProgress, clearProgress, box } from "../lib/ui.js";
+import { ui, c, banner, renderProgress, clearProgress } from "../lib/ui.js";
 
 const PACK_LABELS: Record<string, string> = {
   agents: "dev-agents (backend · frontend · product)",
@@ -96,10 +96,10 @@ export async function runInit(flags: Flags): Promise<void> {
   ui.step(`Setting up ${c.bold(c.cyan(projectName))}`);
   scaffold(cwd, profile, packs, agents);
   ui.ok(`Foundation ${c.muted("— LAWS.md + 8 standards + CLAUDE.md/AGENTS.md")}`);
-  ui.ok(`Spec workflow ${c.muted("— draft · build · sync · archive · explore")}`);
+  ui.ok(`Lawbook workflow ${c.muted("— draft · build · sync · archive · explore")}`);
   for (const p of packs) ui.ok(`${PACK_LABELS[p] ?? p + " pack"}`);
   specInit(cwd);
-  ui.ok(`Spec workspace ${c.muted("— spec/")}`);
+  ui.ok(`Lawbook workspace ${c.muted("— lawbook/")}`);
 
   ui.step("Configuring agents");
   for (const id of agents) ui.ok(`${agentById(id)!.label} ${c.muted("— symlinks + MCP")}`);
@@ -117,22 +117,22 @@ export async function runInit(flags: Flags): Promise<void> {
     );
   }
 
-  // 3. Handoff prompt for the chosen agent
+  // 3. Handoff prompt for the chosen agent — printed as a single flush-left
+  // line so it copy-pastes cleanly (no borders, no wrapping artifacts).
   const primary = agentById(agents[0]!)!;
   ui.step("You're set — one last step");
-  ui.info(`Paste this into ${c.cyan(primary.label)} to build your constitution:`);
   ui.plain();
-  box(
-    [
-      "Complete speclaw's foundation: analyze this repo and fill",
-      "LAWS.md and docs/standards/* with the real architecture,",
-      "quality gates and conventions. Use init_project to start.",
-    ],
-    "prompt"
+  ui.info(`Copy this and paste it into ${c.cyan(primary.label)}:`);
+  ui.plain();
+  console.log(
+    c.cream(
+      "Complete speclaw's foundation: analyze this repo and fill LAWS.md and " +
+        "docs/standards/* with its real architecture, quality gates and conventions. " +
+        "Start with init_project."
+    )
   );
   ui.plain();
-  ui.info(`The dev-agents read those standards for your stack — filling them well`);
-  ui.info(`makes them stack-aware.`);
+  ui.info(`The dev-agents read those standards for your stack — filling them well makes them stack-aware.`);
   ui.plain();
   ui.info(`Add an agent:   ${ui.code("speclaw agent add cursor")}`);
   ui.info(`Refresh index:  ${ui.code("speclaw index")}`);

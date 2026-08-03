@@ -1,17 +1,17 @@
 ---
 name: draft
-description: Draft a new spec-driven change — proposal, delta specs, and tasks — before writing any code. Use when the user wants to start, plan, or propose a new feature, fix, or refactor: "draft a change for X", "propose X", "let's plan X", "spec out X", "new change". Part of speclaw's spec module (draft → build → sync → archive).
+description: Draft a new spec-driven change — proposal, delta specs, and tasks — before writing any code. Use when the user wants to start, plan, or propose a new feature, fix, or refactor: "draft a change for X", "propose X", "let's plan X", "spec out X", "new change". Part of speclaw's lawbook module (draft → build → sync → archive).
 ---
 
 # draft — Draft a new change
 
-Turn a request into a complete, reviewable change under `spec/changes/<name>/`
+Turn a request into a complete, reviewable change under `lawbook/changes/<name>/`
 before any implementation. This is speclaw's own spec-driven workflow — no
 external CLI; the mechanical steps are speclaw MCP tools.
 
 ## Step 0 — Ensure the workspace exists
 
-If `spec/` is missing, run the `spec_init` tool once to create it.
+If `lawbook/` is missing, run the `lawbook_init` tool once to create it.
 
 ## Step 1 — Understand the request and the code
 
@@ -25,11 +25,11 @@ If `spec/` is missing, run the `spec_init` tool once to create it.
 ## Step 2 — Pick a change name
 
 Kebab-case, action-oriented (e.g. `add-login`, `fix-shift-overlap`). This is
-the folder under `spec/changes/`.
+the folder under `lawbook/changes/`.
 
 ## Step 3 — Write the artifacts
 
-Create under `spec/changes/<name>/`:
+Create under `lawbook/changes/<name>/`:
 
 - **proposal.md** — the why, the what, non-goals, and whether migrations are
   needed. Reference the tracker ticket ({{ticket_prefix}}-N) if there is one.
@@ -49,13 +49,13 @@ Create under `spec/changes/<name>/`:
 - **design.md** (optional) — for non-trivial changes: approach, alternatives,
   trade-offs.
 - **tasks.md** — ordered, checkable steps. MUST include the mandatory steps
-  from `spec/config.yaml` (feature branch first; tests reviewed and run;
+  from `lawbook/config.yaml` (feature branch first; tests reviewed and run;
   manual verification executed by the agent; docs updated; archive within the
   PR).
 
 ## Step 4 — Validate
 
-Run the `spec_validate` tool for the change and fix every issue it reports
+Run the `lawbook_validate` tool for the change and fix every issue it reports
 (missing artifacts, non-normative specs, missing scenarios) before handing off
 to implementation.
 

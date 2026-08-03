@@ -51,7 +51,7 @@ export function registerFoundation(server: McpServer): void {
           "4. If the 'workflow' pack is selected, ask the user for their tracker's ticket prefix and team working language.",
           "5. Draft any custom_laws (extra binding rules for LAWS.md) from conventions you observed that the standard set doesn't cover.",
           "6. Call the 'scaffold' tool with { projectPath, profile, packs }.",
-          "7. Follow the nextSteps returned by scaffold: complete the HTML-comment sections still left in docs/standards/*, then run the spec_init and compass_index tools (both built into speclaw — no external installs).",
+          "7. Follow the nextSteps returned by scaffold: complete the HTML-comment sections still left in docs/standards/*, then run the lawbook_init and compass_index tools (both built into speclaw — no external installs).",
         ],
         profileFields: Object.fromEntries(
           Object.entries(profileShape).map(([key, schema]) => [key, schema.description ?? ""])
@@ -97,7 +97,7 @@ export function registerFoundation(server: McpServer): void {
     "doctor",
     {
       description:
-        "Verify a speclaw installation: ai-specs presence, the foundation (LAWS.md + standards + agent contracts), IDE symlinks health, the spec/ workflow, the Compass index, and .mcp.json wiring. Returns a checklist with remediation hints.",
+        "Verify a speclaw installation: ai-specs presence, the foundation (LAWS.md + standards + agent contracts), IDE symlinks health, the lawbook/ workflow, the Compass index, and .mcp.json wiring. Returns a checklist with remediation hints.",
       inputSchema: { projectPath: z.string().describe("Absolute path to the project") },
     },
     async ({ projectPath }) => {

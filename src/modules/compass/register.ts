@@ -4,6 +4,7 @@ import { text } from "../../shared/mcp.js";
 import { buildIndex } from "./indexer.js";
 import { explore, search, recall, impact, trace } from "./query.js";
 import { startWatch, stopWatch, watchStatus } from "./watcher.js";
+import { visualize } from "./visualize.js";
 
 // ─── Compass: speclaw's own code-intelligence engine (no external deps) ───
 // A local graph of the codebase (nodes = definitions, edges = calls/imports)
@@ -94,6 +95,22 @@ export function registerCompass(server: McpServer): void {
       },
     },
     async ({ projectPath, from, to, maxDepth }) => text(trace(projectPath, from, to, maxDepth ?? 8))
+  );
+
+  server.registerTool(
+    "compass_visualize",
+    {
+      description:
+        "Generate an interactive, offline HTML visualization of the code graph into .speclaw/graph.html (gitignored). Nodes are definitions, edges are calls; drag/zoom/hover to explore. Pass a node to focus on its neighborhood, else the most-connected nodes are shown. Requires compass_index.",
+      inputSchema: {
+        projectPath: z.string().describe("Absolute path to the project"),
+        node: z.string().optional().describe("Focus on this node's neighborhood (optional)"),
+        depth: z.number().optional().describe("BFS depth around the focus node (default 2)"),
+        limit: z.number().optional().describe("Max nodes for the whole-graph view (default 300)"),
+      },
+    },
+    async ({ projectPath, node, depth, limit }) =>
+      text(visualize(projectPath, { focus: node, depth, limit }))
   );
 
   server.registerTool(

@@ -4,7 +4,7 @@ import { assetsDir } from "../../shared/paths.js";
 import { render } from "../../shared/render.js";
 import { InstallReport, emptyReport, ensureGitignore } from "../../shared/install.js";
 import { configureAgent } from "../../shared/agents.js";
-import { installWorkflow } from "../spec/register.js";
+import { installWorkflow } from "../lawbook/register.js";
 import { installPack, loadPacks } from "../tools/packs.js";
 
 const ASSETS = assetsDir(import.meta.url);
@@ -139,7 +139,7 @@ export function scaffold(
   for (const id of agents) configureAgent(projectPath, id, report); // only the chosen agents
 
   report.nextSteps = [
-    "Run the `spec_init` tool to set up the spec-driven workflow (creates spec/). No external CLI needed — it's built into speclaw.",
+    "Run the `lawbook_init` tool to set up the spec-driven workflow (creates lawbook/). No external CLI needed — it's built into speclaw.",
     "Run the `compass_index` tool to build the local code graph (.speclaw/). No install, no LLM — it's built into speclaw. Re-run it after significant edits.",
     "Analyze the repo's real entrypoints and core flows, then fill in the 'Project-specific starting points' section of docs/compass.md (or pass compass_hints in the profile) so agents know where to start querying.",
     "Fill in the per-standard sections left as HTML comments in docs/standards/* (architecture module table, backend/frontend layer tables, versioning) by analyzing the real repo. These are the granular laws CLAUDE.md, AGENTS.md and the dev agents reference.",
