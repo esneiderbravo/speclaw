@@ -105,7 +105,9 @@ export async function maybeNotifyUpdate(cmd: string | undefined): Promise<void> 
   try {
     if (process.env.NO_UPDATE_NOTIFIER || process.env.SPECLAW_NO_UPDATE_NOTIFIER) return;
     if (!process.stderr.isTTY) return;
-    if (!cmd || ["mcp", "update", "help", "--help", "-h"].includes(cmd)) return;
+    // `init` shows its own prominent up-front warning and ends on the clean
+    // copy-paste prompt — don't append a second notice after it.
+    if (!cmd || ["mcp", "update", "init", "help", "--help", "-h"].includes(cmd)) return;
 
     const { current, latest, updateAvailable } = await checkForUpdates();
     if (!updateAvailable || !latest) return;

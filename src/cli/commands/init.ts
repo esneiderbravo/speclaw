@@ -8,6 +8,7 @@ import { AGENTS, agentById } from "../../shared/agents.js";
 import { loadPacks } from "../../modules/tools/packs.js";
 import { Flags, list } from "../lib/args.js";
 import { ui, c, banner, renderProgress, clearProgress } from "../lib/ui.js";
+import { checkForUpdates } from "../lib/update-check.js";
 
 const PACK_LABELS: Record<string, string> = {
   agents: "dev-agents (backend · frontend · product)",
@@ -40,6 +41,16 @@ export async function runInit(flags: Flags): Promise<void> {
   let packs: string[];
 
   banner();
+
+  // Scaffolding with a stale version writes yesterday's foundation, so recommend
+  // upgrading first — prominently, before any prompts, so there's time to cancel.
+  // Best-effort and cache-backed (no added latency); the command still proceeds.
+  const upd = await checkForUpdates();
+  if (upd.updateAvailable && upd.latest) {
+    ui.warn(`You're on ${c.muted(upd.current)} — latest is ${c.bold(c.cyan(upd.latest))}.`);
+    ui.info(`Recommended: run ${ui.code("speclaw update")} first, then ${ui.code("speclaw init")} again.`);
+    ui.plain();
+  }
 
   if (interactive) {
     const answers = await clack.group(
