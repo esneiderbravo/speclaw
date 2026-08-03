@@ -5,10 +5,7 @@ const require = createRequire(import.meta.url);
 
 /** Directory holding the pre-built tree-sitter WASM grammars. */
 function wasmDir(): string {
-  return path.join(
-    path.dirname(require.resolve("tree-sitter-wasms/package.json")),
-    "out"
-  );
+  return path.join(path.dirname(require.resolve("tree-sitter-wasms/package.json")), "out");
 }
 
 /** Maps a tree-sitter definition node type to the symbol kind Compass records. */

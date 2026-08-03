@@ -9,23 +9,81 @@ import { emptyReport } from "../../shared/install.js";
 
 const profileShape = {
   project_name: z.string().describe("Short project name, e.g. the repo name"),
-  project_description: z.string().optional().describe("One-line description of what the project does"),
+  project_description: z
+    .string()
+    .optional()
+    .describe("One-line description of what the project does"),
   organization: z.string().optional().describe("Company/team name"),
-  stack_summary: z.string().optional().describe("e.g. 'Next.js 15 + TypeScript frontend, FastAPI + PostgreSQL backend'"),
-  architecture: z.string().optional().describe("e.g. 'hexagonal architecture with bounded contexts'"),
-  test_commands: z.string().optional().describe("Real commands, e.g. 'pytest backend/tests && npm run test'"),
-  lint_commands: z.string().optional().describe("Real commands, e.g. 'ruff check . && npm run lint && tsc --noEmit'"),
+  stack_summary: z
+    .string()
+    .optional()
+    .describe("e.g. 'Next.js 15 + TypeScript frontend, FastAPI + PostgreSQL backend'"),
+  architecture: z
+    .string()
+    .optional()
+    .describe("e.g. 'hexagonal architecture with bounded contexts'"),
+  test_commands: z
+    .string()
+    .optional()
+    .describe("Real commands, e.g. 'pytest backend/tests && npm run test'"),
+  lint_commands: z
+    .string()
+    .optional()
+    .describe("Real commands, e.g. 'ruff check . && npm run lint && tsc --noEmit'"),
   branch_pattern: z.string().optional().describe("e.g. 'feature/<ticket-id>-<slug>'"),
   commit_style: z.string().optional().describe("e.g. 'conventional commits, imperative, English'"),
-  custom_laws: z.string().optional().describe("Extra markdown appended to LAWS.md — project-specific binding rules the analysis surfaced"),
-  compass_hints: z.string().optional().describe("Markdown bullets with the repo's real entrypoints and common traces, inserted into docs/compass.md"),
-  base_standards_extra: z.string().optional().describe("Markdown with any project-specific cross-cutting rules, appended to docs/standards/base-standards.md"),
-  modules_table: z.string().optional().describe("Markdown table of the repo's real modules/bounded contexts + one-line responsibility, for docs/standards/architecture.md"),
-  layering_rules: z.string().optional().describe("Markdown describing the layers and their allowed dependencies, for docs/standards/architecture.md"),
-  backend_layers: z.string().optional().describe("Markdown layer table (Layer | File | Responsibility) from the real backend, for docs/standards/backend-standards.md"),
-  frontend_layers: z.string().optional().describe("Markdown layer table from the real frontend, for docs/standards/frontend-standards.md"),
-  versioning_rules: z.string().optional().describe("The repo's versioning/release convention, for docs/standards/conventions.md"),
-  documentation_extra: z.string().optional().describe("Repo-specific docstring notes (keep only the languages used, the enforced linter), appended to docs/standards/documentation.md"),
+  custom_laws: z
+    .string()
+    .optional()
+    .describe(
+      "Extra markdown appended to LAWS.md — project-specific binding rules the analysis surfaced",
+    ),
+  compass_hints: z
+    .string()
+    .optional()
+    .describe(
+      "Markdown bullets with the repo's real entrypoints and common traces, inserted into docs/compass.md",
+    ),
+  base_standards_extra: z
+    .string()
+    .optional()
+    .describe(
+      "Markdown with any project-specific cross-cutting rules, appended to docs/standards/base-standards.md",
+    ),
+  modules_table: z
+    .string()
+    .optional()
+    .describe(
+      "Markdown table of the repo's real modules/bounded contexts + one-line responsibility, for docs/standards/architecture.md",
+    ),
+  layering_rules: z
+    .string()
+    .optional()
+    .describe(
+      "Markdown describing the layers and their allowed dependencies, for docs/standards/architecture.md",
+    ),
+  backend_layers: z
+    .string()
+    .optional()
+    .describe(
+      "Markdown layer table (Layer | File | Responsibility) from the real backend, for docs/standards/backend-standards.md",
+    ),
+  frontend_layers: z
+    .string()
+    .optional()
+    .describe(
+      "Markdown layer table from the real frontend, for docs/standards/frontend-standards.md",
+    ),
+  versioning_rules: z
+    .string()
+    .optional()
+    .describe("The repo's versioning/release convention, for docs/standards/conventions.md"),
+  documentation_extra: z
+    .string()
+    .optional()
+    .describe(
+      "Repo-specific docstring notes (keep only the languages used, the enforced linter), appended to docs/standards/documentation.md",
+    ),
 };
 
 // ─── The foundation module: analyze the repo, then write the constitution ───
@@ -37,7 +95,9 @@ export function registerFoundation(server: McpServer): void {
     {
       description:
         "START HERE to initialize speclaw in a project. Returns the analysis questionnaire the agent must answer by reading the target repo, plus the available skill packs. Do NOT guess answers — investigate the codebase (package.json, pyproject.toml, CI config, existing docs) and confirm the pack selection with the user before calling scaffold.",
-      inputSchema: { projectPath: z.string().describe("Absolute path to the project to initialize") },
+      inputSchema: {
+        projectPath: z.string().describe("Absolute path to the project to initialize"),
+      },
     },
     async () => {
       const packs = loadPacks();
@@ -52,11 +112,11 @@ export function registerFoundation(server: McpServer): void {
           "7. Follow the nextSteps returned by scaffold: complete the HTML-comment sections still left in docs/standards/*, then run the lawbook_init and compass_index tools (both built into speclaw — no external installs).",
         ],
         profileFields: Object.fromEntries(
-          Object.entries(profileShape).map(([key, schema]) => [key, schema.description ?? ""])
+          Object.entries(profileShape).map(([key, schema]) => [key, schema.description ?? ""]),
         ),
         packs,
       });
-    }
+    },
   );
 
   server.registerTool(
@@ -68,10 +128,16 @@ export function registerFoundation(server: McpServer): void {
         projectPath: z.string().describe("Absolute path to the project"),
         profile: z.object(profileShape).describe("Project profile gathered by analyzing the repo"),
         packs: z.array(z.string()).describe("Optional tool pack names (quality, workflow, agents)"),
-        agents: z.array(z.string()).optional().describe(`Agent ids to configure (symlinks + MCP): ${AGENTS.map((a) => a.id).join(", ")}. Usually the CLI handles this; omit to write content only.`),
+        agents: z
+          .array(z.string())
+          .optional()
+          .describe(
+            `Agent ids to configure (symlinks + MCP): ${AGENTS.map((a) => a.id).join(", ")}. Usually the CLI handles this; omit to write content only.`,
+          ),
       },
     },
-    async ({ projectPath, profile, packs, agents }) => text(scaffold(projectPath, profile, packs, agents ?? []))
+    async ({ projectPath, profile, packs, agents }) =>
+      text(scaffold(projectPath, profile, packs, agents ?? [])),
   );
 
   server.registerTool(
@@ -81,14 +147,16 @@ export function registerFoundation(server: McpServer): void {
         "Configure one agent's integration in an already-scaffolded project: create its IDE symlinks into ai-specs and register the speclaw MCP server in its config. Re-runnable; add agents one at a time.",
       inputSchema: {
         projectPath: z.string().describe("Absolute path to the project"),
-        agent: z.enum(AGENTS.map((a) => a.id) as [string, ...string[]]).describe("Agent id to configure"),
+        agent: z
+          .enum(AGENTS.map((a) => a.id) as [string, ...string[]])
+          .describe("Agent id to configure"),
       },
     },
     async ({ projectPath, agent }) => {
       const report = emptyReport();
       configureAgent(projectPath, agent, report);
       return text(report);
-    }
+    },
   );
 
   server.registerTool(
@@ -104,10 +172,11 @@ export function registerFoundation(server: McpServer): void {
       return text({
         healthy: failed.length === 0,
         checks,
-        summary: failed.length === 0
-          ? "Everything is within the law."
-          : `${failed.length} check(s) failed — see details.`,
+        summary:
+          failed.length === 0
+            ? "Everything is within the law."
+            : `${failed.length} check(s) failed — see details.`,
       });
-    }
+    },
   );
 }

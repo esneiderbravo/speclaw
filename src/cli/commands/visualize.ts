@@ -5,9 +5,14 @@ import { ui, c } from "../lib/ui.js";
 
 /** Open a file in the OS default application (browser for .html). */
 function openInBrowser(file: string): void {
-  const cmd = process.platform === "darwin" ? "open" : process.platform === "win32" ? "start" : "xdg-open";
+  const cmd =
+    process.platform === "darwin" ? "open" : process.platform === "win32" ? "start" : "xdg-open";
   try {
-    spawn(cmd, [file], { stdio: "ignore", detached: true, shell: process.platform === "win32" }).unref();
+    spawn(cmd, [file], {
+      stdio: "ignore",
+      detached: true,
+      shell: process.platform === "win32",
+    }).unref();
   } catch {
     /* best-effort */
   }
@@ -31,9 +36,11 @@ export async function runVisualize(flags: Flags): Promise<void> {
     });
     ui.step("Compass graph");
     ui.ok(
-      c.bold(c.cream(String(r.shown))) + c.muted(" nodes · ") +
-        c.bold(c.cream(String(r.links))) + c.muted(" edges") +
-        (focus ? c.muted(` · focused on ${focus}`) : c.muted(` · top of ${r.total}`))
+      c.bold(c.cream(String(r.shown))) +
+        c.muted(" nodes · ") +
+        c.bold(c.cream(String(r.links))) +
+        c.muted(" edges") +
+        (focus ? c.muted(` · focused on ${focus}`) : c.muted(` · top of ${r.total}`)),
     );
     ui.info(`→ ${ui.code(".speclaw/graph.html")}`);
     if (!flags["no-open"]) {

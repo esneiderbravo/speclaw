@@ -39,7 +39,9 @@ export async function runQuery(cmd: string, flags: Flags): Promise<void> {
       case "recall": {
         const hits = await recall(cwd, need(args[0], 'recall "<query>"'));
         ui.heading(`${hits.length} result(s) by meaning`);
-        hits.forEach((h) => ui.info(`${h.score.toFixed(3)}  ${h.name} (${h.kind}) ${h.file}:${h.line}`));
+        hits.forEach((h) =>
+          ui.info(`${h.score.toFixed(3)}  ${h.name} (${h.kind}) ${h.file}:${h.line}`),
+        );
         return;
       }
       case "impact": {
@@ -49,7 +51,11 @@ export async function runQuery(cmd: string, flags: Flags): Promise<void> {
         return;
       }
       case "trace": {
-        const r = trace(cwd, need(args[0], "trace <from> <to>"), need(args[1], "trace <from> <to>"));
+        const r = trace(
+          cwd,
+          need(args[0], "trace <from> <to>"),
+          need(args[1], "trace <from> <to>"),
+        );
         ui.heading(`Trace ${r.from} → ${r.to}`);
         console.log(r.path ? "  " + r.path.join(" → ") + `  (${r.hops} hops)` : "  no path found");
         return;

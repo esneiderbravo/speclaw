@@ -24,7 +24,7 @@ export function registerCompass(server: McpServer): void {
         "Build or incrementally refresh the Compass — speclaw's local code graph (.speclaw/index.db). Parses TS/JS/Python with tree-sitter into nodes (definitions) and edges (calls/imports), and computes a local vector embedding per node for semantic recall. Files unchanged since the last run are skipped by content hash. Run once after init and whenever you want a fresh graph.",
       inputSchema: { projectPath: z.string().describe("Absolute path to the project") },
     },
-    async ({ projectPath }) => text(await buildIndex(projectPath))
+    async ({ projectPath }) => text(await buildIndex(projectPath)),
   );
 
   server.registerTool(
@@ -37,7 +37,7 @@ export function registerCompass(server: McpServer): void {
         node: z.string().describe("Exact node name to explore (function/class/method/type)"),
       },
     },
-    async ({ projectPath, node }) => text(explore(projectPath, node))
+    async ({ projectPath, node }) => text(explore(projectPath, node)),
   );
 
   server.registerTool(
@@ -51,7 +51,7 @@ export function registerCompass(server: McpServer): void {
         limit: z.number().optional().describe("Max results (default 25)"),
       },
     },
-    async ({ projectPath, query, limit }) => text(search(projectPath, query, limit ?? 25))
+    async ({ projectPath, query, limit }) => text(search(projectPath, query, limit ?? 25)),
   );
 
   server.registerTool(
@@ -65,7 +65,7 @@ export function registerCompass(server: McpServer): void {
         limit: z.number().optional().describe("Max results (default 15)"),
       },
     },
-    async ({ projectPath, query, limit }) => text(await recall(projectPath, query, limit ?? 15))
+    async ({ projectPath, query, limit }) => text(await recall(projectPath, query, limit ?? 15)),
   );
 
   server.registerTool(
@@ -79,7 +79,7 @@ export function registerCompass(server: McpServer): void {
         maxDepth: z.number().optional().describe("Max hops to traverse (default 4)"),
       },
     },
-    async ({ projectPath, node, maxDepth }) => text(impact(projectPath, node, maxDepth ?? 4))
+    async ({ projectPath, node, maxDepth }) => text(impact(projectPath, node, maxDepth ?? 4)),
   );
 
   server.registerTool(
@@ -94,7 +94,8 @@ export function registerCompass(server: McpServer): void {
         maxDepth: z.number().optional().describe("Max hops to search (default 8)"),
       },
     },
-    async ({ projectPath, from, to, maxDepth }) => text(trace(projectPath, from, to, maxDepth ?? 8))
+    async ({ projectPath, from, to, maxDepth }) =>
+      text(trace(projectPath, from, to, maxDepth ?? 8)),
   );
 
   server.registerTool(
@@ -110,7 +111,7 @@ export function registerCompass(server: McpServer): void {
       },
     },
     async ({ projectPath, node, depth, limit }) =>
-      text(visualize(projectPath, { focus: node, depth, limit }))
+      text(visualize(projectPath, { focus: node, depth, limit })),
   );
 
   server.registerTool(
@@ -125,10 +126,12 @@ export function registerCompass(server: McpServer): void {
     },
     async ({ projectPath, action }) => {
       const result =
-        action === "start" ? startWatch(projectPath)
-        : action === "stop" ? stopWatch(projectPath)
-        : watchStatus(projectPath);
+        action === "start"
+          ? startWatch(projectPath)
+          : action === "stop"
+            ? stopWatch(projectPath)
+            : watchStatus(projectPath);
       return text(result);
-    }
+    },
   );
 }

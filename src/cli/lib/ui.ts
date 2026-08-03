@@ -16,8 +16,7 @@ const PALETTE = {
 };
 
 const colorOn =
-  (Boolean(process.stdout.isTTY) || process.env.FORCE_COLOR === "1") &&
-  !process.env.NO_COLOR;
+  (Boolean(process.stdout.isTTY) || process.env.FORCE_COLOR === "1") && !process.env.NO_COLOR;
 
 function paint(rgb: RGB, s: string): string {
   if (!colorOn) return s;
@@ -62,7 +61,9 @@ export function banner(): void {
   console.log();
   console.log("  " + edge("╭────────╮"));
   console.log("  " + edge("│ ") + line + edge(" │") + "   " + bold(c.cream("s p e c l a w")));
-  console.log("  " + edge("│ ") + c.muted("────  ") + edge(" │") + "   " + c.muted("where specs become law"));
+  console.log(
+    "  " + edge("│ ") + c.muted("────  ") + edge(" │") + "   " + c.muted("where specs become law"),
+  );
   console.log("  " + edge("│ ") + c.muted("─────") + " " + edge(" │"));
   console.log("  " + edge("│ ") + bar + edge(" │"));
   console.log("  " + edge("╰────────╯"));
@@ -92,6 +93,7 @@ export function box(lines: string[], title?: string): void {
     ? "╭─ " + c.cyanDim(title) + " " + "─".repeat(Math.max(0, width - title.length - 3))
     : "╭" + "─".repeat(width);
   console.log("  " + c.muted(top) + c.muted("╮"));
-  for (const l of lines) console.log("  " + c.muted("│ ") + c.cream(l.padEnd(width - 2)) + c.muted(" │"));
+  for (const l of lines)
+    console.log("  " + c.muted("│ ") + c.cream(l.padEnd(width - 2)) + c.muted(" │"));
   console.log("  " + c.muted("╰" + "─".repeat(width) + "╯"));
 }

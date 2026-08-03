@@ -34,8 +34,7 @@ export function detectProjectName(cwd: string): string {
 export async function runInit(flags: Flags): Promise<void> {
   const cwd = process.cwd();
   const projectName = (flags["project-name"] as string) || detectProjectName(cwd);
-  const interactive =
-    Boolean(process.stdin.isTTY) && !flags.agents && !flags.yes && !flags.y;
+  const interactive = Boolean(process.stdin.isTTY) && !flags.agents && !flags.yes && !flags.y;
 
   let agents: string[];
   let packs: string[];
@@ -48,7 +47,9 @@ export async function runInit(flags: Flags): Promise<void> {
   const upd = await checkForUpdates();
   if (upd.updateAvailable && upd.latest) {
     ui.warn(`You're on ${c.muted(upd.current)} — latest is ${c.bold(c.cyan(upd.latest))}.`);
-    ui.info(`Recommended: run ${ui.code("speclaw update")} first, then ${ui.code("speclaw init")} again.`);
+    ui.info(
+      `Recommended: run ${ui.code("speclaw update")} first, then ${ui.code("speclaw init")} again.`,
+    );
     ui.plain();
   }
 
@@ -74,7 +75,7 @@ export async function runInit(flags: Flags): Promise<void> {
             required: false,
           }),
       },
-      { onCancel: () => process.exit(1) }
+      { onCancel: () => process.exit(1) },
     );
     agents = answers.agents as string[];
     packs = answers.packs as string[];
@@ -85,7 +86,9 @@ export async function runInit(flags: Flags): Promise<void> {
 
   const unknownAgents = agents.filter((a) => !agentById(a));
   if (unknownAgents.length) {
-    ui.err(`Unknown agent(s): ${unknownAgents.join(", ")}. Known: ${AGENTS.map((a) => a.id).join(", ")}`);
+    ui.err(
+      `Unknown agent(s): ${unknownAgents.join(", ")}. Known: ${AGENTS.map((a) => a.id).join(", ")}`,
+    );
     process.exit(1);
   }
 
@@ -97,7 +100,9 @@ export async function runInit(flags: Flags): Promise<void> {
   const reinit = fs.existsSync(path.join(cwd, "LAWS.md"));
   ui.step(`Setting up ${c.bold(c.cyan(projectName))}`);
   if (reinit) {
-    ui.info("speclaw is already set up here — your existing files are kept; only missing pieces are added.");
+    ui.info(
+      "speclaw is already set up here — your existing files are kept; only missing pieces are added.",
+    );
   }
   const report = scaffold(cwd, profile, packs, agents);
   ui.ok(`Foundation ${c.muted("— LAWS.md + 8 standards + CLAUDE.md/AGENTS.md")}`);
@@ -106,7 +111,9 @@ export async function runInit(flags: Flags): Promise<void> {
   specInit(cwd);
   ui.ok(`Lawbook workspace ${c.muted("— lawbook/")}`);
   if (reinit && report.skipped.length) {
-    ui.info(`${report.written.length} added · ${c.cream(String(report.skipped.length))} preserved untouched`);
+    ui.info(
+      `${report.written.length} added · ${c.cream(String(report.skipped.length))} preserved untouched`,
+    );
   }
 
   ui.step("Configuring agents");
@@ -118,10 +125,14 @@ export async function runInit(flags: Flags): Promise<void> {
     const stats = await buildIndex(cwd, (e) => renderProgress(e.done, e.total, e.file));
     clearProgress();
     ui.ok(
-      c.bold(c.cream(String(stats.files))) + c.muted(" files · ") +
-        c.bold(c.cream(String(stats.nodes))) + c.muted(" nodes · ") +
-        c.bold(c.cream(String(stats.edges))) + c.muted(" edges · ") +
-        c.bold(c.cream(String(stats.embeddings))) + c.muted(" embeddings")
+      c.bold(c.cream(String(stats.files))) +
+        c.muted(" files · ") +
+        c.bold(c.cream(String(stats.nodes))) +
+        c.muted(" nodes · ") +
+        c.bold(c.cream(String(stats.edges))) +
+        c.muted(" edges · ") +
+        c.bold(c.cream(String(stats.embeddings))) +
+        c.muted(" embeddings"),
     );
   }
 
@@ -138,11 +149,13 @@ export async function runInit(flags: Flags): Promise<void> {
         "docs/standards/* with its real architecture, quality gates and conventions. " +
         "Infer the working language and conventions from the repo itself — docstrings, " +
         "commit messages, branch names, PR and ticket language — don't assume. " +
-        "Start with init_project."
-    )
+        "Start with init_project.",
+    ),
   );
   ui.plain();
-  ui.info(`The dev-agents read those standards for your stack — filling them well makes them stack-aware.`);
+  ui.info(
+    `The dev-agents read those standards for your stack — filling them well makes them stack-aware.`,
+  );
   ui.plain();
   ui.info(`Add an agent:   ${ui.code("speclaw agent add cursor")}`);
   ui.info(`Refresh index:  ${ui.code("speclaw index")}`);

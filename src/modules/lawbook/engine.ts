@@ -139,14 +139,20 @@ export function specValidate(projectPath: string, change: string): ValidationRes
   const changeDir = path.join(specRoot(projectPath), "changes", change);
   const issues: string[] = [];
   if (!fs.existsSync(changeDir)) {
-    return { change, valid: false, issues: [`change "${change}" not found under lawbook/changes/`], deltaSpecs: [] };
+    return {
+      change,
+      valid: false,
+      issues: [`change "${change}" not found under lawbook/changes/`],
+      deltaSpecs: [],
+    };
   }
   if (!fs.existsSync(path.join(changeDir, "proposal.md"))) issues.push("missing proposal.md");
   const tasksPath = path.join(changeDir, "tasks.md");
   if (!fs.existsSync(tasksPath)) issues.push("missing tasks.md");
 
   const deltas = deltaSpecFiles(changeDir);
-  if (deltas.length === 0) issues.push("no delta specs under specs/ (a change should specify what it changes)");
+  if (deltas.length === 0)
+    issues.push("no delta specs under specs/ (a change should specify what it changes)");
   for (const file of deltas) {
     const rel = path.relative(changeDir, file);
     const content = fs.readFileSync(file, "utf8");
@@ -160,7 +166,12 @@ export function specValidate(projectPath: string, change: string): ValidationRes
       issues.push(`${rel}: no "### Requirement:" header`);
     }
   }
-  return { change, valid: issues.length === 0, issues, deltaSpecs: deltas.map((f) => path.relative(projectPath, f)) };
+  return {
+    change,
+    valid: issues.length === 0,
+    issues,
+    deltaSpecs: deltas.map((f) => path.relative(projectPath, f)),
+  };
 }
 
 /** Result of promoting a change's delta specs into the canonical specs/. */
@@ -261,7 +272,8 @@ export function specList(projectPath: string): ListResult {
   const dirsIn = (rel: string): string[] => {
     const abs = path.join(root, rel);
     if (!fs.existsSync(abs)) return [];
-    return fs.readdirSync(abs, { withFileTypes: true })
+    return fs
+      .readdirSync(abs, { withFileTypes: true })
       .filter((e) => e.isDirectory() && e.name !== "archive")
       .map((e) => e.name);
   };

@@ -1,0 +1,16 @@
+node_modules/
+dist/
+.speclaw/
+brand/
+package-lock.json
+
+# IDE mirror dirs (symlinks into ai-specs + machine-local settings) — not source.
+.claude/
+.cursor/
+.codex/
+.agents/
+
+# Markdown is hand-wrapped — the docs/standards, the README, and speclaw's own
+# template assets carry {{placeholder}} and <!-- speclaw init: … --> contracts.
+# Reflowing it would break those and churn carefully formatted tables.
+*.md

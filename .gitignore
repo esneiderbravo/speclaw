@@ -4,3 +4,6 @@ dist/
 *.tgz
 *.log
 .DS_Store
+
+# Local agent/MCP wiring — machine-specific, not source.
+.mcp.json

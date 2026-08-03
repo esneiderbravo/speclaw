@@ -1,4 +1,3 @@
-import fs from "node:fs";
 import path from "node:path";
 import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
@@ -17,11 +16,16 @@ const ASSETS = assetsDir(import.meta.url);
 export function installWorkflow(
   projectPath: string,
   vars: Record<string, string | undefined>,
-  report: InstallReport
+  report: InstallReport,
 ): void {
   const aiSpecs = path.join(projectPath, "ai-specs");
   copyRendered(path.join(ASSETS, "skills"), path.join(aiSpecs, "skills"), vars, report);
-  copyRendered(path.join(ASSETS, "commands"), path.join(aiSpecs, "commands", "lawbook"), vars, report);
+  copyRendered(
+    path.join(ASSETS, "commands"),
+    path.join(aiSpecs, "commands", "lawbook"),
+    vars,
+    report,
+  );
   copyRendered(path.join(ASSETS, "rules"), path.join(aiSpecs, "rules"), vars, report);
 }
 
@@ -37,7 +41,7 @@ export function registerSpec(server: McpServer): void {
         "Initialize speclaw's spec-driven workflow in a project: creates lawbook/ (specs/, changes/, changes/archive/, config.yaml, README). Idempotent — never overwrites existing files.",
       inputSchema: { projectPath: z.string().describe("Absolute path to the project") },
     },
-    async ({ projectPath }) => text(specInit(projectPath))
+    async ({ projectPath }) => text(specInit(projectPath)),
   );
 
   server.registerTool(
@@ -47,7 +51,7 @@ export function registerSpec(server: McpServer): void {
         "List the spec workspace: active changes, archived changes, and canonical capabilities under spec/.",
       inputSchema: { projectPath: z.string().describe("Absolute path to the project") },
     },
-    async ({ projectPath }) => text(specList(projectPath))
+    async ({ projectPath }) => text(specList(projectPath)),
   );
 
   server.registerTool(
@@ -60,7 +64,7 @@ export function registerSpec(server: McpServer): void {
         change: z.string().describe("Change name (folder under lawbook/changes/)"),
       },
     },
-    async ({ projectPath, change }) => text(specValidate(projectPath, change))
+    async ({ projectPath, change }) => text(specValidate(projectPath, change)),
   );
 
   server.registerTool(
@@ -73,7 +77,7 @@ export function registerSpec(server: McpServer): void {
         change: z.string().describe("Change name (folder under lawbook/changes/)"),
       },
     },
-    async ({ projectPath, change }) => text(specSync(projectPath, change))
+    async ({ projectPath, change }) => text(specSync(projectPath, change)),
   );
 
   server.registerTool(
@@ -84,9 +88,12 @@ export function registerSpec(server: McpServer): void {
       inputSchema: {
         projectPath: z.string().describe("Absolute path to the project"),
         change: z.string().describe("Change name (folder under lawbook/changes/)"),
-        date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).describe("Today's date, YYYY-MM-DD"),
+        date: z
+          .string()
+          .regex(/^\d{4}-\d{2}-\d{2}$/)
+          .describe("Today's date, YYYY-MM-DD"),
       },
     },
-    async ({ projectPath, change, date }) => text(specArchive(projectPath, change, date))
+    async ({ projectPath, change, date }) => text(specArchive(projectPath, change, date)),
   );
 }

@@ -40,7 +40,10 @@ Other
 `;
 
 /** Run the handler for a single command. Returns when the command completes. */
-async function dispatch(cmd: string | undefined, flags: ReturnType<typeof parseFlags>): Promise<void> {
+async function dispatch(
+  cmd: string | undefined,
+  flags: ReturnType<typeof parseFlags>,
+): Promise<void> {
   switch (cmd) {
     case undefined:
     case "help":

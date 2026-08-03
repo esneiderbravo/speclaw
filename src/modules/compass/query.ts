@@ -33,7 +33,7 @@ export interface ExploreResult {
 function requireIndex(projectPath: string): void {
   if (!indexExists(projectPath)) {
     throw new Error(
-      "No index found. Build it first with the index_build tool (creates .speclaw/index.db)."
+      "No index found. Build it first with the index_build tool (creates .speclaw/index.db).",
     );
   }
 }
@@ -58,7 +58,7 @@ export function search(projectPath: string, query: string, limit = 25): SearchHi
          FROM nodes s JOIN files f ON f.id = s.file_id
          WHERE s.name LIKE ?
          ORDER BY (s.name = ?) DESC, length(s.name) ASC
-         LIMIT ?`
+         LIMIT ?`,
       )
       .all(`%${query}%`, query, limit) as unknown as SearchHit[];
     return rows;
@@ -101,11 +101,18 @@ export function explore(projectPath: string, query: string): ExploreResult {
          FROM nodes s JOIN files f ON f.id = s.file_id
          WHERE s.name = ?
          ORDER BY s.kind = 'function' DESC, s.kind = 'class' DESC
-         LIMIT 10`
+         LIMIT 10`,
       )
       .all(query) as Array<{
-      id: number; name: string; kind: string; start_line: number; end_line: number;
-      start_byte: number; end_byte: number; signature: string | null; file: string;
+      id: number;
+      name: string;
+      kind: string;
+      start_line: number;
+      end_line: number;
+      start_byte: number;
+      end_byte: number;
+      signature: string | null;
+      file: string;
     }>;
 
     if (matches.length === 0) {
@@ -125,7 +132,7 @@ export function explore(projectPath: string, query: string): ExploreResult {
          FROM edges e LEFT JOIN nodes s ON s.id = e.dst_node_id
          LEFT JOIN files f ON f.id = s.file_id
          WHERE e.src_node_id = ? AND e.kind = 'call'
-         ORDER BY e.line`
+         ORDER BY e.line`,
       )
       .all(best.id) as Array<{ name: string; line: number; file: string | null }>;
 
@@ -139,7 +146,7 @@ export function explore(projectPath: string, query: string): ExploreResult {
          JOIN nodes owner ON owner.id = e.src_node_id
          JOIN files f ON f.id = owner.file_id
          WHERE (e.dst_node_id = ? OR e.dst_name = ?) AND e.kind = 'call'
-         ORDER BY f.path, e.line`
+         ORDER BY f.path, e.line`,
       )
       .all(best.id, best.name) as Array<{ name: string; kind: string; file: string; line: number }>;
 
@@ -159,7 +166,11 @@ export function explore(projectPath: string, query: string): ExploreResult {
       otherMatches:
         matches.length > 1
           ? matches.slice(1).map((m) => ({
-              name: m.name, kind: m.kind, file: m.file, line: m.start_line, signature: m.signature,
+              name: m.name,
+              kind: m.kind,
+              file: m.file,
+              line: m.start_line,
+              signature: m.signature,
             }))
           : undefined,
     };
@@ -184,11 +195,7 @@ export interface RecallHit extends SearchHit {
  * @returns Nodes sorted by descending similarity score.
  * @throws If no index exists for the project.
  */
-export async function recall(
-  projectPath: string,
-  query: string,
-  limit = 15
-): Promise<RecallHit[]> {
+export async function recall(projectPath: string, query: string, limit = 15): Promise<RecallHit[]> {
   requireIndex(projectPath);
   const embedder = getEmbedder();
   const qvec = await embedder.embed(query);
@@ -200,11 +207,15 @@ export async function recall(
          FROM node_embeddings e
          JOIN nodes n ON n.id = e.node_id
          JOIN files f ON f.id = n.file_id
-         WHERE e.dim = ?`
+         WHERE e.dim = ?`,
       )
       .all(embedder.dim) as Array<{
-      name: string; kind: string; file: string; line: number;
-      signature: string | null; vec: Uint8Array;
+      name: string;
+      kind: string;
+      file: string;
+      line: number;
+      signature: string | null;
+      vec: Uint8Array;
     }>;
 
     const scored = rows.map((r) => ({
@@ -258,10 +269,14 @@ export function impact(projectPath: string, nodeName: string, maxDepth = 4): Imp
            JOIN nodes owner ON owner.id = e.src_node_id
            JOIN files f ON f.id = owner.file_id
            WHERE e.kind = 'call' AND e.dst_name IN (${placeholders})
-           GROUP BY owner.id`
+           GROUP BY owner.id`,
         )
         .all(...frontier) as Array<{
-        id: number; name: string; kind: string; file: string; line: number;
+        id: number;
+        name: string;
+        kind: string;
+        file: string;
+        line: number;
       }>;
       const nextNames = new Set<string>();
       for (const c of callers) {
@@ -299,12 +314,7 @@ export interface TraceResult {
  * is found within `maxDepth`.
  * @throws If no index exists for the project.
  */
-export function trace(
-  projectPath: string,
-  from: string,
-  to: string,
-  maxDepth = 8
-): TraceResult {
+export function trace(projectPath: string, from: string, to: string, maxDepth = 8): TraceResult {
   requireIndex(projectPath);
   const db = openDb(projectPath);
   try {
@@ -315,7 +325,7 @@ export function trace(
     const calleesStmt = db.prepare(
       `SELECT DISTINCT e.dst_name AS callee
        FROM edges e JOIN nodes src ON src.id = e.src_node_id
-       WHERE e.kind = 'call' AND src.name = ?`
+       WHERE e.kind = 'call' AND src.name = ?`,
     );
     for (let depth = 0; depth < maxDepth && frontier.length > 0; depth++) {
       const next: string[] = [];

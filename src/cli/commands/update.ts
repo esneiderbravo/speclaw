@@ -55,18 +55,28 @@ export async function runUpdate(flags: Flags): Promise<void> {
         return;
       }
       ui.step(`Updating ${pkgName()} globally`);
-      const install = spawnSync("npm", ["install", "-g", `${pkgName()}@latest`], { stdio: "inherit", shell: winShell });
+      const install = spawnSync("npm", ["install", "-g", `${pkgName()}@latest`], {
+        stdio: "inherit",
+        shell: winShell,
+      });
       if (install.status !== 0) {
-        ui.err("Global update failed. Try again with elevated permissions (e.g. sudo), or check your npm setup.");
+        ui.err(
+          "Global update failed. Try again with elevated permissions (e.g. sudo), or check your npm setup.",
+        );
         process.exit(1);
       }
       ui.ok(`Updated to ${latest}`);
 
       // Re-exec the NEWLY installed binary so migrations run with the new assets
       // and any new feature steps — not this (now-stale) process.
-      const re = spawnSync("speclaw", ["update", "--migrate-only"], { stdio: "inherit", shell: winShell });
+      const re = spawnSync("speclaw", ["update", "--migrate-only"], {
+        stdio: "inherit",
+        shell: winShell,
+      });
       if (re.error) {
-        ui.warn(`Upgraded — now run ${ui.code("speclaw update --migrate-only")} to apply project changes.`);
+        ui.warn(
+          `Upgraded — now run ${ui.code("speclaw update --migrate-only")} to apply project changes.`,
+        );
         return;
       }
       process.exit(re.status ?? 0);
@@ -84,7 +94,8 @@ export async function runUpdate(flags: Flags): Promise<void> {
  * No-op with a hint when the directory isn't a speclaw project.
  */
 function applyProjectMigrations(cwd: string): void {
-  const initialized = fs.existsSync(path.join(cwd, "ai-specs")) || fs.existsSync(path.join(cwd, "LAWS.md"));
+  const initialized =
+    fs.existsSync(path.join(cwd, "ai-specs")) || fs.existsSync(path.join(cwd, "LAWS.md"));
   if (!initialized) {
     ui.step("Project");
     ui.info(`No speclaw project here — run ${ui.code("speclaw init")} to set one up.`);

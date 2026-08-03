@@ -25,9 +25,7 @@ export function doctor(projectPath: string): Check[] {
   checks.push({
     name: "ai-specs directory",
     ok: has("ai-specs"),
-    detail: has("ai-specs")
-      ? "present"
-      : "missing — run the scaffold tool first",
+    detail: has("ai-specs") ? "present" : "missing — run the scaffold tool first",
   });
 
   checks.push({
@@ -54,15 +52,14 @@ export function doctor(projectPath: string): Check[] {
     "conventions",
     "lawbook",
   ];
-  const missingStandards = standards.filter(
-    (s) => !has(path.join("docs/standards", `${s}.md`))
-  );
+  const missingStandards = standards.filter((s) => !has(path.join("docs/standards", `${s}.md`)));
   checks.push({
     name: "docs/standards/*",
     ok: missingStandards.length === 0,
-    detail: missingStandards.length === 0
-      ? `all ${standards.length} standards present`
-      : `missing: ${missingStandards.join(", ")}`,
+    detail:
+      missingStandards.length === 0
+        ? `all ${standards.length} standards present`
+        : `missing: ${missingStandards.join(", ")}`,
   });
 
   // Only check the agents the user actually configured — selection is opt-in.
@@ -101,9 +98,7 @@ export function doctor(projectPath: string): Check[] {
   checks.push({
     name: "lawbook workflow",
     ok: has("lawbook"),
-    detail: has("lawbook")
-      ? "lawbook/ present"
-      : "missing — run the `lawbook_init` tool",
+    detail: has("lawbook") ? "lawbook/ present" : "missing — run the `lawbook_init` tool",
   });
 
   checks.push({

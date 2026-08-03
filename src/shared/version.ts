@@ -8,10 +8,18 @@ let cached: { name: string; version: string } | null = null;
 
 function readPkg(): { name: string; version: string } {
   if (cached) return cached;
-  const pkgPath = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "..", "package.json");
+  const pkgPath = path.join(
+    path.dirname(fileURLToPath(import.meta.url)),
+    "..",
+    "..",
+    "package.json",
+  );
   try {
     const pkg = JSON.parse(fs.readFileSync(pkgPath, "utf8"));
-    cached = { name: String(pkg.name ?? "@esneiderbravo/speclaw"), version: String(pkg.version ?? "0.0.0") };
+    cached = {
+      name: String(pkg.name ?? "@esneiderbravo/speclaw"),
+      version: String(pkg.version ?? "0.0.0"),
+    };
   } catch {
     cached = { name: "@esneiderbravo/speclaw", version: "0.0.0" };
   }

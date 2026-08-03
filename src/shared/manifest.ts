@@ -27,7 +27,10 @@ function manifestPath(projectPath: string): string {
 export function readManifest(projectPath: string): Manifest | null {
   try {
     const m = JSON.parse(fs.readFileSync(manifestPath(projectPath), "utf8"));
-    return { version: String(m.version ?? "0.0.0"), packs: Array.isArray(m.packs) ? m.packs.map(String) : [] };
+    return {
+      version: String(m.version ?? "0.0.0"),
+      packs: Array.isArray(m.packs) ? m.packs.map(String) : [],
+    };
   } catch {
     return null;
   }

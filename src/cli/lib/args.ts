@@ -40,6 +40,10 @@ export function parseFlags(argv: string[]): Flags {
  */
 export function list(value: string | boolean | string[] | undefined): string[] {
   if (Array.isArray(value)) return value;
-  if (typeof value === "string") return value.split(",").map((s) => s.trim()).filter(Boolean);
+  if (typeof value === "string")
+    return value
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
   return [];
 }

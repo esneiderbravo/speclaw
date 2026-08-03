@@ -60,13 +60,13 @@ export function graphData(projectPath: string, opts: VisualizeOptions = {}): Gra
     const allNodes = db
       .prepare(
         `SELECT n.id, n.name, n.kind, f.path AS file, n.start_line AS line
-         FROM nodes n JOIN files f ON f.id = n.file_id`
+         FROM nodes n JOIN files f ON f.id = n.file_id`,
       )
       .all() as Array<{ id: number; name: string; kind: string; file: string; line: number }>;
     const allEdges = db
       .prepare(
         `SELECT src_node_id AS s, dst_node_id AS t FROM edges
-         WHERE kind = 'call' AND dst_node_id IS NOT NULL AND src_node_id IS NOT NULL`
+         WHERE kind = 'call' AND dst_node_id IS NOT NULL AND src_node_id IS NOT NULL`,
       )
       .all() as Array<{ s: number; t: number }>;
 
@@ -103,7 +103,7 @@ export function graphData(projectPath: string, opts: VisualizeOptions = {}): Gra
         [...allNodes]
           .sort((a, b) => (deg.get(b.id) ?? 0) - (deg.get(a.id) ?? 0))
           .slice(0, limit)
-          .map((n) => n.id)
+          .map((n) => n.id),
       );
     }
 
@@ -126,7 +126,10 @@ export function graphData(projectPath: string, opts: VisualizeOptions = {}): Gra
  * @returns The output path plus the shown/link/total counts for reporting.
  * @throws If no Compass index exists yet.
  */
-export function visualize(projectPath: string, opts: VisualizeOptions = {}): {
+export function visualize(
+  projectPath: string,
+  opts: VisualizeOptions = {},
+): {
   path: string;
   shown: number;
   links: number;

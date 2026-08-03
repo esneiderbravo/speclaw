@@ -79,8 +79,7 @@ export const SCHEMA_VERSION = "3";
 function readSchemaVersion(db: DatabaseSync): string | null {
   try {
     const row = db.prepare("SELECT value FROM meta WHERE key = 'schema_version'").get() as
-      | { value: string }
-      | undefined;
+      { value: string } | undefined;
     return row ? String(row.value) : null;
   } catch {
     return null; // meta table doesn't exist yet
@@ -100,7 +99,9 @@ function isStale(db: DatabaseSync): boolean {
     .get();
   if (!hasEdges) return false;
   if (readSchemaVersion(db) !== SCHEMA_VERSION) return true;
-  const cols = (db.prepare("PRAGMA table_info(edges)").all() as { name: string }[]).map((c) => c.name);
+  const cols = (db.prepare("PRAGMA table_info(edges)").all() as { name: string }[]).map(
+    (c) => c.name,
+  );
   return !cols.includes("src_node_id") || !cols.includes("dst_node_id");
 }
 
@@ -136,13 +137,10 @@ export function openDb(projectPath: string): DatabaseSync {
   if (isStale(db)) resetSchema(db);
 
   db.exec(SCHEMA);
-  const row = db
-    .prepare("SELECT value FROM meta WHERE key = 'schema_version'")
-    .get() as { value: string } | undefined;
+  const row = db.prepare("SELECT value FROM meta WHERE key = 'schema_version'").get() as
+    { value: string } | undefined;
   if (!row) {
-    db.prepare("INSERT INTO meta(key, value) VALUES ('schema_version', ?)").run(
-      SCHEMA_VERSION
-    );
+    db.prepare("INSERT INTO meta(key, value) VALUES ('schema_version', ?)").run(SCHEMA_VERSION);
   }
   return db;
 }

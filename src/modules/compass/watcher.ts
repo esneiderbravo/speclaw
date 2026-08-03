@@ -12,8 +12,17 @@ interface WatchState {
 const active = new Map<string, WatchState>();
 
 const SKIP = new Set([
-  ".git", "node_modules", "dist", "build", ".next", ".speclaw",
-  "__pycache__", ".venv", "venv", ".mypy_cache", ".pytest_cache",
+  ".git",
+  "node_modules",
+  "dist",
+  "build",
+  ".next",
+  ".speclaw",
+  "__pycache__",
+  ".venv",
+  "venv",
+  ".mypy_cache",
+  ".pytest_cache",
 ]);
 
 function scheduleReindex(projectPath: string, state: WatchState): void {
@@ -38,9 +47,7 @@ function watchDirsRecursively(projectPath: string, state: WatchState): void {
     } catch {
       return;
     }
-    state.watchers.push(
-      fs.watch(dir, () => scheduleReindex(projectPath, state))
-    );
+    state.watchers.push(fs.watch(dir, () => scheduleReindex(projectPath, state)));
     for (const e of entries) {
       if (e.isDirectory() && !SKIP.has(e.name)) walk(path.join(dir, e.name));
     }
@@ -72,7 +79,7 @@ export function startWatch(projectPath: string): WatchStatus {
   try {
     // Recursive watch is supported on macOS and Windows.
     state.watchers.push(
-      fs.watch(projectPath, { recursive: true }, () => scheduleReindex(projectPath, state))
+      fs.watch(projectPath, { recursive: true }, () => scheduleReindex(projectPath, state)),
     );
     state.recursive = true;
   } catch {

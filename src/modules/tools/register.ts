@@ -17,7 +17,7 @@ export function registerTools(server: McpServer): void {
       description: "List the available speclaw skill packs and what each contains.",
       inputSchema: {},
     },
-    async () => text(loadPacks())
+    async () => text(loadPacks()),
   );
 
   server.registerTool(
@@ -36,6 +36,6 @@ export function registerTools(server: McpServer): void {
       installPack(projectPath, pack, vars ?? {}, report);
       refreshAgents(projectPath, report); // link the new content into already-configured agents
       return text(report);
-    }
+    },
   );
 }

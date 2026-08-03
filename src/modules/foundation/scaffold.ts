@@ -70,7 +70,7 @@ export interface ScaffoldReport extends InstallReport {
 function renderFoundation(
   projectPath: string,
   vars: Record<string, string | undefined>,
-  report: InstallReport
+  report: InstallReport,
 ): void {
   const walk = (relDir: string): void => {
     for (const entry of fs.readdirSync(path.join(ASSETS, relDir), { withFileTypes: true })) {
@@ -85,10 +85,7 @@ function renderFoundation(
         report.skipped.push(destPath);
         continue;
       }
-      const { output, unresolved } = render(
-        fs.readFileSync(path.join(ASSETS, rel), "utf8"),
-        vars
-      );
+      const { output, unresolved } = render(fs.readFileSync(path.join(ASSETS, rel), "utf8"), vars);
       unresolved.forEach((v) => {
         if (!report.unresolvedVars.includes(v)) report.unresolvedVars.push(v);
       });
@@ -118,7 +115,7 @@ export function scaffold(
   projectPath: string,
   profile: Profile,
   packNames: string[],
-  agents: string[] = []
+  agents: string[] = [],
 ): ScaffoldReport {
   if (!fs.existsSync(projectPath)) {
     throw new Error(`projectPath does not exist: ${projectPath}`);

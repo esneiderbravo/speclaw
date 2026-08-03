@@ -1,4 +1,10 @@
-import { specInit, specValidate, specSync, specArchive, specList } from "../../modules/lawbook/engine.js";
+import {
+  specInit,
+  specValidate,
+  specSync,
+  specArchive,
+  specList,
+} from "../../modules/lawbook/engine.js";
 import { Flags } from "../lib/args.js";
 import { ui } from "../lib/ui.js";
 
@@ -20,7 +26,11 @@ export async function runSpec(flags: Flags): Promise<void> {
     switch (sub) {
       case "init": {
         const r = specInit(cwd);
-        ui.ok(r.alreadyExisted ? "lawbook/ already present" : `lawbook/ created (${r.created.length} entries)`);
+        ui.ok(
+          r.alreadyExisted
+            ? "lawbook/ already present"
+            : `lawbook/ created (${r.created.length} entries)`,
+        );
         return;
       }
       case "list": {

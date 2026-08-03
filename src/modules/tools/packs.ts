@@ -39,7 +39,7 @@ export function installPack(
   projectPath: string,
   name: string,
   vars: Record<string, string | undefined>,
-  report: InstallReport
+  report: InstallReport,
 ): void {
   const packs = loadPacks();
   const def = packs[name];

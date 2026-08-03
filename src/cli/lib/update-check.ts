@@ -57,7 +57,11 @@ async function fetchLatest(name: string): Promise<string | null> {
  * @returns True when `latest` is strictly newer than `current`.
  */
 export function isNewer(latest: string, current: string): boolean {
-  const parse = (v: string) => v.split("-")[0]!.split(".").map((n) => parseInt(n, 10) || 0);
+  const parse = (v: string) =>
+    v
+      .split("-")[0]!
+      .split(".")
+      .map((n) => parseInt(n, 10) || 0);
   const a = parse(latest);
   const b = parse(current);
   for (let i = 0; i < 3; i++) {
@@ -77,11 +81,11 @@ export function isNewer(latest: string, current: string): boolean {
  * @returns The current/latest versions and whether an upgrade is available.
  */
 export async function checkForUpdates(
-  opts: { force?: boolean } = {}
+  opts: { force?: boolean } = {},
 ): Promise<{ current: string; latest: string | null; updateAvailable: boolean }> {
   const current = pkgVersion();
   const cache = readCache();
-  let latest: string | null = null;
+  let latest: string | null;
 
   if (!opts.force && cache && Date.now() - cache.checkedAt < TTL_MS) {
     latest = cache.latest;
@@ -114,8 +118,17 @@ export async function maybeNotifyUpdate(cmd: string | undefined): Promise<void> 
 
     process.stderr.write(
       "\n" +
-        "  " + c.amber("⬆ speclaw ") + c.muted(current + " → ") + c.cyan(latest) + c.muted(" available") + "\n" +
-        "  " + c.muted("run ") + c.cyan("speclaw update") + c.muted(" — upgrades and applies only what's new") + "\n\n"
+        "  " +
+        c.amber("⬆ speclaw ") +
+        c.muted(current + " → ") +
+        c.cyan(latest) +
+        c.muted(" available") +
+        "\n" +
+        "  " +
+        c.muted("run ") +
+        c.cyan("speclaw update") +
+        c.muted(" — upgrades and applies only what's new") +
+        "\n\n",
     );
   } catch {
     /* the notifier is best-effort — never let it break a command */

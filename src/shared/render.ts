@@ -16,10 +16,7 @@ export interface RenderResult {
  * @param vars - Lookup of placeholder names to values; `undefined` values are treated as unresolved.
  * @returns The rendered output alongside the set of placeholder names that could not be resolved.
  */
-export function render(
-  content: string,
-  vars: Record<string, string | undefined>
-): RenderResult {
+export function render(content: string, vars: Record<string, string | undefined>): RenderResult {
   const unresolved = new Set<string>();
   const output = content.replace(VAR_RE, (match, name: string) => {
     const value = vars[name];

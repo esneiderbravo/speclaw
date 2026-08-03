@@ -31,7 +31,7 @@ async function loadLanguage(lang: LangConfig): Promise<Language> {
  */
 export async function parse(
   source: string,
-  lang: LangConfig
+  lang: LangConfig,
 ): Promise<import("web-tree-sitter").Tree> {
   await ensureInit();
   const parser = new Parser();

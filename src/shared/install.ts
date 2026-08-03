@@ -33,7 +33,7 @@ export function copyRendered(
   srcDir: string,
   destDir: string,
   vars: Record<string, string | undefined>,
-  report: InstallReport
+  report: InstallReport,
 ): void {
   fs.mkdirSync(destDir, { recursive: true });
   for (const entry of fs.readdirSync(srcDir, { withFileTypes: true })) {
@@ -68,7 +68,12 @@ export function copyRendered(
  * @param comment - Comment line written above the entry when it is added.
  * @param report - Report mutated in place; the appended entry is recorded under `written`.
  */
-export function ensureGitignore(projectPath: string, entry: string, comment: string, report: InstallReport): void {
+export function ensureGitignore(
+  projectPath: string,
+  entry: string,
+  comment: string,
+  report: InstallReport,
+): void {
   const gitignorePath = path.join(projectPath, ".gitignore");
   let content = "";
   if (fs.existsSync(gitignorePath)) {

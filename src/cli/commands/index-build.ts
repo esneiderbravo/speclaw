@@ -13,7 +13,7 @@ export async function runIndex(_flags: Flags): Promise<void> {
   const secs = ((Date.now() - start) / 1000).toFixed(1);
   ui.ok(
     `${stats.files} files · ${stats.nodes} nodes · ${stats.edges} edges · ` +
-      `${stats.embeddings} embeddings · ${stats.unchanged} unchanged  (${secs}s)`
+      `${stats.embeddings} embeddings · ${stats.unchanged} unchanged  (${secs}s)`,
   );
 }
 

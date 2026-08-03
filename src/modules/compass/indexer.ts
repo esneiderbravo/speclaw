@@ -7,9 +7,23 @@ import { extract } from "./extract.js";
 import { getEmbedder, toBlob } from "./embedder.js";
 
 const SKIP_DIRS = new Set([
-  ".git", "node_modules", "dist", "build", ".next", "out", "coverage",
-  "__pycache__", ".venv", "venv", ".speclaw", ".mypy_cache", ".pytest_cache",
-  "vendor", "target", ".turbo", ".cache",
+  ".git",
+  "node_modules",
+  "dist",
+  "build",
+  ".next",
+  "out",
+  "coverage",
+  "__pycache__",
+  ".venv",
+  "venv",
+  ".speclaw",
+  ".mypy_cache",
+  ".pytest_cache",
+  "vendor",
+  "target",
+  ".turbo",
+  ".cache",
 ]);
 
 const MAX_FILE_BYTES = 1_500_000;
@@ -77,18 +91,25 @@ export type ProgressFn = (e: ProgressEvent) => void;
  */
 export async function buildIndex(
   projectPath: string,
-  onProgress?: ProgressFn
+  onProgress?: ProgressFn,
 ): Promise<IndexStats> {
   const db = openDb(projectPath);
   const embedder = getEmbedder();
   const stats: IndexStats = {
-    files: 0, nodes: 0, edges: 0, embeddings: 0,
-    unchanged: 0, removed: 0, embedder: embedder.id,
+    files: 0,
+    nodes: 0,
+    edges: 0,
+    embeddings: 0,
+    unchanged: 0,
+    removed: 0,
+    embedder: embedder.id,
   };
 
   const existing = new Map<string, { id: number; hash: string }>();
   for (const row of db.prepare("SELECT id, path, hash FROM files").all() as Array<{
-    id: number; path: string; hash: string;
+    id: number;
+    path: string;
+    hash: string;
   }>) {
     existing.set(row.path, { id: row.id, hash: row.hash });
   }
@@ -100,13 +121,13 @@ export async function buildIndex(
   const delEdges = db.prepare("DELETE FROM edges WHERE src_file_id = ?");
   const insNode = db.prepare(
     `INSERT INTO nodes(file_id, name, kind, start_line, end_line, start_byte, end_byte, parent_id, signature)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   );
   const insEdge = db.prepare(
-    `INSERT INTO edges(src_node_id, src_file_id, dst_name, kind, line) VALUES (?, ?, ?, ?, ?)`
+    `INSERT INTO edges(src_node_id, src_file_id, dst_name, kind, line) VALUES (?, ?, ?, ?, ?)`,
   );
   const insEmbed = db.prepare(
-    `INSERT OR REPLACE INTO node_embeddings(node_id, dim, model, vec) VALUES (?, ?, ?, ?)`
+    `INSERT OR REPLACE INTO node_embeddings(node_id, dim, model, vec) VALUES (?, ?, ?, ?)`,
   );
 
   const allFiles = [...walkFiles(projectPath)];
@@ -150,9 +171,16 @@ export async function buildIndex(
         const parentId = s.parentIndex !== null ? nodeIds[s.parentIndex]! : null;
         const id = Number(
           insNode.run(
-            fileId, s.name, s.kind, s.startLine, s.endLine,
-            s.startByte, s.endByte, parentId, s.signature
-          ).lastInsertRowid
+            fileId,
+            s.name,
+            s.kind,
+            s.startLine,
+            s.endLine,
+            s.startByte,
+            s.endByte,
+            parentId,
+            s.signature,
+          ).lastInsertRowid,
         );
         nodeIds.push(id);
         // embed the node from its name + signature (cheap, meaningful text)

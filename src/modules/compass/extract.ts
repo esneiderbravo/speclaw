@@ -51,8 +51,7 @@ function calleeName(node: Node, lang: LangConfig): string | null {
   if (!fn) return null;
   // a.b.c() -> c ; foo() -> foo
   if (fn.type === "member_expression" || fn.type === "attribute") {
-    const prop =
-      fn.childForFieldName("property") ?? fn.childForFieldName("attribute");
+    const prop = fn.childForFieldName("property") ?? fn.childForFieldName("attribute");
     return prop ? prop.text : fn.text;
   }
   if (fn.type === "identifier") return fn.text;
@@ -74,10 +73,7 @@ function signatureOf(node: Node): string {
  * fields index back into the `symbols` array to express nesting and ownership.
  * @throws If the source cannot be parsed for the given language.
  */
-export async function extract(
-  source: string,
-  lang: LangConfig
-): Promise<Extraction> {
+export async function extract(source: string, lang: LangConfig): Promise<Extraction> {
   const tree = await parse(source, lang);
   const kinds = defKindMap(lang);
   const importSet = new Set(lang.importNodes);
