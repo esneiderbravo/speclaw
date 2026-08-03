@@ -1,0 +1,14 @@
+# speclaw lawbook module configuration
+# The spec-driven workflow: draft -> build -> sync -> archive (explore anytime).
+
+# Mandatory steps every change's tasks.md must include, in order.
+mandatory_task_steps:
+  - "Step 0: Create the feature branch (must be first)."
+  - "Review and update the affected tests."
+  - "Run the quality gates and verify they pass (see docs/standards/testing-standards.md)."
+  - "Perform manual verification of the behavior — the agent executes this itself, never the user."
+  - "Update the technical documentation touched by the change."
+  - "Archive the change within the same PR (lawbook:archive)."
+
+# A change is required for new behavior, endpoints, schema changes, or UI flows;
+# one-line fixes need not have one.
