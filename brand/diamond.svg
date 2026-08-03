@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 44 44" width="44" height="44" role="img" aria-label="section marker">
+  <defs>
+    <radialGradient id="aura" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#2EE6E6" stop-opacity="0.55"/>
+      <stop offset="55%" stop-color="#17C1C1" stop-opacity="0.18"/>
+      <stop offset="100%" stop-color="#17C1C1" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="face" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#5FF3F3"/>
+      <stop offset="100%" stop-color="#17C1C1"/>
+    </linearGradient>
+    <filter id="soft" x="-60%" y="-60%" width="220%" height="220%">
+      <feGaussianBlur stdDeviation="1.1"/>
+    </filter>
+  </defs>
+  <!-- teal aura -->
+  <circle cx="22" cy="22" r="21" fill="url(#aura)"/>
+  <!-- soft glow copy of the diamond -->
+  <polygon points="22,7 37,22 22,37 7,22" fill="#2EE6E6" opacity="0.7" filter="url(#soft)"/>
+  <!-- diamond face -->
+  <polygon points="22,8 36,22 22,36 8,22" fill="url(#face)"/>
+</svg>

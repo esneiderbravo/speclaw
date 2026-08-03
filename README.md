@@ -35,7 +35,7 @@ One command. No cloud, no LLM, no API keys — <b>everything runs on your machin
 
 <br/>
 
-## ◆ Quick start
+## <img src="https://raw.githubusercontent.com/esneiderbravo/speclaw/main/brand/diamond.png" height="20" alt="◆" align="absmiddle">&nbsp; Quick start
 
 Install speclaw globally (once), then run `init` in your project root:
 
@@ -67,7 +67,7 @@ too (also `pnpm dlx` / `yarn dlx`) — but installing globally means you can run
 
 <br/>
 
-## ◆ It looks like this
+## <img src="https://raw.githubusercontent.com/esneiderbravo/speclaw/main/brand/diamond.png" height="20" alt="◆" align="absmiddle">&nbsp; It looks like this
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/esneiderbravo/speclaw/main/brand/terminal-init.png" width="800" alt="speclaw init — terminal output">
@@ -77,7 +77,7 @@ too (also `pnpm dlx` / `yarn dlx`) — but installing globally means you can run
 
 <br/>
 
-## ◆ The suite — four modules
+## <img src="https://raw.githubusercontent.com/esneiderbravo/speclaw/main/brand/diamond.png" height="20" alt="◆" align="absmiddle">&nbsp; The suite — four modules
 
 | Module | What it does |
 | :-- | :-- |
@@ -90,7 +90,7 @@ Compass is inspired by [CodeGraph](https://github.com/colbymchenry/codegraph) an
 
 <br/>
 
-## ◆ Two ways to use it
+## <img src="https://raw.githubusercontent.com/esneiderbravo/speclaw/main/brand/diamond.png" height="20" alt="◆" align="absmiddle">&nbsp; Two ways to use it
 
 speclaw meets you where you are. Everything works through the **CLI** — so no one
 is blocked by MCP setup — and the same capabilities are exposed as **MCP tools**
@@ -105,7 +105,7 @@ still use Compass and the lawbook engine by calling the CLI from its shell.
 
 <br/>
 
-## ◆ What lands in your project
+## <img src="https://raw.githubusercontent.com/esneiderbravo/speclaw/main/brand/diamond.png" height="20" alt="◆" align="absmiddle">&nbsp; What lands in your project
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/esneiderbravo/speclaw/main/brand/terminal-tree.png" width="800" alt="what speclaw writes into your project">
@@ -113,7 +113,7 @@ still use Compass and the lawbook engine by calling the CLI from its shell.
 
 <br/>
 
-## ◆ Philosophy — why "laws"?
+## <img src="https://raw.githubusercontent.com/esneiderbravo/speclaw/main/brand/diamond.png" height="20" alt="◆" align="absmiddle">&nbsp; Philosophy — why "laws"?
 
 > [!NOTE]
 > A guideline is a suggestion. A **law** is enforced. The most common failure mode
@@ -124,7 +124,7 @@ still use Compass and the lawbook engine by calling the CLI from its shell.
 
 <br/>
 
-## ◆ Staying up to date
+## <img src="https://raw.githubusercontent.com/esneiderbravo/speclaw/main/brand/diamond.png" height="20" alt="◆" align="absmiddle">&nbsp; Staying up to date
 
 speclaw checks for new releases in the background (at most once a day) and nudges
 you when one lands. To upgrade:
@@ -143,7 +143,7 @@ packs this project already uses.
 
 <br/>
 
-## ◆ Requirements
+## <img src="https://raw.githubusercontent.com/esneiderbravo/speclaw/main/brand/diamond.png" height="20" alt="◆" align="absmiddle">&nbsp; Requirements
 
 - **Node.js ≥ 22** — uses the built-in `node:sqlite`.
 - **No native builds, no services, no API keys, no LLM download.** Tree-sitter
