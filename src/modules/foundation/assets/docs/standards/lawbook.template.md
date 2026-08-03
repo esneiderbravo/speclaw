@@ -13,10 +13,13 @@ No non-trivial change lands without a spec change:
    `specs/<capability>/spec.md`, `design.md`, and `tasks.md`.
 3. **build** — implement the tasks in order, keeping code and spec in
    agreement.
-4. **sync** — promote the change's delta specs into the canonical
-   `lawbook/specs/` (`lawbook_sync`).
-5. **archive** — finalize: sync + move the change to `lawbook/changes/archive/`
-   (`lawbook_archive`), **within the same PR** — never a post-merge chore.
+4. **sync** — reconcile the delta specs against what was actually built, then
+   promote them into the canonical `lawbook/specs/` (`lawbook_sync`). The tool
+   is a deterministic copy; the agent does the code↔spec reconciliation first.
+5. **archive** — finalize: run the reconciliation review (recommend a sync if
+   the code drifted past the contracts), then sync + move the change to
+   `lawbook/changes/archive/` (`lawbook_archive`), **within the same PR** —
+   never a post-merge chore.
 
 ## Mandatory task steps
 
@@ -38,6 +41,13 @@ the PR. The agent performs the manual testing itself — never delegates it.
 
 Always archive with the `archive` command / `lawbook_archive` tool, never a manual
 `mv` — the tool performs the spec promotion and validation a manual move skips.
+
+`lawbook_archive` folds the sync in and is blind to the code, so before
+archiving the agent runs a reconciliation review: it compares what was built
+against the delta specs and, when the code has drifted past the original
+contracts, recommends a reconciling `sync` with short insights before
+proceeding. Archive only after the specs reflect what shipped or the drift is
+explicitly accepted.
 
 ## Amendments to the law
 
