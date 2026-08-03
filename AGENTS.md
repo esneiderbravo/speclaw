@@ -16,9 +16,12 @@ Claude-specific notes: [`CLAUDE.md`](CLAUDE.md). The law: [`LAWS.md`](LAWS.md).
    standards below. Open the standard that governs your change before making
    it. Conflicts resolve in favor of the standard; amendments go through a
    spec change, never silent deviation.
-2. **Use Compass before file scanning** — the `compass_explore` /
-   `compass_search` / `compass_recall` tools (run `compass_index` first if the
-   graph is missing). Cheat sheet: [`docs/compass.md`](docs/compass.md).
+2. **Compass first, always** — for any code question call `compass_explore` /
+   `compass_search` / `compass_recall` **before** any grep/sed/cat/Read,
+   including files you already know by name. Fall back to manual file tools only
+   after Compass returns nothing useful, the graph is missing (`compass_index`
+   first), or the target isn't indexed code (stylesheets, config, logs). Cheat
+   sheet: [`docs/compass.md`](docs/compass.md).
 3. **Follow the lawbook workflow** for every non-trivial change; archive
    within the same PR. Rules:
    [`docs/standards/lawbook.md`](docs/standards/lawbook.md).
