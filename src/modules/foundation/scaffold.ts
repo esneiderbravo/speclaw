@@ -109,8 +109,10 @@ function renderFoundation(
  * @param packNames - Tool pack names to install (the spec workflow is always installed).
  * @param agents - Agent ids to configure with symlinks + MCP; empty writes content only.
  * @param opts - `refreshManaged: true` overwrites the managed trees (skills,
- *   commands, rules, agents) with the current version, backing up local edits to
- *   `<file>.bak`. Default (init) is additive — existing files are kept.
+ *   commands, rules, agents) with the current version; `backup: true` also keeps
+ *   a `<file>.bak` of any locally edited managed file before overwriting it (the
+ *   default overwrites in place — git preserves the prior content). Default
+ *   (init) is additive — existing files are kept.
  * @returns The install report augmented with the ordered next steps to run.
  * @throws If `projectPath` does not exist, or any pack name is unknown.
  */
@@ -119,7 +121,7 @@ export function scaffold(
   profile: Profile,
   packNames: string[],
   agents: string[] = [],
-  opts: { refreshManaged?: boolean } = {},
+  opts: { refreshManaged?: boolean; backup?: boolean } = {},
 ): ScaffoldReport {
   if (!fs.existsSync(projectPath)) {
     throw new Error(`projectPath does not exist: ${projectPath}`);
@@ -136,6 +138,7 @@ export function scaffold(
   const record: Record<string, string> = {};
   const managedOpts: CopyOpts = {
     overwrite: Boolean(opts.refreshManaged),
+    backup: Boolean(opts.backup),
     projectPath,
     baselines: readManifest(projectPath)?.baselines ?? {},
     record,
@@ -146,6 +149,7 @@ export function scaffold(
   for (const name of packNames) installPack(projectPath, name, vars, report, managedOpts); // managed
 
   ensureGitignore(projectPath, ".speclaw/", "speclaw local code Compass (never commit)", report);
+  ensureGitignore(projectPath, "*.bak", "speclaw managed-file refresh backups", report);
   for (const id of agents) configureAgent(projectPath, id, report); // only the chosen agents
 
   // Record what was installed so `speclaw update` can re-apply these packs and

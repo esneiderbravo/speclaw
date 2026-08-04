@@ -66,6 +66,7 @@ export async function runUpdate(flags: Flags): Promise<void> {
   const cwd = process.cwd();
   const migrateOnly = Boolean(flags["migrate-only"]);
   const checkOnly = Boolean(flags.check);
+  const backup = Boolean(flags.backup);
   const winShell = process.platform === "win32";
 
   if (!migrateOnly) {
@@ -94,8 +95,10 @@ export async function runUpdate(flags: Flags): Promise<void> {
       ui.ok(`Updated to ${latest}`);
 
       // Re-exec the NEWLY installed binary so migrations run with the new assets
-      // and any new feature steps — not this (now-stale) process.
-      const re = spawnSync("speclaw", ["update", "--migrate-only"], {
+      // and any new feature steps — not this (now-stale) process. Carry --backup
+      // through so the refresh honors it after the upgrade.
+      const reArgs = ["update", "--migrate-only", ...(backup ? ["--backup"] : [])];
+      const re = spawnSync("speclaw", reArgs, {
         stdio: "inherit",
         shell: winShell,
       });
@@ -112,14 +115,19 @@ export async function runUpdate(flags: Flags): Promise<void> {
     }
   }
 
-  applyProjectMigrations(cwd);
+  applyProjectMigrations(cwd, backup);
 }
 
 /**
  * Additively apply the current version's content and feature steps to a project.
  * No-op with a hint when the directory isn't a speclaw project.
+ *
+ * @param cwd - Project root to update.
+ * @param backup - When true, a locally edited managed file is copied to
+ *   `<file>.bak` before it is refreshed; the default overwrites it in place
+ *   (recoverable from git) and only reports the overwrite.
  */
-function applyProjectMigrations(cwd: string): void {
+function applyProjectMigrations(cwd: string, backup: boolean): void {
   const initialized =
     fs.existsSync(path.join(cwd, "ai-specs")) || fs.existsSync(path.join(cwd, "LAWS.md"));
   if (!initialized) {
@@ -139,6 +147,7 @@ function applyProjectMigrations(cwd: string): void {
   // rewritten — those changes are handed to the user's agent below.
   const report = scaffold(cwd, { project_name: detectProjectName(cwd) }, packs, agents, {
     refreshManaged: true,
+    backup,
   });
 
   const changed = report.written.filter((w) => !w.includes(".gitignore"));
@@ -148,9 +157,20 @@ function applyProjectMigrations(cwd: string): void {
   } else {
     ui.ok("Managed content already up to date — nothing to refresh.");
   }
+  // A diverged managed file is always reported so the user can recover their
+  // edits; with --backup it is also kept as a `.bak`, otherwise it is overwritten
+  // in place (git holds the prior content).
   for (const b of report.backedUp) {
     const rel = path.relative(cwd, b);
     ui.warn(`${c.cream(rel)} had local edits — saved as ${rel}.bak before refreshing.`);
+  }
+  const overwritten = report.refreshedDiverged.filter((f) => !report.backedUp.includes(f));
+  for (const f of overwritten) {
+    const rel = path.relative(cwd, f);
+    ui.warn(
+      `${c.cream(rel)} had local edits — overwritten with the current version. ` +
+        `Recover from git, or re-run with ${ui.code("--backup")} to keep a .bak.`,
+    );
   }
 
   // A project several releases behind jumps straight to @latest, so apply EVERY

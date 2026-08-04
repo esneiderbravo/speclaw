@@ -189,8 +189,9 @@ without a re-init, splitting files by who owns them:
 
 - **Managed files** (speclaw's workflow machinery — the skills, commands, rules,
   and agent packs under `ai-specs/`) are **refreshed** to the new version, so
-  improvements actually reach your project. If you edited one locally, your copy
-  is saved as `<file>.bak` before the refresh — nothing is lost.
+  improvements actually reach your project. If you edited one locally, `update`
+  reports the overwrite so you can recover your copy from git; pass `--backup` to
+  also keep a `<file>.bak`. Any `*.bak` is gitignored.
 - **Personalized files** (your constitution and standards — `CLAUDE.md`,
   `AGENTS.md`, `LAWS.md`, `docs/standards/*`, `docs/compass.md`,
   `lawbook/config.yaml`) are **never auto-edited**. When a release changes their
