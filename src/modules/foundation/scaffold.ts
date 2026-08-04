@@ -2,11 +2,11 @@ import fs from "node:fs";
 import path from "node:path";
 import { assetsDir } from "../../shared/paths.js";
 import { render } from "../../shared/render.js";
-import { InstallReport, emptyReport, ensureGitignore } from "../../shared/install.js";
+import { InstallReport, CopyOpts, emptyReport, ensureGitignore } from "../../shared/install.js";
 import { configureAgent } from "../../shared/agents.js";
 import { installWorkflow } from "../lawbook/register.js";
 import { installPack, loadPacks } from "../tools/packs.js";
-import { writeManifest } from "../../shared/manifest.js";
+import { readManifest, writeManifest } from "../../shared/manifest.js";
 import { pkgVersion } from "../../shared/version.js";
 
 const ASSETS = assetsDir(import.meta.url);
@@ -108,6 +108,9 @@ function renderFoundation(
  * @param profile - Project identity and conventions for template rendering.
  * @param packNames - Tool pack names to install (the spec workflow is always installed).
  * @param agents - Agent ids to configure with symlinks + MCP; empty writes content only.
+ * @param opts - `refreshManaged: true` overwrites the managed trees (skills,
+ *   commands, rules, agents) with the current version, backing up local edits to
+ *   `<file>.bak`. Default (init) is additive — existing files are kept.
  * @returns The install report augmented with the ordered next steps to run.
  * @throws If `projectPath` does not exist, or any pack name is unknown.
  */
@@ -116,6 +119,7 @@ export function scaffold(
   profile: Profile,
   packNames: string[],
   agents: string[] = [],
+  opts: { refreshManaged?: boolean } = {},
 ): ScaffoldReport {
   if (!fs.existsSync(projectPath)) {
     throw new Error(`projectPath does not exist: ${projectPath}`);
@@ -127,16 +131,27 @@ export function scaffold(
   const report: ScaffoldReport = { ...emptyReport(), nextSteps: [] };
   const vars: Record<string, string | undefined> = { ...FOUNDATION_DEFAULTS, ...profile };
 
-  renderFoundation(projectPath, vars, report);
-  installWorkflow(projectPath, vars, report); // spec module — always
-  for (const name of packNames) installPack(projectPath, name, vars, report); // tools module
+  // Managed trees (MANAGED_TREES) carry speclaw's workflow logic and may be
+  // overwritten on update; the foundation (personalized) is always additive.
+  const record: Record<string, string> = {};
+  const managedOpts: CopyOpts = {
+    overwrite: Boolean(opts.refreshManaged),
+    projectPath,
+    baselines: readManifest(projectPath)?.baselines ?? {},
+    record,
+  };
+
+  renderFoundation(projectPath, vars, report); // personalized — never overwritten
+  installWorkflow(projectPath, vars, report, managedOpts); // managed
+  for (const name of packNames) installPack(projectPath, name, vars, report, managedOpts); // managed
 
   ensureGitignore(projectPath, ".speclaw/", "speclaw local code Compass (never commit)", report);
   for (const id of agents) configureAgent(projectPath, id, report); // only the chosen agents
 
-  // Record what was installed so `speclaw update` can re-apply only these packs
-  // (additively) and gate feature migrations by version — no full re-init.
-  writeManifest(projectPath, pkgVersion(), packNames);
+  // Record what was installed so `speclaw update` can re-apply these packs and
+  // gate feature migrations by version, plus the managed-file baselines that let
+  // a later update tell user edits from stale files.
+  writeManifest(projectPath, pkgVersion(), packNames, record);
 
   report.nextSteps = [
     "Run the `lawbook_init` tool to set up the spec-driven workflow (creates lawbook/). No external CLI needed — it's built into speclaw.",
