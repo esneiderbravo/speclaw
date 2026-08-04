@@ -26,6 +26,22 @@ function bold(s: string): string {
   return colorOn ? `\x1b[1m${s}\x1b[0m` : s;
 }
 
+/**
+ * Wrap `label` in an OSC 8 terminal hyperlink pointing at `url`, so a
+ * capable terminal renders it as a clickable link. Terminals that don't
+ * support OSC 8 simply ignore the escapes and show the label. Falls back to a
+ * plain `label (url)` when rich output is off (non-TTY / NO_COLOR) so piped and
+ * dumb-terminal output stays legible.
+ *
+ * @param label - The visible, clickable text.
+ * @param url - The target the terminal opens on click.
+ * @returns The label wrapped as a hyperlink, or `label (url)` when off.
+ */
+export function link(label: string, url: string): string {
+  if (!colorOn) return `${label} (${url})`;
+  return `\x1b]8;;${url}\x1b\\${label}\x1b]8;;\x1b\\`;
+}
+
 /** Brand color helpers for composing styled strings. */
 export const c = {
   cyan: (s: string) => paint(PALETTE.cyan, s),

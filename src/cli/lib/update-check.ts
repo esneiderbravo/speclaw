@@ -2,7 +2,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { pkgName, pkgVersion } from "../../shared/version.js";
-import { c } from "./ui.js";
+import { c, link } from "./ui.js";
 
 // A lightweight, best-effort update notifier. The registry is queried at most
 // once a day (result cached under ~/.speclaw/), the lookup is time-boxed, and
@@ -98,9 +98,40 @@ export async function checkForUpdates(
   return { current, latest, updateAvailable: !!latest && isNewer(latest, current) };
 }
 
+/** The public npm page for a package, where an upgrade can be reviewed. */
+export function npmPackageUrl(name: string): string {
+  return `https://www.npmjs.com/package/${name}`;
+}
+
 /**
- * Print a one-line "update available" notice to stderr when a newer version
- * exists. No-op for the `mcp`/`update`/`help` commands, on non-TTY stderr, or
+ * Build the two-line "update available" notice. The latest version is rendered
+ * as a clickable link to the package's npm page, so a capable terminal lets the
+ * user open the release with a single click while `speclaw update` remains the
+ * command that performs the upgrade.
+ *
+ * @param current - The installed version.
+ * @param latest - The newest published version.
+ * @returns The formatted, styled notice (no leading/trailing blank lines).
+ */
+export function upgradeNotice(current: string, latest: string): string {
+  const latestLink = c.cyan(link(latest, npmPackageUrl(pkgName())));
+  return (
+    "  " +
+    c.amber("⬆ speclaw ") +
+    c.muted(current + " → ") +
+    latestLink +
+    c.muted(" available") +
+    "\n" +
+    "  " +
+    c.muted("run ") +
+    c.cyan("speclaw update") +
+    c.muted(" — upgrades and applies only what's new")
+  );
+}
+
+/**
+ * Print the "update available" notice to stderr when a newer version exists.
+ * No-op for the `mcp`/`update`/`help`/`version` commands, on non-TTY stderr, or
  * when NO_UPDATE_NOTIFIER / SPECLAW_NO_UPDATE_NOTIFIER is set. Never throws.
  *
  * @param cmd - The command that just ran (used to skip noisy contexts).
@@ -111,25 +142,16 @@ export async function maybeNotifyUpdate(cmd: string | undefined): Promise<void> 
     if (!process.stderr.isTTY) return;
     // `init` shows its own prominent up-front warning and ends on the clean
     // copy-paste prompt — don't append a second notice after it.
-    if (!cmd || ["mcp", "update", "init", "help", "--help", "-h"].includes(cmd)) return;
+    if (
+      !cmd ||
+      ["mcp", "update", "init", "help", "--help", "-h", "version", "--version", "-v"].includes(cmd)
+    )
+      return;
 
     const { current, latest, updateAvailable } = await checkForUpdates();
     if (!updateAvailable || !latest) return;
 
-    process.stderr.write(
-      "\n" +
-        "  " +
-        c.amber("⬆ speclaw ") +
-        c.muted(current + " → ") +
-        c.cyan(latest) +
-        c.muted(" available") +
-        "\n" +
-        "  " +
-        c.muted("run ") +
-        c.cyan("speclaw update") +
-        c.muted(" — upgrades and applies only what's new") +
-        "\n\n",
-    );
+    process.stderr.write("\n" + upgradeNotice(current, latest) + "\n\n");
   } catch {
     /* the notifier is best-effort — never let it break a command */
   }
