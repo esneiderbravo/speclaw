@@ -42,3 +42,14 @@ without a reason, or weakening a check.
   MCP tool. Don't assume a green build covers behavior.
 - The mandatory spec task steps ([`lawbook.md`](lawbook.md)) define which manual
   checks the agent must execute itself — the agent performs them, never delegates.
+
+## Reports — evidence travels with the change
+
+Every change records its testing under `lawbook/changes/<name>/reports/`, one
+file per discipline it touched (`backend.md`, `frontend.md`, …). Each report
+captures what was tested and the real results — unit, integration, and
+end-to-end as applicable — with the commands run, their output, and a one-line
+verdict. When a test kind does not yet apply (e.g. no unit runner), the report
+says so and records the gates and manual verification that stood in. `build`
+produces them; `lawbook_archive` refuses to archive a change whose `reports/`
+holds no discipline report.

@@ -50,8 +50,12 @@ Create under `lawbook/changes/<name>/`:
   behind the decision. For a small change, keep it short — but write it.
 - **tasks.md** — ordered, checkable steps. MUST include the mandatory steps
   from `lawbook/config.yaml` (feature branch first; tests reviewed and run;
-  manual verification executed by the agent; docs updated; archive within the
-  PR).
+  manual verification executed by the agent; discipline reports produced; docs
+  updated; archive within the PR).
+- **reports/** — create the folder with a short `reports/README.md` naming the
+  discipline reports (`backend.md`, `frontend.md`, … as relevant) that `build`
+  will fill with real test results. Every change ships this folder; archive is
+  blocked until it holds at least one discipline report.
 
 ## Step 4 — Validate
 
