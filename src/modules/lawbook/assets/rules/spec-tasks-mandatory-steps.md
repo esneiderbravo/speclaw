@@ -21,6 +21,9 @@ steps, branch convention, and testing/documentation requirements.
   (see `docs/standards/testing-standards.md`).
 - Perform manual verification of the behavior — **the agent executes this
   itself, never the user.**
+- Produce the discipline reports under `reports/` (`backend.md`, `frontend.md`,
+  … as relevant) with the unit/integration/e2e results for what the feature
+  touched.
 - Update the technical documentation the change touches.
 - Archive the change within the same PR (the `archive` command / `lawbook_archive`
   tool).
@@ -35,3 +38,8 @@ not complete until the agent has verified it.
 
 A change is not done until it is archived with `lawbook_archive` (never a manual
 `mv`). The archive lands in the same PR that implements the change.
+
+`lawbook_archive` is gated: it refuses to archive while any task is unchecked,
+while `reports/` has no discipline report, or while the delta specs are not yet
+synced into the canonical specs. Resolve those first — the gate is enforced in
+the engine, so a manual `mv` only hides an incomplete change.
