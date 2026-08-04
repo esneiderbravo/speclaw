@@ -51,6 +51,22 @@ const MIGRATIONS: Migration[] = [
       'the feature touched)."\n' +
       "- Preserve all project-specific wording; only apply these speclaw-authored changes.",
   },
+  {
+    version: "0.1.13",
+    describe: "Required report structure in the testing standard (personalized file)",
+    agentPrompt:
+      "- In docs/standards/testing-standards.md, strengthen the 'Reports' section so a " +
+      "discipline report MUST follow a fixed structure (evidence reproducible, not improvised): " +
+      "(1) a header — discipline, change, date, branch, and the environment/working directory " +
+      "the commands ran in; (2) a gates-and-results table with each check, the exact command, " +
+      "and the real result including pass/fail counts; (3) the tests added or updated and what " +
+      "each asserts; (4) a spec-scenario coverage table mapping every '#### Scenario' in the " +
+      "change's delta specs to how it was verified (a test, a gate, or a manual step); (5) an " +
+      "honest declaration of any pre-existing or unrelated failures with proof, or 'none'; " +
+      "(6) the manual steps not automated, or 'none'; (7) a one-line verdict. Keep the existing " +
+      "'test kind does not yet apply' escape hatch. If the section is missing, add it.\n" +
+      "- Preserve all project-specific wording; only apply these speclaw-authored changes.",
+  },
 ];
 
 /**
