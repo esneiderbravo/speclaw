@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { assetsDir } from "../../shared/paths.js";
-import { copyRendered, InstallReport } from "../../shared/install.js";
+import { copyRendered, CopyOpts, InstallReport } from "../../shared/install.js";
 
 const ASSETS = assetsDir(import.meta.url);
 
@@ -33,6 +33,8 @@ export function loadPacks(): Record<string, PackDef> {
  * @param name - Pack name to install (key in the manifest).
  * @param vars - Template variables applied while copying the pack's assets.
  * @param report - Mutated in place with the copy results.
+ * @param opts - Overwrite/baseline behavior forwarded to {@link copyRendered}
+ *   (packs write into managed trees, so update refreshes them).
  * @throws If no pack with the given name exists in the manifest.
  */
 export function installPack(
@@ -40,6 +42,7 @@ export function installPack(
   name: string,
   vars: Record<string, string | undefined>,
   report: InstallReport,
+  opts?: CopyOpts,
 ): void {
   const packs = loadPacks();
   const def = packs[name];
@@ -50,10 +53,10 @@ export function installPack(
   const aiSpecs = path.join(projectPath, "ai-specs");
   for (const sub of fs.readdirSync(packRoot, { withFileTypes: true })) {
     if (sub.isDirectory()) {
-      copyRendered(path.join(packRoot, sub.name), path.join(aiSpecs, sub.name), vars, report);
+      copyRendered(path.join(packRoot, sub.name), path.join(aiSpecs, sub.name), vars, report, opts);
     } else if (sub.name.endsWith(".md")) {
       // loose .md at pack root = agent definitions
-      copyRendered(packRoot, path.join(aiSpecs, "agents"), vars, report);
+      copyRendered(packRoot, path.join(aiSpecs, "agents"), vars, report, opts);
       break;
     }
   }

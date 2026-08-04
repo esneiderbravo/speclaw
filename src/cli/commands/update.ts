@@ -6,6 +6,7 @@ import { ui, c } from "../lib/ui.js";
 import { checkForUpdates, isNewer } from "../lib/update-check.js";
 import { pkgName, pkgVersion } from "../../shared/version.js";
 import { scaffold } from "../../modules/foundation/scaffold.js";
+import { PERSONALIZED } from "../../modules/foundation/ownership.js";
 import { detectConfiguredAgents } from "../../shared/agents.js";
 import { readManifest } from "../../shared/manifest.js";
 import { loadPacks } from "../../modules/tools/packs.js";
@@ -21,10 +22,35 @@ import { detectProjectName } from "./init.js";
 interface Migration {
   version: string;
   describe: string;
-  run: (projectPath: string, report: InstallReport) => void;
+  /** Optional programmatic step (beyond dropping/refreshing files). */
+  run?: (projectPath: string, report: InstallReport) => void;
+  /**
+   * Optional instructions for the user's agent to apply this release's changes to
+   * PERSONALIZED files (CLAUDE.md, AGENTS.md, LAWS.md, docs/standards,
+   * config.yaml). Collected across crossed versions and printed as one prompt —
+   * these files hold project specifics, so update never edits them directly.
+   */
+  agentPrompt?: string;
 }
+// The first migration must be tagged at the version that introduces this
+// mechanism (0.1.12): `isNewer` is strict, so an entry tagged at an already-
+// shipped version (e.g. 0.1.11) would never fire for projects already on it.
 const MIGRATIONS: Migration[] = [
-  // e.g. { version: "0.3.0", describe: "…", run: (p, r) => { … } }
+  {
+    version: "0.1.12",
+    describe: "Compass-first rule + reports mandatory step in personalized files",
+    agentPrompt:
+      "- In CLAUDE.md and AGENTS.md, change the Compass rule to 'Compass first, always': " +
+      "call Compass (compass_explore/search/recall) before grep/sed/cat/Read for any code " +
+      "question — including files you already know by name — and fall back to manual file " +
+      "tools only after a Compass call returns nothing useful, the graph is missing, or the " +
+      "target isn't indexed code (CSS/JSON/logs). Update the matching Compass row in LAWS.md " +
+      "and the intro of docs/compass.md the same way.\n" +
+      "- In lawbook/config.yaml, add this mandatory task step before the docs/archive steps: " +
+      '"Produce the discipline reports under reports/ (unit/integration/e2e results for what ' +
+      'the feature touched)."\n' +
+      "- Preserve all project-specific wording; only apply these speclaw-authored changes.",
+  },
 ];
 
 /**
@@ -108,22 +134,55 @@ function applyProjectMigrations(cwd: string): void {
   const known = loadPacks();
   const packs = (readManifest(cwd)?.packs ?? []).filter((p) => p in known);
 
-  // scaffold is non-destructive: only missing files are written, and it refreshes
-  // the manifest to the current version. Existing files are left exactly as-is.
-  const report = scaffold(cwd, { project_name: detectProjectName(cwd) }, packs, agents);
+  // Managed files (skills/commands/rules/agents) are refreshed to the current
+  // version; personalized files (constitution/standards/config) are never
+  // rewritten — those changes are handed to the user's agent below.
+  const report = scaffold(cwd, { project_name: detectProjectName(cwd) }, packs, agents, {
+    refreshManaged: true,
+  });
 
-  const newFiles = report.written.filter((w) => !w.includes(".gitignore"));
-  if (newFiles.length) {
-    for (const w of newFiles) ui.ok(c.cream(path.relative(cwd, w.split(" (")[0]!)));
-    ui.info(`${newFiles.length} new file(s) added · ${report.skipped.length} left untouched.`);
+  const changed = report.written.filter((w) => !w.includes(".gitignore"));
+  if (changed.length) {
+    for (const w of changed) ui.ok(c.cream(path.relative(cwd, w)));
+    ui.info(`${changed.length} file(s) added/refreshed · ${report.skipped.length} left untouched.`);
   } else {
-    ui.ok("Content already up to date — nothing new to add.");
+    ui.ok("Managed content already up to date — nothing to refresh.");
+  }
+  for (const b of report.backedUp) {
+    const rel = path.relative(cwd, b);
+    ui.warn(`${c.cream(rel)} had local edits — saved as ${rel}.bak before refreshing.`);
   }
 
-  const pending = MIGRATIONS.filter((m) => isNewer(m.version, fromVersion));
+  // A project several releases behind jumps straight to @latest, so apply EVERY
+  // migration newer than its recorded version — not just the next one — oldest
+  // first (sorted, so array order can't matter). Entries are cumulative: never
+  // delete a shipped migration, or a laggard crossing it later would miss it.
+  const pending = MIGRATIONS.filter((m) => isNewer(m.version, fromVersion)).sort((a, b) =>
+    isNewer(a.version, b.version) ? 1 : isNewer(b.version, a.version) ? -1 : 0,
+  );
   for (const m of pending) {
+    if (!m.run) continue;
     ui.step(`Step for ${m.version}: ${m.describe}`);
     m.run(cwd, report);
+  }
+
+  // Personalized files can't be auto-edited (they hold project specifics), so
+  // hand their changes to whatever agent the user runs — never a hardcoded one.
+  const prompt = pending
+    .map((m) => m.agentPrompt)
+    .filter(Boolean)
+    .join("\n");
+  if (prompt) {
+    ui.plain();
+    ui.step("One step for the agent you're using");
+    ui.info(
+      `Personalized files (${PERSONALIZED.join(", ")}) hold your project specifics, so ` +
+        `speclaw won't edit them. Paste this into the agent you're using to apply this ` +
+        `release's changes while keeping your content:`,
+    );
+    ui.plain();
+    console.log(c.cream(prompt));
+    ui.plain();
   }
 
   ui.plain();

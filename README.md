@@ -185,9 +185,17 @@ speclaw update
 ```
 
 `update` upgrades the global package **and** brings the current project up to date
-without a re-init: any new standards, skills, commands, or feature steps are added
-**additively** — your existing files are never touched. It re-applies only the tool
-packs this project already uses.
+without a re-init, splitting files by who owns them:
+
+- **Managed files** (speclaw's workflow machinery — the skills, commands, rules,
+  and agent packs under `ai-specs/`) are **refreshed** to the new version, so
+  improvements actually reach your project. If you edited one locally, your copy
+  is saved as `<file>.bak` before the refresh — nothing is lost.
+- **Personalized files** (your constitution and standards — `CLAUDE.md`,
+  `AGENTS.md`, `LAWS.md`, `docs/standards/*`, `docs/compass.md`,
+  `lawbook/config.yaml`) are **never auto-edited**. When a release changes their
+  speclaw-authored content, `update` prints a prompt for **the agent you're
+  using** to apply the change while preserving your project's specifics.
 
 - `speclaw update --check` — report whether an update exists, change nothing.
 - `NO_UPDATE_NOTIFIER=1` — silence the reminder.
