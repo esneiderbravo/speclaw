@@ -56,11 +56,13 @@ Test functions are exempt. Full rules: [`documentation.md`](documentation.md).
 
 ## Tests
 
-- There is **no unit-test runner yet**. New behavior should add coverage with
-  Node's built-in `node:test` (no new dependency) and, when it affects runtime,
-  be verified by exercising the CLI (`node dist/cli/index.js …`).
-- Until a `test` script exists, the strict build + agent-run manual
-  verification are the gates. See [`testing-standards.md`](testing-standards.md).
+- New behavior ships with `node:test` coverage (no new dependency) — a unit or
+  integration test for the logic, a contract test for a new MCP tool, an e2e
+  test for a new CLI command — plus, when it affects runtime, verification by
+  exercising the CLI (`node dist/cli/index.js …`).
+- `npm run test` enforces an 80% coverage floor; the strict build and agent-run
+  manual verification remain gates alongside it. See
+  [`testing-standards.md`](testing-standards.md).
 
 ## Persistence & assets
 

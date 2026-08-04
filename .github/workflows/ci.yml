@@ -20,3 +20,19 @@ jobs:
       - run: npm ci
       - run: npm run check
       - run: npm run build
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          # Node 24: node:sqlite is stable (unflagged) and the test runner's
+          # coverage thresholds are supported. See docs/standards/testing-standards.md.
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      # e2e tests drive the built CLI, so build before testing. `npm test`
+      # enforces the coverage floor and fails the check below it.
+      - run: npm run build
+      - run: npm test

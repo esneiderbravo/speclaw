@@ -1,0 +1,13 @@
+{
+  // Compiles the source AND the test tree together into dist-test/ (gitignored),
+  // so tests are type-checked exactly like source and run as plain JS under
+  // `node --test` — no loader, no experimental type-stripping. See
+  // docs/standards/testing-standards.md.
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "rootDir": ".",
+    "outDir": "dist-test",
+    "sourceMap": true
+  },
+  "include": ["src/**/*", "test/**/*"]
+}
