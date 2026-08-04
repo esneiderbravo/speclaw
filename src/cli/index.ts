@@ -37,6 +37,7 @@ Other
   doctor                   Verify the installation
   mcp                      Start the MCP server (used by your agent's config)
   help                     Show this help
+  --version                Print the installed speclaw version
 `;
 
 /** Run the handler for a single command. Returns when the command completes. */
@@ -51,6 +52,10 @@ async function dispatch(
     case "-h":
       console.log(HELP);
       return;
+    case "version":
+    case "--version":
+    case "-v":
+      return (await import("./commands/version.js")).runVersion();
     case "mcp": {
       const { startMcpServer } = await import("../server.js");
       await startMcpServer();
