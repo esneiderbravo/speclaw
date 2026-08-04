@@ -3,7 +3,7 @@ import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { text } from "../../shared/mcp.js";
 import { assetsDir } from "../../shared/paths.js";
-import { copyRendered, InstallReport } from "../../shared/install.js";
+import { copyRendered, CopyOpts, InstallReport } from "../../shared/install.js";
 import { specInit, specValidate, specSync, specArchive, specList } from "./engine.js";
 
 const ASSETS = assetsDir(import.meta.url);
@@ -17,16 +17,18 @@ export function installWorkflow(
   projectPath: string,
   vars: Record<string, string | undefined>,
   report: InstallReport,
+  opts?: CopyOpts,
 ): void {
   const aiSpecs = path.join(projectPath, "ai-specs");
-  copyRendered(path.join(ASSETS, "skills"), path.join(aiSpecs, "skills"), vars, report);
+  copyRendered(path.join(ASSETS, "skills"), path.join(aiSpecs, "skills"), vars, report, opts);
   copyRendered(
     path.join(ASSETS, "commands"),
     path.join(aiSpecs, "commands", "lawbook"),
     vars,
     report,
+    opts,
   );
-  copyRendered(path.join(ASSETS, "rules"), path.join(aiSpecs, "rules"), vars, report);
+  copyRendered(path.join(ASSETS, "rules"), path.join(aiSpecs, "rules"), vars, report, opts);
 }
 
 // ─── The spec module: speclaw's own spec-driven workflow (no external OpenSpec) ───

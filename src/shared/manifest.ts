@@ -12,6 +12,12 @@ export interface Manifest {
   version: string;
   /** Tool packs installed in this project. */
   packs: string[];
+  /**
+   * SHA-256 of the content speclaw last wrote for each managed file, keyed by
+   * project-relative path. Lets `speclaw update` tell "unchanged since we wrote
+   * it" (safe to overwrite silently) from "the user edited it" (back up first).
+   */
+  baselines: Record<string, string>;
 }
 
 function manifestPath(projectPath: string): string {
@@ -30,6 +36,10 @@ export function readManifest(projectPath: string): Manifest | null {
     return {
       version: String(m.version ?? "0.0.0"),
       packs: Array.isArray(m.packs) ? m.packs.map(String) : [],
+      baselines:
+        m.baselines && typeof m.baselines === "object"
+          ? (m.baselines as Record<string, string>)
+          : {},
     };
   } catch {
     return null;
@@ -43,11 +53,21 @@ export function readManifest(projectPath: string): Manifest | null {
  * @param projectPath - Project root to write into.
  * @param version - The speclaw version doing the write.
  * @param packs - Pack names installed in this run.
+ * @param baselines - Managed-file hashes to merge over the recorded ones.
  */
-export function writeManifest(projectPath: string, version: string, packs: string[]): void {
+export function writeManifest(
+  projectPath: string,
+  version: string,
+  packs: string[],
+  baselines: Record<string, string> = {},
+): void {
   const prev = readManifest(projectPath);
   const merged = Array.from(new Set([...(prev?.packs ?? []), ...packs]));
+  const mergedBaselines = { ...(prev?.baselines ?? {}), ...baselines };
   const p = manifestPath(projectPath);
   fs.mkdirSync(path.dirname(p), { recursive: true });
-  fs.writeFileSync(p, JSON.stringify({ version, packs: merged }, null, 2) + "\n");
+  fs.writeFileSync(
+    p,
+    JSON.stringify({ version, packs: merged, baselines: mergedBaselines }, null, 2) + "\n",
+  );
 }
