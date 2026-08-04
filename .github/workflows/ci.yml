@@ -1,4 +1,4 @@
-name: CI
+name: 🔍 CI
 
 on:
   push:
@@ -8,31 +8,56 @@ on:
 permissions:
   contents: read
 
+# Cancel superseded runs on the same ref so the latest push wins.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build:
+    name: 🏗️ Build & Check
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-node@v5
+      - name: 📥 Checkout
+        uses: actions/checkout@v5
+
+      - name: ⚙️ Setup Node 22
+        uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: npm
-      - run: npm ci
-      - run: npm run check
-      - run: npm run build
+
+      - name: 📦 Install dependencies
+        run: npm ci
+
+      - name: 🎨 Lint & format check
+        run: npm run check
+
+      - name: 🔨 Build
+        run: npm run build
 
   test:
+    name: 🧪 Test
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-node@v5
+      - name: 📥 Checkout
+        uses: actions/checkout@v5
+
+      - name: ⚙️ Setup Node 24
+        uses: actions/setup-node@v5
         with:
           # Node 24: node:sqlite is stable (unflagged) and the test runner's
           # coverage thresholds are supported. See docs/standards/testing-standards.md.
           node-version: 24
           cache: npm
-      - run: npm ci
-      # e2e tests drive the built CLI, so build before testing. `npm test`
-      # enforces the coverage floor and fails the check below it.
-      - run: npm run build
-      - run: npm test
+
+      - name: 📦 Install dependencies
+        run: npm ci
+
+      # e2e tests drive the built CLI, so build before testing.
+      - name: 🔨 Build
+        run: npm run build
+
+      # `npm test` enforces the coverage floor and fails the check below it.
+      - name: ✅ Run tests
+        run: npm test
