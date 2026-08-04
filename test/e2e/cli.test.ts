@@ -44,6 +44,50 @@ test("help lists the --version command", { skip }, () => {
   assert.match(r.stdout, /--version/);
 });
 
+// The one-line branded header. `FORCE_COLOR=1` (with NO_COLOR dropped) makes the
+// child treat itself as interactive so the header renders even though its stdout
+// is a pipe; the tagline is unique to the header, so its presence/absence and
+// count are a reliable probe. The default `runCli` (non-TTY, NO_COLOR) stands in
+// for a piped invocation.
+const TAGLINE = "where specs become law";
+const FORCED: { env: Record<string, string | undefined> } = {
+  env: { NO_COLOR: undefined, FORCE_COLOR: "1" },
+};
+
+test("help shows the branded header once, ahead of the usage text", { skip }, () => {
+  const r = runCli(["help"], FORCED);
+  assert.equal(r.code, 0);
+  assert.ok(r.stdout.includes(TAGLINE), "header tagline present");
+  assert.ok(
+    r.stdout.indexOf(TAGLINE) < r.stdout.indexOf("Usage: speclaw"),
+    "header precedes the usage text",
+  );
+  assert.equal((r.stdout.match(/where specs become law/g) ?? []).length, 1, "exactly one header");
+});
+
+test("piped (non-TTY) output omits the header", { skip }, () => {
+  const r = runCli(["help"]);
+  assert.equal(r.code, 0);
+  assert.doesNotMatch(r.stdout, /where specs become law/);
+});
+
+test("--version emits no header even when forced interactive", { skip }, () => {
+  const r = runCli(["--version"], FORCED);
+  assert.equal(r.code, 0);
+  assert.equal(r.stdout.trim(), PKG_VERSION);
+  assert.doesNotMatch(r.stdout, /where specs become law/);
+});
+
+test("a query command emits no header even when forced interactive", { skip }, (t) => {
+  const root = tmpRepo(t);
+  seedSampleRepo(root);
+  runCli(["index"], { cwd: root });
+
+  const r = runCli(["search", "beta"], { cwd: root, ...FORCED });
+  assert.equal(r.code, 0);
+  assert.doesNotMatch(r.stdout, /where specs become law/);
+});
+
 test("an unknown command exits non-zero", { skip }, () => {
   const r = runCli(["frobnicate"]);
   assert.equal(r.code, 1);

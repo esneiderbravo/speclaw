@@ -23,14 +23,26 @@ export interface CliResult {
  * stable output assertions.
  *
  * @param args - CLI arguments (after the `speclaw` command name).
- * @param opts - Optional working directory for the invocation.
+ * @param opts - Optional working directory and environment overrides. Values in
+ *   `env` are layered over the defaults; set one to `undefined` to unset it
+ *   (e.g. drop `NO_COLOR` to exercise the branded, colored output).
  * @returns The process exit code and captured stdio.
  */
-export function runCli(args: string[], opts: { cwd?: string } = {}): CliResult {
+export function runCli(
+  args: string[],
+  opts: { cwd?: string; env?: Record<string, string | undefined> } = {},
+): CliResult {
+  const env: Record<string, string | undefined> = {
+    ...process.env,
+    NO_COLOR: "1",
+    SPECLAW_NO_UPDATE_NOTIFIER: "1",
+    ...opts.env,
+  };
+  for (const key of Object.keys(env)) if (env[key] === undefined) delete env[key];
   const res = spawnSync(process.execPath, [CLI, ...args], {
     cwd: opts.cwd,
     encoding: "utf8",
-    env: { ...process.env, NO_COLOR: "1", SPECLAW_NO_UPDATE_NOTIFIER: "1" },
+    env,
   });
   return { code: res.status ?? 1, stdout: res.stdout ?? "", stderr: res.stderr ?? "" };
 }

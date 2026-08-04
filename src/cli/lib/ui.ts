@@ -3,6 +3,8 @@
 // 24-bit truecolor ANSI — no dependency needed. Colors auto-disable when the
 // output is not a TTY or NO_COLOR is set.
 
+import { pkgVersion } from "../../shared/version.js";
+
 type RGB = [number, number, number];
 
 const PALETTE = {
@@ -17,6 +19,47 @@ const PALETTE = {
 
 const colorOn =
   (Boolean(process.stdout.isTTY) || process.env.FORCE_COLOR === "1") && !process.env.NO_COLOR;
+
+// Whether the terminal reliably renders the unicode box/block glyphs the brand
+// output uses. Non-Windows terminals are assumed capable; a Windows console is
+// trusted only under a modern-terminal signal (Windows Terminal, an embedding
+// program like VS Code, or CI) — a legacy conhost with a non-UTF-8 code page
+// would otherwise show mojibake. No dependency; the check runs once at load.
+const unicodeOn =
+  process.platform !== "win32" ||
+  Boolean(process.env.WT_SESSION || process.env.TERM_PROGRAM || process.env.CI);
+
+// The brand glyph set, resolved once against terminal capability. Every branded
+// renderer (header, banner, box, progress) draws from this so unicode and ASCII
+// terminals degrade together instead of one surface emitting unrenderable
+// glyphs. The ASCII fallbacks are chosen to preserve each drawing's shape.
+const G = unicodeOn
+  ? {
+      diamond: "◈",
+      dot: "·",
+      boxTL: "╭",
+      boxTR: "╮",
+      boxBL: "╰",
+      boxBR: "╯",
+      boxV: "│",
+      boxH: "─",
+      bar: "▇",
+      fill: "█",
+      track: "░",
+    }
+  : {
+      diamond: ">",
+      dot: "-",
+      boxTL: "+",
+      boxTR: "+",
+      boxBL: "+",
+      boxBR: "+",
+      boxV: "|",
+      boxH: "-",
+      bar: "#",
+      fill: "#",
+      track: "-",
+    };
 
 function paint(rgb: RGB, s: string): string {
   if (!colorOn) return s;
@@ -67,22 +110,47 @@ export const ui = {
 };
 
 /**
+ * A single-line branded header — mark · name · installed version · tagline —
+ * printed once at the top of interactive commands (see `src/cli/index.ts`). The
+ * version comes from the cached {@link pkgVersion}. Glyphs degrade to ASCII on
+ * terminals without reliable unicode, and the styling no-ops to plain text when
+ * color is off, so the line stays legible everywhere.
+ *
+ * Example: `◈ speclaw  v0.1.15 · where specs become law`
+ */
+export function header(): void {
+  const mark = c.cyan(G.diamond);
+  const name = bold(c.cream("speclaw"));
+  const ver = c.muted("v" + pkgVersion());
+  const tag = c.muted(G.dot + " where specs become law");
+  console.log(`${mark} ${name}  ${ver} ${tag}`);
+}
+
+/**
  * The speclaw wordmark + logo mark (a document whose bottom line — the law — is
  * highlighted in cyan). Printed at the top of `speclaw init`.
  */
 export function banner(): void {
-  const bar = c.cyan("▇▇▇▇▇▇");
-  const line = c.muted("──────");
+  const H = G.boxH;
+  const bar = c.cyan(G.bar.repeat(6));
+  const line = c.muted(H.repeat(6));
   const edge = c.muted;
   console.log();
-  console.log("  " + edge("╭────────╮"));
-  console.log("  " + edge("│ ") + line + edge(" │") + "   " + bold(c.cream("s p e c l a w")));
+  console.log("  " + edge(G.boxTL + H.repeat(8) + G.boxTR));
   console.log(
-    "  " + edge("│ ") + c.muted("────  ") + edge(" │") + "   " + c.muted("where specs become law"),
+    "  " + edge(G.boxV + " ") + line + edge(" " + G.boxV) + "   " + bold(c.cream("s p e c l a w")),
   );
-  console.log("  " + edge("│ ") + c.muted("─────") + " " + edge(" │"));
-  console.log("  " + edge("│ ") + bar + edge(" │"));
-  console.log("  " + edge("╰────────╯"));
+  console.log(
+    "  " +
+      edge(G.boxV + " ") +
+      c.muted(H.repeat(4) + "  ") +
+      edge(" " + G.boxV) +
+      "   " +
+      c.muted("where specs become law"),
+  );
+  console.log("  " + edge(G.boxV + " ") + c.muted(H.repeat(5)) + " " + edge(" " + G.boxV));
+  console.log("  " + edge(G.boxV + " ") + bar + edge(" " + G.boxV));
+  console.log("  " + edge(G.boxBL + H.repeat(8) + G.boxBR));
   console.log();
 }
 
@@ -92,7 +160,7 @@ export function renderProgress(done: number, total: number, label: string): void
   const width = 26;
   const ratio = total > 0 ? done / total : 1;
   const filled = Math.round(ratio * width);
-  const bar = c.cyan("█".repeat(filled)) + c.muted("░".repeat(width - filled));
+  const bar = c.cyan(G.fill.repeat(filled)) + c.muted(G.track.repeat(width - filled));
   const pct = c.cyanDim(String(Math.round(ratio * 100)).padStart(3) + "%");
   const shortLabel = label.length > 38 ? "…" + label.slice(-37) : label;
   process.stderr.write(`\r  ${bar} ${pct}  ${c.muted(shortLabel.padEnd(38))}`);
@@ -105,11 +173,14 @@ export function clearProgress(): void {
 /** Draw a cyan-bordered block (used for the copy-paste agent prompt). */
 export function box(lines: string[], title?: string): void {
   const width = Math.min(72, Math.max(...lines.map((l) => l.length), title?.length ?? 0) + 2);
+  const H = G.boxH;
   const top = title
-    ? "╭─ " + c.cyanDim(title) + " " + "─".repeat(Math.max(0, width - title.length - 3))
-    : "╭" + "─".repeat(width);
-  console.log("  " + c.muted(top) + c.muted("╮"));
+    ? G.boxTL + H + " " + c.cyanDim(title) + " " + H.repeat(Math.max(0, width - title.length - 3))
+    : G.boxTL + H.repeat(width);
+  console.log("  " + c.muted(top) + c.muted(G.boxTR));
   for (const l of lines)
-    console.log("  " + c.muted("│ ") + c.cream(l.padEnd(width - 2)) + c.muted(" │"));
-  console.log("  " + c.muted("╰" + "─".repeat(width) + "╯"));
+    console.log(
+      "  " + c.muted(G.boxV + " ") + c.cream(l.padEnd(width - 2)) + c.muted(" " + G.boxV),
+    );
+  console.log("  " + c.muted(G.boxBL + H.repeat(width) + G.boxBR));
 }
