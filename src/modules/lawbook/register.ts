@@ -60,7 +60,7 @@ export function registerSpec(server: McpServer): void {
     "lawbook_validate",
     {
       description:
-        "Validate a change's artifacts: proposal.md and tasks.md present, and delta specs use normative language (SHALL/MUST), '### Requirement:' headers, and '#### Scenario:' acceptance criteria. Returns the issues to fix. Used by the draft/build commands before proceeding.",
+        "Validate a change's artifacts: proposal.md and tasks.md present, and delta specs use normative language (SHALL/MUST), '### Requirement:' headers, and '#### Scenario:' acceptance criteria. Returns the blocking issues to fix plus advisory (non-blocking) warnings — a capability name that resembles an existing canonical one, or requirements dropped versus the canonical. Used by the draft/build commands before proceeding.",
       inputSchema: {
         projectPath: z.string().describe("Absolute path to the project"),
         change: z.string().describe("Change name (folder under lawbook/changes/)"),
@@ -73,7 +73,7 @@ export function registerSpec(server: McpServer): void {
     "lawbook_sync",
     {
       description:
-        "Promote a change's delta specs into the canonical lawbook/specs/ (per capability), without archiving. Backs the `sync` command.",
+        "Promote a change's delta specs into the canonical lawbook/specs/ (per capability), without archiving. Reports each promoted spec as created (new capability) or updated (overwrote an existing one). Backs the `sync` command.",
       inputSchema: {
         projectPath: z.string().describe("Absolute path to the project"),
         change: z.string().describe("Change name (folder under lawbook/changes/)"),
