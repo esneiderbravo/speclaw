@@ -63,8 +63,10 @@ manual verification that stood in — the existing escape hatch, preserved.
 
 ## Version coordination
 
-This change and `opt-in-refresh-backups` both bump the patch version. They
-carry independent migration needs (this one adds a `0.1.13` prompt; the other
-needs none), so whichever lands second rebases its version bump onto the new
-baseline. Only this change adds a `MIGRATIONS` entry, so there is no tag
-collision.
+This change owns the **single** `0.1.13` bump for the release: its `MIGRATIONS`
+entry is tagged `0.1.13` and only fires once the package ships at that version.
+So this PR is the **last to merge** — its version bump is the one deploy trigger.
+The sibling change `opt-in-refresh-backups` deliberately carries **no** version
+bump (no migration; its behavior ships with the code and its `*.bak` gitignore
+auto-applies on the next update) and merges **first**, on `0.1.12`. One bump, one
+deploy, no tag collision.
