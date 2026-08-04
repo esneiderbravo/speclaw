@@ -10,23 +10,57 @@ before declaring anything done.
   (`eslint.config.js`). Fix formatting with `npm run format`.
 - **Type-check + compile**: `npm run build` — `tsc` in `strict` mode followed by
   `scripts/copy-assets.mjs`.
-- **Tests**: there is **no unit-test runner yet.** Until a `test` script exists,
-  the two gates above plus agent-run manual verification (below) are the gates.
+- **Tests + coverage**: `npm run test` — compiles the `test/` tree with the
+  source into `dist-test/` (via `tsconfig.test.json`, so tests are type-checked
+  like source), then runs Node's built-in `node:test` runner with native
+  coverage. **No new dependency** — `node:test` + `node:assert/strict` +
+  `--experimental-test-coverage` only. The command **fails below 80%** line,
+  function, or branch coverage of the source modules, so unverified new code
+  cannot pass. Requires Node ≥ 24 (stable `node:sqlite`); run `npm run build`
+  first so the end-to-end tests can drive the built CLI.
 
-CI runs `npm ci && npm run check && npm run build` on every push to `main` and
-every PR (`.github/workflows/ci.yml`).
+CI runs both jobs on every push to `main` and every PR
+(`.github/workflows/ci.yml`): `build` (`npm ci && npm run check && npm run
+build`) and `test` (`npm ci && npm run build && npm test`), reported as two
+required status checks. `main` is protected so a change merges only through a
+pull request whose `build` and `test` checks pass on an up-to-date branch, with
+linear history and no force-pushes — codified in `.github/branch-protection.json`
+and applied by `scripts/apply-branch-protection.sh` (a maintainer with admin runs
+it; a status check must run once before it can be required).
 
 A red gate blocks the task. Fix it or report it — never work around it by
 suppressing the compiler (no blanket `@ts-ignore`), disabling a lint rule inline
-without a reason, or weakening a check.
+without a reason, lowering the coverage floor, or weakening a check.
+
+## The test suite
+
+Tests live in `test/`, mirroring `src/`, across four layers:
+
+- **`test/unit/`** — pure logic (rendering, path/manifest/version helpers, flag
+  parsing, the lawbook engine's rules, the embedder), with fixtures and no store.
+- **`test/integration/`** — filesystem/sqlite behavior against `mkdtemp`
+  fixtures: the Compass pipeline (index → search/explore/recall/impact/trace →
+  visualize/watch), the lawbook engine flow (init → validate → sync → archive),
+  and the foundation scaffold/doctor.
+- **`test/contract/`** — each `src/modules/*/register.ts`: Zod input validation
+  and `text()` result-wrapping, driven through a stub MCP server.
+- **`test/e2e/`** — the built `dist/cli/index.js` spawned in scratch repos
+  (`init`, `index`, `explore`, `doctor`, `lawbook`). e2e verifies CLI behavior;
+  it runs in a child process and is excluded from the coverage denominator (as is
+  the interactive CLI surface), which measures the in-process core.
+
+Helpers live in `test/helpers/` (temp-repo factory, CLI runner, contract stub,
+sample fixtures). See [`lawbook.md`](lawbook.md) for how a change records its
+test evidence.
 
 ## What must be tested
 
-- New behavior should ship with coverage using Node's built-in `node:test`
-  runner (no new dependency) — happy path plus at least one edge/error case.
-- Bug fixes should add a regression check that fails before the fix.
-- When you add the first tests, wire a `test` script in `package.json` and add
-  it to the CI job, then update this section.
+- New behavior ships with tests using `node:test` — happy path plus at least one
+  edge/error case — and must not drop coverage below the 80% floor.
+- Bug fixes add a regression check that fails before the fix.
+- Keep tests in the layer that fits: pure logic as a unit test, store-backed
+  behavior as an integration test, a new MCP tool as a contract test, a new CLI
+  command as an e2e test.
 
 ## Test hygiene
 
@@ -74,6 +108,6 @@ than improvised:
 6. the **manual steps not automated** — or "none";
 7. a one-line **verdict**.
 
-When a test kind does not yet apply (e.g. no unit runner), the report says so in
-place of that evidence and records the gates and manual verification that stood
-in.
+When a test kind genuinely does not apply to a change (e.g. a docs-only change
+with no code to unit-test), the report says so in place of that evidence and
+records the gates and manual verification that stood in.

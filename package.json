@@ -41,6 +41,8 @@
     "lint": "eslint .",
     "format": "prettier --write .",
     "check": "prettier --check . && eslint .",
+    "pretest": "tsc -p tsconfig.test.json && node scripts/prep-test-assets.mjs",
+    "test": "node --test --experimental-test-coverage --test-coverage-lines=80 --test-coverage-functions=80 --test-coverage-branches=80 --test-coverage-exclude='dist-test/test/**' --test-coverage-exclude='dist/**' 'dist-test/test/**/*.test.js'",
     "prepublishOnly": "npm run build"
   },
   "engines": {
