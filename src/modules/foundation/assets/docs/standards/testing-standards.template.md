@@ -29,6 +29,15 @@ suppressing a linter or deleting a test.
 
 - When a change affects runtime behavior and it's feasible, verify it works by
   exercising the endpoint/UI — don't assume green CI covers everything.
+- **Verification never touches real data.** Run it against an isolated store — a
+  temporary copy, an in-memory database, a dedicated test store, or a rolled-back
+  transaction — or against pure logic with fixtures. Never create/update/delete
+  the user's real data (a production or development database, or files holding
+  real data), and never run raw store commands (e.g. direct SQL) against a live
+  store, to prove a change. Snapshot-and-restore is not sanctioned. If a
+  real-store write is genuinely unavoidable, stop and get explicit authorization
+  first — a backup is not a substitute (see the stop conditions in the
+  constitution).
 - The mandatory spec task steps
   ([`lawbook.md`](lawbook.md)) define which manual checks
   the agent must execute itself.
