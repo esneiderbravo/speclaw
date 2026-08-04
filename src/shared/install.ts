@@ -9,7 +9,9 @@ export interface InstallReport {
   written: string[];
   /** Paths left untouched because they already existed. */
   skipped: string[];
-  /** Managed paths whose local edits were saved to `<file>.bak` before overwrite. */
+  /** Managed paths that had local edits and were refreshed (overwritten in place). */
+  refreshedDiverged: string[];
+  /** Managed paths whose local edits were saved to `<file>.bak` before overwrite (opt-in via `backup`). */
   backedUp: string[];
   /** Symlinks created, formatted as `link -> target`. */
   symlinks: string[];
@@ -19,7 +21,14 @@ export interface InstallReport {
 
 /** Create a fresh, empty {@link InstallReport} to accumulate results into. */
 export function emptyReport(): InstallReport {
-  return { written: [], skipped: [], backedUp: [], symlinks: [], unresolvedVars: [] };
+  return {
+    written: [],
+    skipped: [],
+    refreshedDiverged: [],
+    backedUp: [],
+    symlinks: [],
+    unresolvedVars: [],
+  };
 }
 
 /** SHA-256 of a file's intended content, used to track managed-file baselines. */
@@ -32,9 +41,17 @@ export interface CopyOpts {
   /**
    * Overwrite existing files instead of skipping them (managed refresh). A file
    * whose current content matches its recorded baseline is overwritten silently;
-   * one that diverged is copied to `<file>.bak` first. Default false = additive.
+   * one that diverged is recorded (and backed up to `<file>.bak` first when
+   * `backup` is set). Default false = additive.
    */
   overwrite?: boolean;
+  /**
+   * When overwriting a diverged managed file, first copy it to `<file>.bak`.
+   * Default false — the file is overwritten in place (its prior content stays
+   * recoverable from git) and recorded in `refreshedDiverged`; the backup is
+   * opt-in.
+   */
+  backup?: boolean;
   /** Project root, used to key baselines by project-relative path. */
   projectPath?: string;
   /** Recorded baselines (relPath -> sha) from the manifest. */
@@ -99,9 +116,14 @@ export function copyRendered(
       }
       const baseline = opts.baselines?.[rel];
       if (!baseline || sha256(current) !== baseline) {
-        // Diverged from what we last wrote (or unknown) — preserve the user's copy.
-        fs.copyFileSync(dest, dest + ".bak");
-        report.backedUp.push(dest);
+        // Diverged from what we last wrote (or unknown). Record it so update can
+        // report it; keep a `.bak` only when asked — git already preserves the
+        // prior content, so the backup is opt-in, not the default.
+        if (opts.backup) {
+          fs.copyFileSync(dest, dest + ".bak");
+          report.backedUp.push(dest);
+        }
+        report.refreshedDiverged.push(dest);
       }
       fs.writeFileSync(dest, content);
     } else {
