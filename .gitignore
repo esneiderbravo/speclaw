@@ -8,3 +8,6 @@ dist-test/
 
 # Local agent/MCP wiring — machine-specific, not source.
 .mcp.json
+
+# speclaw managed-file refresh backups
+*.bak
