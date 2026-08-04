@@ -1,4 +1,22 @@
 {
-  "version": "0.1.7",
-  "packs": ["agents"]
+  "version": "0.1.15",
+  "packs": [
+    "agents"
+  ],
+  "baselines": {
+    "ai-specs/skills/archive/SKILL.md": "6c76d16b154ed0a72878c57aafb261d58e97842aa42b07580239da53fce7765d",
+    "ai-specs/skills/build/SKILL.md": "a70716da9eb1dfc936292a4426ce0a416eede126e76deb332f568f1616608fd1",
+    "ai-specs/skills/draft/SKILL.md": "37b9935de1efac4a25325c63de9e274feaec439103faf32a490c012cf009465b",
+    "ai-specs/skills/explore/SKILL.md": "bb9cd2264004405e186e8d3919f2b27350af51d43c9180e0d692239a1956a660",
+    "ai-specs/skills/sync/SKILL.md": "bdb24db6bb2ba6dabaf95425c3dcd08c5ffcd95a49058a2d774869d2d6f0e39c",
+    "ai-specs/commands/lawbook/archive.md": "1eb844a7b55cdbc1f28d599f09d5c5448f1c4921ec41d84e0b6f1e52737e5673",
+    "ai-specs/commands/lawbook/build.md": "79157164f717fb5bbf3d59a77b9cb7d7bd460891200ffe0780fe7794c66c610b",
+    "ai-specs/commands/lawbook/draft.md": "37eb670175a312c0b294a4a39fb84cd5d6a5e2ce3870824fe05b29aa5158412b",
+    "ai-specs/commands/lawbook/explore.md": "43f7a8d7f01709551456f8db6db7c4439382abf56a35ac064703138190a4fa75",
+    "ai-specs/commands/lawbook/sync.md": "e0aedd696f239aa899c844a71f610d69f8779910f33040271e9ce797f3e760fc",
+    "ai-specs/rules/spec-tasks-mandatory-steps.md": "865736e05cc63f77a06c825068f276b7e3f93c8c8853425de2a6a65fc2b8297a",
+    "ai-specs/agents/backend-developer.md": "27f151c9cfd7e94747d1ec236c4b9ea7d11b3af9a436085eb21eaa3d8270b9e8",
+    "ai-specs/agents/frontend-developer.md": "9fd976bc3250a12af9b2d627b3ef3d0a737d58a9f33aa2253993ef3a6066e2de",
+    "ai-specs/agents/product-strategy-analyst.md": "d6c4585c0ef629b54e7dfa17d68c4f3bdc90007fc3cb261d037ca9f0217611ed"
+  }
 }
