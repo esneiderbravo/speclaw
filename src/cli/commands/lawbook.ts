@@ -49,17 +49,26 @@ export async function runSpec(flags: Flags): Promise<void> {
           ui.warn(`${r.change} has ${r.issues.length} issue(s):`);
           r.issues.forEach((i) => ui.info(i));
         }
+        if (r.warnings.length > 0) {
+          ui.warn(`${r.warnings.length} advisory warning(s):`);
+          r.warnings.forEach((w) => ui.info(w));
+        }
         return;
       }
       case "sync": {
         const r = specSync(cwd, req(change, "spec sync <change>"));
         ui.ok(`promoted ${r.promoted.length} spec(s)`);
-        r.promoted.forEach((p) => ui.info(p));
+        r.promoted.forEach((p) =>
+          ui.info(`${r.created.includes(p) ? "created" : "updated"}: ${p}`),
+        );
         return;
       }
       case "archive": {
         const r = specArchive(cwd, req(change, "spec archive <change>"), today());
         ui.ok(`archived to ${r.archivedTo} (${r.promoted.length} spec(s) promoted)`);
+        r.promoted.forEach((p) =>
+          ui.info(`${r.created.includes(p) ? "created" : "updated"}: ${p}`),
+        );
         return;
       }
       default:

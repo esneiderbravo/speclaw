@@ -106,8 +106,55 @@ export interface ValidationResult {
   valid: boolean;
   /** Human-readable problems that block the change from proceeding. */
   issues: string[];
+  /**
+   * Advisory notices that do NOT block the change (near-duplicate capability
+   * names, requirements dropped versus the canonical). `valid` ignores these.
+   */
+  warnings: string[];
   /** Project-relative paths of the delta spec files that were inspected. */
   deltaSpecs: string[];
+}
+
+/** Names of the canonical capabilities (directories under lawbook/specs/). */
+function canonicalCapabilities(root: string): string[] {
+  const specsDir = path.join(root, "specs");
+  if (!fs.existsSync(specsDir)) return [];
+  return fs
+    .readdirSync(specsDir, { withFileTypes: true })
+    .filter((e) => e.isDirectory())
+    .map((e) => e.name);
+}
+
+/** The "### Requirement:" titles declared in a spec markdown document. */
+function requirementHeaders(markdown: string): string[] {
+  const out: string[] = [];
+  for (const m of markdown.matchAll(/^###\s+Requirement:\s*(.+?)\s*$/gm)) out.push(m[1]!);
+  return out;
+}
+
+/** Levenshtein edit distance between two strings (small, dependency-free). */
+function editDistance(a: string, b: string): number {
+  const rows = a.length + 1;
+  const cols = b.length + 1;
+  let prev = Array.from({ length: cols }, (_, j) => j);
+  for (let i = 1; i < rows; i++) {
+    const curr = [i];
+    for (let j = 1; j < cols; j++) {
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+      curr[j] = Math.min(prev[j]! + 1, curr[j - 1]! + 1, prev[j - 1]! + cost);
+    }
+    prev = curr;
+  }
+  return prev[cols - 1]!;
+}
+
+/**
+ * The existing canonical capability that a name is a near-match of (edit
+ * distance ≤ 2 and not equal), or undefined when the name is exact or unrelated.
+ */
+function nearMatchCapability(name: string, capabilities: string[]): string | undefined {
+  if (capabilities.includes(name)) return undefined;
+  return capabilities.find((c) => editDistance(name, c) <= 2);
 }
 
 /** Recursively collect every .md file under a change's specs/ directory. */
@@ -144,6 +191,7 @@ export function specValidate(projectPath: string, change: string): ValidationRes
       change,
       valid: false,
       issues: [`change "${change}" not found under lawbook/changes/`],
+      warnings: [],
       deltaSpecs: [],
     };
   }
@@ -154,6 +202,11 @@ export function specValidate(projectPath: string, change: string): ValidationRes
   const deltas = deltaSpecFiles(changeDir);
   if (deltas.length === 0)
     issues.push("no delta specs under specs/ (a change should specify what it changes)");
+
+  const root = specRoot(projectPath);
+  const changeSpecs = path.join(changeDir, "specs");
+  const capabilities = canonicalCapabilities(root);
+  const warnings: string[] = [];
   for (const file of deltas) {
     const rel = path.relative(changeDir, file);
     const content = fs.readFileSync(file, "utf8");
@@ -166,11 +219,39 @@ export function specValidate(projectPath: string, change: string): ValidationRes
     if (!/^###\s+Requirement:/m.test(content)) {
       issues.push(`${rel}: no "### Requirement:" header`);
     }
+
+    // Advisory divergence checks against the canonical specs.
+    const relFromSpecs = path.relative(changeSpecs, file);
+    const capability = relFromSpecs.split(path.sep)[0]!;
+    const nearMatch = nearMatchCapability(capability, capabilities);
+    if (nearMatch) {
+      warnings.push(
+        `${rel}: capability "${capability}" is not canonical but resembles ` +
+          `"${nearMatch}" — did you mean to update it? Reuse the exact name to ` +
+          `update the existing spec instead of forking a near-duplicate.`,
+      );
+    } else if (capabilities.includes(capability)) {
+      const canonicalFile = path.join(root, "specs", relFromSpecs);
+      if (fs.existsSync(canonicalFile)) {
+        const deltaReqs = new Set(requirementHeaders(content));
+        const dropped = requirementHeaders(fs.readFileSync(canonicalFile, "utf8")).filter(
+          (r) => !deltaReqs.has(r),
+        );
+        if (dropped.length > 0) {
+          warnings.push(
+            `${rel}: delta drops ${dropped.length} requirement(s) present in the ` +
+              `canonical "${capability}" spec (${dropped.join("; ")}) — start the ` +
+              `delta from the canonical unless the removal is intentional.`,
+          );
+        }
+      }
+    }
   }
   return {
     change,
     valid: issues.length === 0,
     issues,
+    warnings,
     deltaSpecs: deltas.map((f) => path.relative(projectPath, f)),
   };
 }
@@ -180,15 +261,22 @@ export interface SyncResult {
   change: string;
   /** Project-relative paths of the canonical spec files written/overwritten. */
   promoted: string[];
+  /** Promoted paths whose canonical file did not exist before (new capabilities). */
+  created: string[];
+  /** Promoted paths that overwrote an existing canonical file. */
+  updated: string[];
 }
 
 /**
  * Promote a change's delta specs into the canonical specs/, overwriting the
- * file for each affected capability.
+ * file for each affected capability. Each promoted path is also classified as
+ * `created` (no canonical file existed) or `updated` (one was overwritten) so an
+ * unintended new capability is visible in the result — a pure path check that
+ * keeps this a deterministic, code-blind copy.
  *
  * @param projectPath - Absolute path to the project root.
  * @param change - Change name (folder under lawbook/changes/).
- * @returns The change name and the list of promoted spec paths.
+ * @returns The change name, the promoted spec paths, and the created/updated split.
  * @throws If the change directory does not exist.
  */
 export function specSync(projectPath: string, change: string): SyncResult {
@@ -197,7 +285,9 @@ export function specSync(projectPath: string, change: string): SyncResult {
   if (!fs.existsSync(changeDir)) throw new Error(`change "${change}" not found`);
   const changeSpecs = path.join(changeDir, "specs");
   const promoted: string[] = [];
-  if (!fs.existsSync(changeSpecs)) return { change, promoted };
+  const created: string[] = [];
+  const updated: string[] = [];
+  if (!fs.existsSync(changeSpecs)) return { change, promoted, created, updated };
   const walk = (dir: string) => {
     for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
       const full = path.join(dir, e.name);
@@ -205,14 +295,17 @@ export function specSync(projectPath: string, change: string): SyncResult {
       else if (e.name.endsWith(".md")) {
         const rel = path.relative(changeSpecs, full);
         const dest = path.join(root, "specs", rel);
+        const existed = fs.existsSync(dest);
         fs.mkdirSync(path.dirname(dest), { recursive: true });
         fs.copyFileSync(full, dest);
-        promoted.push(path.join("lawbook/specs", rel));
+        const promotedPath = path.join("lawbook/specs", rel);
+        promoted.push(promotedPath);
+        (existed ? updated : created).push(promotedPath);
       }
     }
   };
   walk(changeSpecs);
-  return { change, promoted };
+  return { change, promoted, created, updated };
 }
 
 /** Result of archiving a change (sync plus relocation). */
@@ -220,6 +313,10 @@ export interface ArchiveResult {
   change: string;
   /** Canonical spec paths promoted during the embedded sync. */
   promoted: string[];
+  /** Promoted paths whose canonical file did not exist before (new capabilities). */
+  created: string[];
+  /** Promoted paths that overwrote an existing canonical file. */
+  updated: string[];
   /** Project-relative path the change was moved to. */
   archivedTo: string;
 }
@@ -298,12 +395,12 @@ export function specArchive(projectPath: string, change: string, date: string): 
       `cannot archive "${change}" — resolve first:\n${blockers.map((b) => `  - ${b}`).join("\n")}`,
     );
   }
-  const { promoted } = specSync(projectPath, change);
+  const { promoted, created, updated } = specSync(projectPath, change);
   const archiveDir = path.join(root, "changes", "archive", `${date}-${change}`);
   fs.mkdirSync(path.dirname(archiveDir), { recursive: true });
   if (fs.existsSync(archiveDir)) throw new Error(`archive target already exists: ${archiveDir}`);
   fs.renameSync(changeDir, archiveDir);
-  return { change, promoted, archivedTo: path.relative(projectPath, archiveDir) };
+  return { change, promoted, created, updated, archivedTo: path.relative(projectPath, archiveDir) };
 }
 
 /** Snapshot of the spec workspace contents. */

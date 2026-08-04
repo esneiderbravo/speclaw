@@ -35,7 +35,11 @@ specs that become canonical describe reality, not just the original draft.
 
 4. Run the `lawbook_sync` tool for the change. It copies each
    `lawbook/changes/<name>/specs/<capability>/spec.md` over the canonical
-   `lawbook/specs/<capability>/spec.md` and reports what it promoted.
+   `lawbook/specs/<capability>/spec.md` and reports what it promoted, flagging
+   each as **created** (new capability) or **updated** (overwrote an existing
+   one). A capability you expected to update showing up as *created* means the
+   delta forked a near-duplicate — fix the name before promoting.
 
 5. Report to the user what you reconciled (or that nothing drifted) and the
-   promoted files. The change stays active — `archive` it when it's fully done.
+   promoted files (created vs updated). The change stays active — `archive` it
+   when it's fully done.
