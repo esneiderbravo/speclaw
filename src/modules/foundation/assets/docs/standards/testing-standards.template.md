@@ -32,3 +32,30 @@ suppressing a linter or deleting a test.
 - The mandatory spec task steps
   ([`lawbook.md`](lawbook.md)) define which manual checks
   the agent must execute itself.
+
+## Reports — evidence travels with the change
+
+Every change records its testing under `lawbook/changes/<name>/reports/`, one
+file per discipline it touched (`backend.md`, `frontend.md`, …). `build`
+produces them; archiving is blocked until the change has at least one discipline
+report.
+
+Each report MUST follow a fixed structure, so the evidence is reproducible rather
+than improvised:
+
+1. a **header** — discipline, change, date, branch, and the environment or
+   working directory the commands ran in;
+2. a **gates-and-results table** — each check, the exact command, and its real
+   result with pass/fail counts;
+3. the **tests added or updated** and what each asserts (TDD evidence where it
+   applies);
+4. a **spec-scenario coverage table** mapping every `#### Scenario` in the
+   change's delta specs to how it was verified (a test, a gate, or a manual step);
+5. an honest declaration of any **pre-existing or unrelated failures** with proof
+   they are not caused by the change — or "none";
+6. the **manual steps not automated** — or "none";
+7. a one-line **verdict**.
+
+When a test kind does not yet apply (e.g. no unit runner), the report says so in
+place of that evidence and records the gates and manual verification that stood
+in.
