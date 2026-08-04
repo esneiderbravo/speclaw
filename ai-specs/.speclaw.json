@@ -1,8 +1,6 @@
 {
   "version": "0.1.15",
-  "packs": [
-    "agents"
-  ],
+  "packs": ["agents"],
   "baselines": {
     "ai-specs/skills/archive/SKILL.md": "6c76d16b154ed0a72878c57aafb261d58e97842aa42b07580239da53fce7765d",
     "ai-specs/skills/build/SKILL.md": "a70716da9eb1dfc936292a4426ce0a416eede126e76deb332f568f1616608fd1",
