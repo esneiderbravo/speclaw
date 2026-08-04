@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { parseFlags } from "./lib/args.js";
-import { ui } from "./lib/ui.js";
+import { ui, header } from "./lib/ui.js";
 import { maybeNotifyUpdate } from "./lib/update-check.js";
 
 const HELP = `speclaw — spec-driven, agent-ready projects (foundation + Compass + Lawbook)
@@ -39,6 +39,38 @@ Other
   help                     Show this help
   --version                Print the installed speclaw version
 `;
+
+// Commands that open with the one-line branded header. These are the
+// interactive, human-facing commands whose stdout is prose. Deliberately
+// excluded: `version`/`--version`/`-v` (bare scriptable value), the Compass
+// query family (`explore`/`search`/`recall`/`impact`/`trace`, machine-consumed
+// output), `mcp` (a long-running stdio server), and `init` (already opens with
+// the fuller `banner()`).
+const HEADER_COMMANDS = new Set<string | undefined>([
+  undefined,
+  "help",
+  "--help",
+  "-h",
+  "update",
+  "agent",
+  "doctor",
+  "index",
+  "watch",
+  "lawbook",
+]);
+
+/**
+ * Print the branded header once, ahead of a command's output, when it is a
+ * header-eligible command AND stdout is an interactive terminal (so pipes,
+ * redirection, and CI stay clean — mirroring the color gate in `ui.ts`). A
+ * forced-color signal counts as interactive so the header is exercisable in a
+ * child process.
+ */
+function maybeHeader(cmd: string | undefined): void {
+  if (!process.stdout.isTTY && process.env.FORCE_COLOR !== "1") return;
+  if (!HEADER_COMMANDS.has(cmd)) return;
+  header();
+}
 
 /** Run the handler for a single command. Returns when the command completes. */
 async function dispatch(
@@ -94,6 +126,7 @@ async function dispatch(
 async function main(): Promise<void> {
   const [cmd, ...rest] = process.argv.slice(2);
   const flags = parseFlags(rest);
+  maybeHeader(cmd);
   await dispatch(cmd, flags);
   await maybeNotifyUpdate(cmd);
 }
