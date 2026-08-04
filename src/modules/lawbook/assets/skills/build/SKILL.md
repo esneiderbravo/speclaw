@@ -43,7 +43,17 @@ Run them yourself and report real output. A red gate blocks completion.
 Exercise the behavior (endpoint/UI/CLI) yourself where feasible — do not
 delegate manual testing to the user. Record what you verified.
 
-## Step 5 — Hand off
+## Step 5 — Write the discipline reports (mandatory)
+
+Record the evidence of testing under `lawbook/changes/<name>/reports/`, one file
+per discipline the change touched (`backend.md`, `frontend.md`, …). Each report
+states what was tested and the real results — unit, integration, and end-to-end
+as applicable — with the commands run and their output and a one-line verdict.
+If a test kind does not yet apply (e.g. no unit runner), say so and record the
+gates and manual verification that stood in. Omit disciplines the change did not
+touch. The archive is blocked until at least one discipline report exists.
+
+## Step 6 — Hand off
 
 When every task is checked and gates are green, tell the user the change is
 ready to `sync` and `archive`. Keep the delta specs current as you build, but

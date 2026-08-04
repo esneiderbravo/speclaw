@@ -31,6 +31,7 @@ mandatory_task_steps:
   - "Review and update the affected tests."
   - "Run the quality gates and verify they pass (see docs/standards/testing-standards.md)."
   - "Perform manual verification of the behavior — the agent executes this itself, never the user."
+  - "Produce the discipline reports under reports/ (unit/integration/e2e results for what the feature touched)."
   - "Update the technical documentation touched by the change."
   - "Archive the change within the same PR (lawbook:archive)."
 
@@ -224,6 +225,59 @@ export interface ArchiveResult {
 }
 
 /**
+ * Deterministic completeness checks that gate archiving a change. Returns the
+ * blocking reasons; an empty array means the change may be archived.
+ *
+ * A change is blocked when any task is still unchecked, when it has no discipline
+ * report under reports/, or when its delta specs are not synced — the canonical
+ * spec is missing for, or differs from, a delta (meaning sync was not run after
+ * the last spec edit). The reports/README.md scaffold does not count as a report.
+ *
+ * @param projectPath - Absolute path to the project root.
+ * @param change - Change name (folder under lawbook/changes/).
+ * @returns Human-readable blockers; empty when the change is ready to archive.
+ */
+export function specArchivePreconditions(projectPath: string, change: string): string[] {
+  const root = specRoot(projectPath);
+  const changeDir = path.join(root, "changes", change);
+  if (!fs.existsSync(changeDir)) return [`change "${change}" not found under lawbook/changes/`];
+  const blockers: string[] = [];
+
+  // 1. Every task must be checked.
+  const tasksPath = path.join(changeDir, "tasks.md");
+  if (!fs.existsSync(tasksPath)) {
+    blockers.push("missing tasks.md");
+  } else {
+    const unchecked = (fs.readFileSync(tasksPath, "utf8").match(/^\s*[-*]\s+\[ \]/gm) ?? []).length;
+    if (unchecked > 0) blockers.push(`${unchecked} unchecked task(s) in tasks.md`);
+  }
+
+  // 2. At least one discipline report must exist (README.md scaffold aside).
+  const reportsDir = path.join(changeDir, "reports");
+  const reports = fs.existsSync(reportsDir)
+    ? fs.readdirSync(reportsDir).filter((n) => n.endsWith(".md") && n.toLowerCase() !== "readme.md")
+    : [];
+  if (reports.length === 0) {
+    blockers.push("no discipline report under reports/ (build must record what was tested)");
+  }
+
+  // 3. Delta specs must already be synced into the canonical specs.
+  for (const file of deltaSpecFiles(changeDir)) {
+    const rel = path.relative(path.join(changeDir, "specs"), file);
+    const canonical = path.join(root, "specs", rel);
+    if (!fs.existsSync(canonical)) {
+      blockers.push(`spec not synced: lawbook/specs/${rel} missing (run sync first)`);
+    } else if (fs.readFileSync(file, "utf8") !== fs.readFileSync(canonical, "utf8")) {
+      blockers.push(
+        `spec not synced: lawbook/specs/${rel} differs from the delta (run sync first)`,
+      );
+    }
+  }
+
+  return blockers;
+}
+
+/**
  * Finalize a change: promote its delta specs (via {@link specSync}), then move
  * it to changes/archive/<date>-<name>/.
  *
@@ -231,12 +285,19 @@ export interface ArchiveResult {
  * @param change - Change name (folder under lawbook/changes/).
  * @param date - Archive date prefix, formatted YYYY-MM-DD.
  * @returns The promoted specs and the archive destination path.
- * @throws If the change does not exist, or the archive target already exists.
+ * @throws If the change does not exist, the archive target already exists, or
+ *   any archive precondition (see {@link specArchivePreconditions}) is unmet.
  */
 export function specArchive(projectPath: string, change: string, date: string): ArchiveResult {
   const root = specRoot(projectPath);
   const changeDir = path.join(root, "changes", change);
   if (!fs.existsSync(changeDir)) throw new Error(`change "${change}" not found`);
+  const blockers = specArchivePreconditions(projectPath, change);
+  if (blockers.length > 0) {
+    throw new Error(
+      `cannot archive "${change}" — resolve first:\n${blockers.map((b) => `  - ${b}`).join("\n")}`,
+    );
+  }
   const { promoted } = specSync(projectPath, change);
   const archiveDir = path.join(root, "changes", "archive", `${date}-${change}`);
   fs.mkdirSync(path.dirname(archiveDir), { recursive: true });
