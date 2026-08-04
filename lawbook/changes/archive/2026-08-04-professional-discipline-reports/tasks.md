@@ -52,5 +52,5 @@
       new structure. Update `docs/standards/testing-standards.md` (task 3 covers
       the normative text; verify cross-references).
 
-- [ ] **10. Archive the change within the same PR (`lawbook:archive`).**
+- [x] **10. Archive the change within the same PR (`lawbook:archive`).**
       Run `sync` then `archive` after gates are green and reports are present.

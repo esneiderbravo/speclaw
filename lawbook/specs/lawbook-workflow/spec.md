@@ -2,7 +2,8 @@
 
 Delta spec for the reporting and archive-gate behavior of the workflow. This
 supersedes the canonical `lawbook-workflow` spec, keeping the sync
-reconciliation and hardening the archive step into a blocking gate.
+reconciliation and archive gate unchanged and strengthening the discipline
+reports into a required structure.
 
 ### Requirement: Sync reconciles built code into the delta specs
 
@@ -27,11 +28,15 @@ spec files and MUST NOT itself inspect code.
 Every change SHALL contain a `reports/` folder under
 `lawbook/changes/<name>/`. The `draft` step SHALL scaffold it when creating the
 change, so the folder is part of the change's structure before implementation.
+The scaffolded `reports/README.md` SHALL name the discipline reports expected
+for the change and point at the required report structure.
 
 #### Scenario: Draft scaffolds the reports folder
 - Given a request to draft a new change
 - When the `draft` step writes the change artifacts
 - Then a `reports/` folder exists under `lawbook/changes/<name>/`
+- And its `README.md` names the expected discipline reports and references the
+  required report structure
 
 ### Requirement: Build produces per-discipline test reports
 
@@ -47,6 +52,47 @@ the gates and manual verification that stood in.
 - Given a change under implementation that touches backend behavior
 - When the `build` step completes
 - Then `reports/backend.md` exists and records the tests run and their results
+
+### Requirement: Discipline reports follow a required structure
+
+Each discipline report SHALL follow a required structure so that report quality
+is reproducible rather than dependent on improvisation. A report SHALL contain,
+in order:
+- a title and header identifying the discipline, the change, the date, the
+  branch, and the environment or working directory the commands ran in;
+- a gates-and-results table listing each check, the exact command run, and its
+  real result including pass/fail counts;
+- a section listing the tests added or updated and what each asserts;
+- a spec-scenario coverage table mapping each `#### Scenario` in the change's
+  delta specs to how it was verified (an automated test, a gate, or a manual
+  step);
+- a section declaring any pre-existing or unrelated failures with evidence that
+  they are not caused by the change, or stating that there are none;
+- a section declaring any manual steps not automated, or stating that there are
+  none;
+- a one-line verdict.
+
+When a test kind does not yet apply (for example, no unit-test runner exists),
+the report SHALL say so in place of that evidence and record the gates and
+manual verification that stood in.
+
+#### Scenario: A discipline report carries the required sections
+- Given a change under implementation that touches a discipline
+- When the `build` step writes that discipline's report
+- Then the report has the header, gates-and-results table, tests-added section,
+  spec-scenario coverage table, pre-existing-failures section, pending-manual
+  section, and a verdict
+
+#### Scenario: Pre-existing failures are declared honestly
+- Given a quality gate that reports a failure not caused by the change
+- When the `build` step writes the report
+- Then the report declares the failure as pre-existing or unrelated with
+  evidence, rather than omitting it or attributing it to the change
+
+#### Scenario: Every delta-spec scenario is accounted for
+- Given a change whose delta specs contain testable scenarios
+- When the `build` step writes the discipline reports
+- Then each scenario appears in a coverage table with how it was verified
 
 ### Requirement: Archive is blocked until the change is complete
 
