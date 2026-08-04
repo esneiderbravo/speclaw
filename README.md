@@ -106,10 +106,10 @@ non-trivial lands without a spec change. It's a loop of five steps:
 | Step | What happens |
 | :-- | :-- |
 | **explore** | Think an idea through *before* committing to it — should we do this, and how. Writes nothing. |
-| **draft** | Capture the intent as a change under `lawbook/changes/<name>/` — four artifacts, always (see below). |
-| **build** | Implement the tasks in order, keeping code and spec in agreement. |
+| **draft** | Capture the intent as a change under `lawbook/changes/<name>/` — four artifacts plus a `reports/` folder, always (see below). |
+| **build** | Implement the tasks in order, keeping code and spec in agreement, and record test results under `reports/`. |
 | **sync** | Reconcile the delta specs against what was actually built, then promote them into the canonical `lawbook/specs/` — the always-true description of how the system behaves. |
-| **archive** | Reconciliation review (recommend a sync if the code drifted past the contracts), then validate, promote, and move the change to `lawbook/changes/archive/` — **in the same PR**, never a post-merge chore. |
+| **archive** | Reconcile, then validate, promote, and move the change to `lawbook/changes/archive/` — **in the same PR**, never a post-merge chore. Gated: refused while any task is unchecked, `reports/` is empty, or the specs are unsynced. |
 
 **Every `draft` writes four artifacts under `lawbook/changes/<name>/` — none optional:**
 
@@ -119,6 +119,8 @@ non-trivial lands without a spec change. It's a loop of five steps:
 | `specs/<capability>/spec.md` | The **delta specs** — one per affected capability, normative and testable. |
 | `design.md` | The **how** — approach, alternatives weighed, and the trade-offs behind the decision. |
 | `tasks.md` | The **plan** — ordered, checkable steps, including the mandatory ones from `config.yaml`. |
+
+Plus a **`reports/`** folder — scaffolded at draft, filled at build with one report per discipline (`backend.md`, `frontend.md`, …) recording the real unit/integration/e2e results. Evidence of testing travels with the change, and `lawbook_archive` refuses to archive without it.
 
 > [!NOTE]
 > **Delta specs are normative and testable.** Requirements use `SHALL`/`MUST`
