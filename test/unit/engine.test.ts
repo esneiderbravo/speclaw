@@ -97,6 +97,83 @@ test("specValidate flags a change with no delta specs", (t) => {
   assert.ok(res.issues.some((i) => /no delta specs/.test(i)));
 });
 
+const TWO_REQ_SPEC = `# Transfers
+
+### Requirement: Alpha
+The system SHALL alpha.
+
+#### Scenario: a
+- Given x
+- When y
+- Then z
+
+### Requirement: Beta
+The system SHALL beta.
+
+#### Scenario: b
+- Given x
+- When y
+- Then z
+`;
+
+/** Seed a minimal valid change with the delta spec at a chosen capability path. */
+function seedDelta(root: string, name: string, capabilityRel: string, content: string): void {
+  write(root, `lawbook/changes/${name}/proposal.md`, "x");
+  write(root, `lawbook/changes/${name}/tasks.md`, "- [ ] x");
+  write(root, `lawbook/changes/${name}/specs/${capabilityRel}`, content);
+}
+
+test("specValidate warns when a delta capability resembles an existing one", (t) => {
+  const root = tmpRepo(t);
+  specInit(root);
+  write(root, "lawbook/specs/transfers/spec.md", TWO_REQ_SPEC);
+  // delta under the near-match name "transfer" (edit distance 1 from "transfers")
+  seedDelta(root, "c", "transfer/spec.md", VALID_SPEC);
+  const res = specValidate(root, "c");
+  assert.equal(res.valid, true); // advisory warnings never block
+  assert.ok(res.warnings.some((w) => /resembles "transfers"/.test(w)));
+});
+
+test("specValidate warns when a delta drops a canonical requirement", (t) => {
+  const root = tmpRepo(t);
+  specInit(root);
+  write(root, "lawbook/specs/transfers/spec.md", TWO_REQ_SPEC);
+  // exact name reused, but the delta keeps only "Alpha" (drops "Beta")
+  const onlyAlpha = TWO_REQ_SPEC.split("### Requirement: Beta")[0]!;
+  seedDelta(root, "c", "transfers/spec.md", onlyAlpha);
+  const res = specValidate(root, "c");
+  assert.ok(res.warnings.some((w) => /drops 1 requirement/.test(w) && /Beta/.test(w)));
+});
+
+test("specValidate raises no divergence warning for an exact-name delta that keeps every requirement", (t) => {
+  const root = tmpRepo(t);
+  specInit(root);
+  write(root, "lawbook/specs/transfers/spec.md", TWO_REQ_SPEC);
+  const withExtra = `${TWO_REQ_SPEC}
+### Requirement: Gamma
+The system SHALL gamma.
+
+#### Scenario: g
+- Given x
+- When y
+- Then z
+`;
+  seedDelta(root, "c", "transfers/spec.md", withExtra);
+  assert.deepEqual(specValidate(root, "c").warnings, []);
+});
+
+test("specSync classifies each promoted spec as created or updated", (t) => {
+  const root = tmpRepo(t);
+  specInit(root);
+  write(root, "lawbook/specs/cap/spec.md", "# Cap\nold\n"); // pre-existing canonical
+  seedChange(root, "feat"); // delta under cap -> updates the existing one
+  write(root, "lawbook/changes/feat/specs/new/spec.md", VALID_SPEC); // delta under new -> creates
+  const res = specSync(root, "feat");
+  assert.equal(res.promoted.length, 2);
+  assert.deepEqual(res.updated, ["lawbook/specs/cap/spec.md"]);
+  assert.deepEqual(res.created, ["lawbook/specs/new/spec.md"]);
+});
+
 test("specSync promotes delta specs into the canonical specs/", (t) => {
   const root = tmpRepo(t);
   specInit(root);

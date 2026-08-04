@@ -15,17 +15,27 @@ If `lawbook/` is missing, run the `lawbook_init` tool once to create it.
 
 ## Step 1 — Understand the request and the code
 
+- **Refresh the index first.** Run `compass_index` before reasoning about the
+  code — it is incremental (unchanged files are skipped by hash), so this is
+  cheap and guarantees your decisions rest on the current graph, not a stale one.
 - Clarify what the user wants (feature / fix / refactor) and confirm scope.
 - Use `compass_explore` and `compass_recall` (speclaw's code index) BEFORE
   grep/read to locate the real code the change touches and its blast radius.
-  If the index is stale or missing, run `compass_index` first.
 - Read the governing standards in `docs/standards/` (architecture, backend,
   frontend, testing) so the change complies with the project's law.
 
-## Step 2 — Pick a change name
+## Step 2 — Pick a change name and its capabilities
 
-Kebab-case, action-oriented (e.g. `add-login`, `fix-shift-overlap`). This is
-the folder under `lawbook/changes/`.
+- **Change name:** kebab-case, action-oriented (e.g. `add-login`,
+  `fix-shift-overlap`). This is the folder under `lawbook/changes/`, and it is
+  per-feature — always distinct.
+- **Capabilities:** run `lawbook_list` to see the canonical capabilities. A
+  capability is the living contract for an area of behavior — it is *not* the
+  change. When your change modifies behavior an existing capability already
+  governs, reuse that capability's **exact** name so `sync` updates its spec.
+  Introduce a new capability only as a deliberate choice for a genuinely distinct
+  area of behavior — never as a near-duplicate (`transfer` next to an existing
+  `transfers`) of one that already exists.
 
 ## Step 3 — Write the artifacts
 
@@ -34,7 +44,12 @@ Create under `lawbook/changes/<name>/`:
 - **proposal.md** — the why, the what, non-goals, and whether migrations are
   needed. Reference the team's tracker ticket if there is one.
 - **specs/<capability>/spec.md** — the delta spec for each affected capability.
-  Use normative language and testable scenarios:
+  `sync` promotes this by overwriting the whole canonical file, so the delta must
+  carry the capability's **full** intended spec. When you are updating an existing
+  capability, **start from the current `lawbook/specs/<capability>/spec.md`** and
+  edit on top of it, so its existing requirements are carried forward — do not
+  author it from scratch, or promotion will silently drop them. Use normative
+  language and testable scenarios:
   ```markdown
   # <Capability>
 
@@ -63,7 +78,11 @@ Create under `lawbook/changes/<name>/`:
 
 Run the `lawbook_validate` tool for the change and fix every issue it reports
 (missing artifacts, non-normative specs, missing scenarios) before handing off
-to implementation.
+to implementation. Read its advisory **warnings** too: a near-duplicate
+capability name usually means you should reuse the existing capability's exact
+name, and a dropped-requirement warning means the delta should start from the
+canonical. Warnings do not block, but resolve them unless the divergence is
+intentional.
 
 ## Step 5 — Hand off
 
