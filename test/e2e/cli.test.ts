@@ -1,5 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { tmpRepo } from "../helpers/env.js";
 import { seedSampleRepo } from "../helpers/fixtures.js";
 import { runCli, cliBuilt } from "../helpers/cli.js";
@@ -8,10 +11,37 @@ import { runCli, cliBuilt } from "../helpers/cli.js";
 // run first (CI does this before `npm test`); otherwise it skips with a notice.
 const skip = cliBuilt() ? false : "dist/ not built — run `npm run build` before the e2e suite";
 
+// The version the CLI must report is the one in the package's package.json —
+// four levels up from this compiled file (dist-test/test/e2e/cli.test.js).
+const PKG_VERSION = (
+  JSON.parse(
+    readFileSync(
+      path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..", "..", "package.json"),
+      "utf8",
+    ),
+  ) as { version: string }
+).version;
+
 test("help prints usage and exits zero", { skip }, () => {
   const r = runCli(["help"]);
   assert.equal(r.code, 0);
   assert.match(r.stdout, /Usage: speclaw/);
+});
+
+for (const alias of ["--version", "-v", "version"]) {
+  test(`\`${alias}\` prints the package version and exits zero`, { skip }, () => {
+    const r = runCli([alias]);
+    assert.equal(r.code, 0);
+    assert.equal(r.stdout.trim(), PKG_VERSION);
+    // Bare version only — never the Unknown-command path or the HELP dump.
+    assert.doesNotMatch(r.stdout + r.stderr, /Unknown command|Usage: speclaw/);
+  });
+}
+
+test("help lists the --version command", { skip }, () => {
+  const r = runCli(["help"]);
+  assert.equal(r.code, 0);
+  assert.match(r.stdout, /--version/);
 });
 
 test("an unknown command exits non-zero", { skip }, () => {
