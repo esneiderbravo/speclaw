@@ -67,6 +67,23 @@ const MIGRATIONS: Migration[] = [
       "'test kind does not yet apply' escape hatch. If the section is missing, add it.\n" +
       "- Preserve all project-specific wording; only apply these speclaw-authored changes.",
   },
+  {
+    version: "0.1.14",
+    describe: "Real-data-write stop condition in the constitution (personalized files)",
+    agentPrompt:
+      "- Add a stop condition, at the same tier as deletes/force-push, that verification " +
+      "must NOT create/update/delete the user's real data (a production or development " +
+      "database, or files holding real data) — including setting up or tearing down test " +
+      "data or running raw store commands (e.g. direct SQL) against a live store. " +
+      "Verification runs against an isolated/throwaway store (a temporary copy, an in-memory " +
+      "database, a dedicated test store, or a rolled-back transaction); snapshot-and-restore " +
+      "is not sanctioned. If a real-store write is genuinely unavoidable, stop and get " +
+      "explicit authorization first — a backup is not a substitute.\n" +
+      "- Apply it in CLAUDE.md and AGENTS.md (the Rule 6 / stop-conditions list), in " +
+      "docs/standards/base-standards.md (the 'ask before irreversible actions' bullet), and " +
+      "in docs/standards/testing-standards.md (the 'Manual & end-to-end verification' section).\n" +
+      "- Preserve all project-specific wording; only apply these speclaw-authored changes.",
+  },
 ];
 
 /**

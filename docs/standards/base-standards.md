@@ -51,8 +51,9 @@ bodies. Match what the repo does; do not impose a language it doesn't use.
 - Code reads like its neighbors (naming, structure, idioms).
 - Report outcomes faithfully: if a gate fails, say so with the output; never
   claim a success you did not observe.
-- Ask before irreversible or outward-facing actions (destructive commands,
-  publishing reviews/tickets/comments).
+- Ask before irreversible or outward-facing actions (destructive commands;
+  writing to a real data store — DB rows or files holding real user data,
+  including to set up or tear down test data; publishing reviews/tickets/comments).
 
 ## speclaw-specific base rules
 

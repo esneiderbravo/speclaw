@@ -81,5 +81,7 @@ task, use it — do not improvise a parallel process.
 ## Rule 6 — Stop conditions
 
 Stop and ask the user before: destructive operations (deletes, force-push,
-schema drops), publishing anything outward-facing (PR reviews, tickets,
-comments), or any action that contradicts a standard.
+schema drops), writing to a real data store (DB rows or files holding real user
+data — including to set up or tear down test data; verification runs against an
+isolated/throwaway store instead), publishing anything outward-facing (PR
+reviews, tickets, comments), or any action that contradicts a standard.

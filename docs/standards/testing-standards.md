@@ -40,6 +40,14 @@ without a reason, or weakening a check.
   build, then exercise the affected command (e.g. `node dist/cli/index.js init`
   in a scratch repo, `… index`, `… explore <node>`, `… doctor`), or drive the
   MCP tool. Don't assume a green build covers behavior.
+- **Verification never touches real data.** Run it against an isolated/throwaway
+  store — a temporary copy, an in-memory database, a dedicated test store, or a
+  rolled-back transaction; speclaw's own verification uses scratch repos and temp
+  dirs. Never create/update/delete real user data, and never run raw store
+  commands (e.g. direct SQL) against a live store, to prove a change.
+  Snapshot-and-restore is not sanctioned. If a real-store write is genuinely
+  unavoidable, stop and get explicit authorization first — a backup is not a
+  substitute (see Rule 6 in `CLAUDE.md`/`AGENTS.md`).
 - The mandatory spec task steps ([`lawbook.md`](lawbook.md)) define which manual
   checks the agent must execute itself — the agent performs them, never delegates.
 
