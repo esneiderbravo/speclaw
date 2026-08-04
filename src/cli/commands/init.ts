@@ -136,12 +136,12 @@ export async function runInit(flags: Flags): Promise<void> {
     );
   }
 
-  // 3. Handoff prompt for the chosen agent — printed as a single flush-left
-  // line so it copy-pastes cleanly (no borders, no wrapping artifacts).
-  const primary = agentById(agents[0]!)!;
+  // 3. Handoff prompt — printed as a single flush-left line so it copy-pastes
+  // cleanly (no borders, no wrapping artifacts). Agent-generic on purpose:
+  // speclaw supports any agent, so it addresses "the agent you're using".
   ui.step("You're set — one last step");
   ui.plain();
-  ui.info(`Copy this and paste it into ${c.cyan(primary.label)}:`);
+  ui.info(`Copy this and paste it into ${c.cyan("the agent you're using")}:`);
   ui.plain();
   console.log(
     c.cream(
