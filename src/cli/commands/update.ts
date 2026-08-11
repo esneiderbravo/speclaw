@@ -12,6 +12,7 @@ import { readManifest } from "../../shared/manifest.js";
 import { loadPacks } from "../../modules/tools/packs.js";
 import { InstallReport } from "../../shared/install.js";
 import { detectProjectName } from "./init.js";
+import { reportTrackedLocalContent } from "../lib/untrack.js";
 
 /**
  * A feature migration: a step a release needs beyond dropping new files (which
@@ -237,6 +238,11 @@ function applyProjectMigrations(cwd: string, backup: boolean): void {
     console.log(c.cream(prompt));
     ui.plain();
   }
+
+  // This release makes ai-specs/ local (gitignored). A project that committed
+  // it before now still tracks it — point out how to untrack (speclaw never
+  // touches the git index itself).
+  reportTrackedLocalContent(cwd);
 
   ui.plain();
   ui.ok(`On ${c.cyan(pkgVersion())}. No re-init needed.`);

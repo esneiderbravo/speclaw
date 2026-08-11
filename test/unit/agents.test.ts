@@ -40,6 +40,20 @@ test("configureAgent creates symlinks and writes the MCP config", (t) => {
   assert.match(read(root, ".gitignore"), /\.mcp\.json/);
 });
 
+test("configureAgent leaves the IDE dir out of .gitignore (user skills stay committable)", (t) => {
+  const root = tmpRepo(t);
+  seedAiSpecs(root);
+  configureAgent(root, "claude", emptyReport());
+  const lines = read(root, ".gitignore")
+    .split(/\r?\n/)
+    .map((l) => l.trim());
+  // speclaw never ignores the agent's IDE dir or its symlinked subdirs — only
+  // the MCP config (per-developer wiring) is ignored, from writeMcpConfig.
+  for (const entry of [".claude", ".claude/", ".claude/skills", ".claude/commands"]) {
+    assert.ok(!lines.includes(entry), `${entry} is not gitignored`);
+  }
+});
+
 test("configureAgent is idempotent — a second run skips existing links and config", (t) => {
   const root = tmpRepo(t);
   seedAiSpecs(root);
