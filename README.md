@@ -162,6 +162,19 @@ still use Compass and the lawbook engine by calling the CLI from its shell.
   <img src="https://raw.githubusercontent.com/esneiderbravo/speclaw/main/brand/terminal-tree.png" width="800" alt="what speclaw writes into your project">
 </p>
 
+**Committed vs. local.** Your **personalized source** is committed — `LAWS.md`,
+`CLAUDE.md`, `AGENTS.md`, `docs/standards/*`, `docs/compass.md`, and the
+`lawbook/` workspace. speclaw's **regenerable workflow content is local, not
+committed**: only `ai-specs/` (skills, commands, rules, agent packs, and its
+`.speclaw.json` manifest) is gitignored, because `init`/`update` reconstruct it
+from the package — like a dependency. So **after cloning a speclaw project, run
+`speclaw init` (or `speclaw update`)** to regenerate `ai-specs/` locally, which
+the agent IDE symlinks point into. If a project committed `ai-specs/` before
+this behavior existed, `init`/`update` print the exact `git rm -r --cached
+ai-specs` command to stop tracking it (they never touch your git index
+themselves). The agent directories (`.claude/`, `.cursor/`, …) are **left to
+you** — commit your own skills and commands there if you want to.
+
 <br/>
 
 ## <img src="https://raw.githubusercontent.com/esneiderbravo/speclaw/main/brand/diamond.png" height="20" alt="◆" align="absmiddle">&nbsp; Philosophy — why "laws"?
@@ -189,9 +202,10 @@ without a re-init, splitting files by who owns them:
 
 - **Managed files** (speclaw's workflow machinery — the skills, commands, rules,
   and agent packs under `ai-specs/`) are **refreshed** to the new version, so
-  improvements actually reach your project. If you edited one locally, `update`
-  reports the overwrite so you can recover your copy from git; pass `--backup` to
-  also keep a `<file>.bak`. Any `*.bak` is gitignored.
+  improvements actually reach your project. They live locally (gitignored, see
+  *What lands in your project*) and are reconstructed from the package. If you
+  edited one locally, `update` reports the overwrite; pass `--backup` to keep a
+  `<file>.bak` (itself gitignored) before it is refreshed.
 - **Personalized files** (your constitution and standards — `CLAUDE.md`,
   `AGENTS.md`, `LAWS.md`, `docs/standards/*`, `docs/compass.md`,
   `lawbook/config.yaml`) are **never auto-edited**. When a release changes their
