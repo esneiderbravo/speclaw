@@ -68,8 +68,11 @@ Create under `lawbook/changes/<name>/`:
   manual verification executed by the agent; discipline reports produced; docs
   updated; archive within the PR).
 - **reports/** — create the folder with a short `reports/README.md` naming the
-  discipline reports (`backend.md`, `frontend.md`, … as relevant) that `build`
-  will fill, following the required report structure (header · gates table ·
+  discipline reports the change will need — one per discipline it touches, from an
+  open set (`backend.md`, `frontend.md`, `api.md`, `database.md`, `infra.md`,
+  `security.md`, … — and `api.md` is required when the change touches any API
+  surface) that `build` will fill, following the required report structure
+  (header · gates table ·
   tests added · spec-scenario coverage · pre-existing failures · pending manual ·
   verdict — see the `build` skill, Step 5). Every change ships this folder;
   archive is blocked until it holds at least one discipline report.

@@ -62,9 +62,21 @@ authorization you obtained).
 ## Step 5 — Write the discipline reports (mandatory)
 
 Record the evidence of testing under `lawbook/changes/<name>/reports/`, one file
-per discipline the change touched (`backend.md`, `frontend.md`, …). Omit
-disciplines the change did not touch; the archive is blocked until at least one
-discipline report exists.
+per discipline the change touched, named for that discipline. The set is **open,
+not a fixed list** — `backend.md`, `frontend.md`, and `api.md` are the common
+ones, but write `database.md`, `infra.md`, `security.md`, `performance.md`,
+`e2e.md`, etc. when the change exercises those concerns, and coin a clear
+`<discipline>.md` for anything none of them fit. Omit disciplines the change did
+not touch; the archive is blocked until at least one discipline report exists.
+
+**`api.md` is mandatory whenever the change touches an API surface** — a new or
+modified endpoint, its request/response contract, its status codes, or its
+auth/permission or ordering guarantees. A `backend.md` unit report does not
+substitute for it: the contract is a distinct concern. In `api.md` document the
+method and path, the auth/permissions, the response shape and every status code
+the change governs (e.g. `200`/`401`/`403`/`404`), any ordering guarantee, and
+how the contract was exercised (test client and/or `curl`) — kept isolated from
+any live data store per Step 4.
 
 Each report MUST follow this structure, in order — the fixed shape is what makes
 the evidence trustworthy and reproducible, rather than left to improvisation:
