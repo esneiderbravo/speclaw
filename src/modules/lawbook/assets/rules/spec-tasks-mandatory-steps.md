@@ -21,9 +21,11 @@ steps, branch convention, and testing/documentation requirements.
   (see `docs/standards/testing-standards.md`).
 - Perform manual verification of the behavior — **the agent executes this
   itself, never the user.**
-- Produce the discipline reports under `reports/` (`backend.md`, `frontend.md`,
-  … as relevant) with the unit/integration/e2e results for what the feature
-  touched.
+- Produce the discipline reports under `reports/` — one per discipline the change
+  touched, from an open set (`backend.md`, `frontend.md`, `api.md`, `database.md`,
+  `infra.md`, … — `api.md` is required whenever the change touches an API surface;
+  see the `spec-reports-disciplines` rule) with the unit/integration/e2e results
+  for what the feature touched.
 - Update the technical documentation the change touches.
 - Archive the change within the same PR (the `archive` command / `lawbook_archive`
   tool).
