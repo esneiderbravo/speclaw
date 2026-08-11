@@ -88,9 +88,18 @@ test evidence.
 ## Reports — evidence travels with the change
 
 Every change records its testing under `lawbook/changes/<name>/reports/`, one
-file per discipline it touched (`backend.md`, `frontend.md`, …). `build`
-produces them; `lawbook_archive` refuses to archive a change whose `reports/`
-holds no discipline report.
+file per discipline it touched, named for that discipline. The set is open, not
+fixed: `backend.md`, `frontend.md`, and `api.md` are the common ones, but write
+`database.md`, `infra.md`, `security.md`, `performance.md`, `e2e.md`, etc. when
+the change exercises those concerns. `build` produces them; `lawbook_archive`
+refuses to archive a change whose `reports/` holds no discipline report.
+
+`api.md` is **mandatory whenever the change touches an API surface** — a new or
+modified endpoint, its contract, its status codes, or its auth/permission or
+ordering guarantees — and a `backend.md` unit report does not substitute for it.
+It documents the method and path, the auth/permissions, the response shape and
+every status code the change governs, any ordering guarantee, and how the
+contract was exercised (test client and/or `curl`) kept isolated from live data.
 
 Each report MUST follow a fixed structure, so the evidence is reproducible rather
 than improvised:

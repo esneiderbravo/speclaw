@@ -32,7 +32,9 @@ itself — never delegates it.
 ## Reports
 
 Every change carries a `reports/` folder. `build` writes one report per
-discipline it touched (`backend.md`, `frontend.md`, …) recording what was tested
+discipline it touched, named for that discipline — an open set (`backend.md`,
+`frontend.md`, `api.md`, `database.md`, `infra.md`, … — `api.md` required
+whenever the change touches an API surface) recording what was tested
 and the real results — unit, integration, and end-to-end as applicable — with
 the commands run and their output. It is evidence of testing that travels with
 the change; the archive is blocked until at least one discipline report exists.
