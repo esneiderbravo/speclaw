@@ -23,6 +23,13 @@ test("scaffold writes the foundation, the workflow, gitignore, manifest, and age
   assert.ok(has(root, "ai-specs/commands/lawbook"));
   assert.match(read(root, ".gitignore"), /\.speclaw\//);
   assert.match(read(root, ".gitignore"), /\*\.bak/);
+  // ai-specs/ is local, regenerable content — never committed
+  assert.ok(
+    read(root, ".gitignore")
+      .split(/\r?\n/)
+      .some((l) => l.trim() === "ai-specs/"),
+    "ai-specs/ is gitignored",
+  );
 
   // agent wiring + manifest
   assert.ok(has(root, ".claude/skills"));
