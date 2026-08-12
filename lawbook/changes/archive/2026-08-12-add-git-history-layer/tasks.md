@@ -1,0 +1,27 @@
+# Tasks — add-git-history-layer
+
+- [x] **Step 0: Create the feature branch (must be first).** `feat/git-history-layer`.
+- [x] Add the pure engine `src/shared/git-history.ts`:
+  - [x] `headSha` and `isShallowRepo` primitives (fail-soft `spawnSync`).
+  - [x] `logForPath` — NUL `%x00` parsing, most-recent-first, **revision-range** `since`/`until` (drift's `<sha>..HEAD`; date-based `--since` proved to be a soft filter).
+  - [x] `churn` — sum per path, binary `-` → 0, returns `{ shallow, byPath }`.
+  - [x] `coChanges` — group by commit → pairs, `minSupport`, returns `{ shallow, pairs }`.
+  - [x] `lastTouch` — `log -1 --format=%H`, `null` when no history.
+  - [x] Typed interfaces (`CommitTouch`, `CoChange`, `ChurnResult`, `CoChangeResult`); TSDoc per `docs/standards/documentation.md`. Added `-c core.quotePath=false` so unicode paths parse exactly.
+- [x] Add the cache in the compass module (respecting the inward-dependency rule):
+  - [x] Extend `src/modules/compass/db.ts`: add `git_history_cache` to the SCHEMA, add it to `resetSchema()`'s drop list, bump `SCHEMA_VERSION` `"3" → "4"`.
+  - [x] Add `src/modules/compass/git-history-cache.ts` with read-through `cachedChurn` / `cachedCoChanges` (key = query + `HEAD`, recompute on HEAD change; `Map` serialized as `[path, count]` entries).
+- [x] Review and update the affected tests. Added `test/helpers/git.ts` (commit with `-c user.email=… -c user.name=…`) and covered the cases:
+  - [x] `test/unit/git-history.log.test.ts` — history / no-history / revision range.
+  - [x] `test/unit/git-history.churn.test.ts` — summed counts; binary-file `-` handled.
+  - [x] `test/unit/git-history.coupling.test.ts` — co-change pairs; `minSupport`.
+  - [x] `test/unit/git-history.lasttouch.test.ts` — SHA / `null` (+ `headSha`).
+  - [x] `test/unit/git-history.shallow.test.ts` — shallow marker true/false (real `--depth=1` clone).
+  - [x] `test/unit/git-history.edge.test.ts` — path with a space/unicode; repo with no commits.
+  - [x] `test/integration/git-history-cache.test.ts` — cache hit at same HEAD; invalidation after a new commit; table dropped on schema reset.
+  - [x] Keep coverage at/above the 80% floor (`quality-gates` spec) — 98.10% line / 91.12% branch / 97.30% funcs.
+- [x] Run the quality gates and verify they pass: `npm run check` ✅, `npm run build` ✅, `npm test` ✅ (150/150). Real output in `reports/`.
+- [x] Perform manual verification — the agent drove the built engine + cache against a throwaway repo in `os.tmpdir()` (created, exercised, removed; never the real repo, per Rule 6) and confirmed all behaviors incl. cache invalidation.
+- [x] Produce the discipline reports under `reports/` — `backend.md` (engine + cache logic) and `database.md` (schema addition + version bump).
+- [x] Update the technical documentation: `docs/roadmap/runtime/git-history.md` marked delivered with the shared/compass split + revision-range decisions. `docs/standards/architecture.md` needs no change — it lists `src/shared/*` by wildcard, not per file (git.ts itself is not enumerated).
+- [x] Archive the change within the same PR (`lawbook:archive`).
