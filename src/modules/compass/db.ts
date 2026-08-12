@@ -70,10 +70,18 @@ CREATE TABLE IF NOT EXISTS node_embeddings (
   model TEXT NOT NULL,
   vec BLOB NOT NULL
 );
+-- git_history_cache: memoized results of the expensive git-history scans
+-- (churn, co-change), keyed by query and invalidated when HEAD moves.
+CREATE TABLE IF NOT EXISTS git_history_cache (
+  query_key TEXT PRIMARY KEY,
+  head_sha TEXT NOT NULL,
+  payload TEXT NOT NULL,
+  computed_at INTEGER NOT NULL
+);
 `;
 
 /** Schema version stamped into the `meta` table on first creation. */
-export const SCHEMA_VERSION = "3";
+export const SCHEMA_VERSION = "4";
 
 /** The stamped schema version, or null if the db predates versioning / has no meta table. */
 function readSchemaVersion(db: DatabaseSync): string | null {
@@ -108,6 +116,7 @@ function isStale(db: DatabaseSync): boolean {
 /** Drop every table (children first) so the current schema can be recreated cleanly. */
 function resetSchema(db: DatabaseSync): void {
   db.exec(`
+    DROP TABLE IF EXISTS git_history_cache;
     DROP TABLE IF EXISTS node_embeddings;
     DROP TABLE IF EXISTS edges;
     DROP TABLE IF EXISTS nodes;
