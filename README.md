@@ -55,7 +55,8 @@ The `speclaw` command is now available everywhere — run `speclaw index`,
 
 1. **Ask which agents you use** (Claude Code, Cursor, Codex, …) — and configure
    only those. Add more later; nothing is forced on you.
-2. Write the **foundation** (constitution + standards) and the **lawbook workflow**.
+2. Write the **foundation** (constitution + standards) and the **lawbook workflow**,
+   and compile your blocking laws into **agent hooks** for the agents that support them.
 3. **Index your code** with a live progress bar and a summary of what it found.
 4. Register the speclaw **MCP server** in each chosen agent's config.
 5. Print a prompt to paste into your agent so it fills the constitution with your
@@ -81,7 +82,7 @@ too (also `pnpm dlx` / `yarn dlx`) — but installing globally means you can run
 
 | Module | What it does |
 | :-- | :-- |
-| **Foundation** | The project's constitution: `LAWS.md` binding a set of granular standards under `docs/standards/` (base, architecture, backend, frontend, testing, documentation, conventions, lawbook), plus strict `CLAUDE.md` / `AGENTS.md` agent contracts — filled from your real codebase. |
+| **Foundation** | The project's constitution: `LAWS.md` binding a set of granular standards under `docs/standards/` (base, architecture, backend, frontend, testing, documentation, conventions, lawbook), plus strict `CLAUDE.md` / `AGENTS.md` agent contracts — filled from your real codebase. It also **enforces** them: blocking laws compile into agent hooks that deny a forbidden edit at the keystroke (`speclaw check` / `speclaw_check`). |
 | **Compass** | speclaw's own local code graph. Parses your code (tree-sitter) into nodes + edges plus a local vector store, so an agent finds and understands code with a fraction of the tokens a grep/read loop would cost. No LLM, 100% local, lives in `.speclaw/` (gitignored). |
 | **Lawbook** | speclaw's own spec-driven workflow: `draft → build → sync → archive` (and `explore`), backed by `lawbook_*` engine tools. No external CLI. |
 | **Tools** | Opt-in packs of skills and subagents (currently the dev-agents) that agents use for specific tasks. |
@@ -175,6 +176,12 @@ ai-specs` command to stop tracking it (they never touch your git index
 themselves). The agent directories (`.claude/`, `.cursor/`, …) are **left to
 you** — commit your own skills and commands there if you want to.
 
+**Enforcement artifacts.** For agents that support hooks, speclaw merges its law
+hooks into that agent's settings (e.g. `.claude/settings.json`) **by identity** —
+it never touches hooks you added yourself. The compiled law manifest lives in
+`.speclaw/laws-manifest.json` (gitignored, regenerated on `init`/`update`), and a
+context-coverage log in `.speclaw/context-log.jsonl` feeds `speclaw doctor`.
+
 <br/>
 
 ## <img src="https://raw.githubusercontent.com/esneiderbravo/speclaw/main/brand/diamond.png" height="20" alt="◆" align="absmiddle">&nbsp; Philosophy — why "laws"?
@@ -185,6 +192,21 @@ you** — commit your own skills and commands there if you want to.
 > tacit knowledge: the rules the team actually lives by. speclaw makes that
 > knowledge explicit, executable, and binding, and gives agents a local map
 > (Compass) and a disciplined workflow (Lawbook) to act on it — without burning tokens.
+
+This is why "enforced" is literal, not a metaphor. Anthropic's own guidance puts
+it plainly:
+
+> _"An instruction like 'never edit .env' in CLAUDE.md or a skill is **a request,
+> not a guarantee**. A `PreToolUse` hook that blocks the edit is enforcement. If a
+> rule must hold every time, make it a hook rather than a prompt instruction."_
+> — [Claude Code — Hooks](https://code.claude.com/docs/en/hooks)
+
+So `speclaw init` compiles your blocking laws into agent hooks: a law marked
+`bloqueo` is denied at the keystroke (`PreToolUse`), citing the law's id, text,
+and source. `speclaw check --dry-run --path <file>` previews what would block, and
+`speclaw doctor` reports how many of your laws actually reached the agent's
+context. Agents without hooks (Cursor, Codex) enforce the same laws in CI via
+`speclaw verify`.
 
 <br/>
 
