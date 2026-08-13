@@ -14,6 +14,12 @@ export interface AgentDef {
   linkTargets: string[];
   /** Where this agent looks for its MCP server config (relative to project). Omit if it has no MCP. */
   mcpFile?: string;
+  /**
+   * Where this agent's hooks live and the JSON key they sit under. Omit if the
+   * agent has no hook support — the hook compiler then skips it by construction
+   * (not by an `id === "claude"` branch), and `doctor` reports the asymmetry.
+   */
+  hooks?: { file: string; key: string };
 }
 
 /** The agents speclaw can configure. Add one here and the CLI picks it up. */
@@ -24,6 +30,7 @@ export const AGENTS: AgentDef[] = [
     ideDir: ".claude",
     linkTargets: ["skills", "commands", "agents"],
     mcpFile: ".mcp.json",
+    hooks: { file: ".claude/settings.json", key: "hooks" },
   },
   {
     id: "cursor",

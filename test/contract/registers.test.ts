@@ -15,6 +15,7 @@ test("each register function declares its expected tools", () => {
     "doctor",
     "init_project",
     "scaffold",
+    "speclaw_check",
   ]);
   assert.deepEqual([...captureTools(registerCompass).keys()].sort(), [
     "compass_explore",
@@ -50,6 +51,12 @@ test("tool input schemas validate required fields", () => {
   const foundation = captureTools(registerFoundation);
   const configure = schemaOf(foundation.get("configure_agent")!);
   assert.throws(() => configure.parse({ projectPath: "/x", agent: "ghost" }));
+
+  const check = schemaOf(foundation.get("speclaw_check")!);
+  assert.throws(() => check.parse({ projectPath: "/x", event: "Nope", payload: {} }));
+  assert.doesNotThrow(() =>
+    check.parse({ projectPath: "/x", event: "PreToolUse", payload: { file_path: "a" } }),
+  );
 });
 
 test("foundation handlers wrap their results as MCP text", async (t) => {
@@ -72,6 +79,12 @@ test("foundation handlers wrap their results as MCP text", async (t) => {
   const health = await tools.get("doctor")!.handler({ projectPath: root });
   assert.ok(isTextResult(health));
   assert.match((health as { content: { text: string }[] }).content[0]!.text, /"healthy"/);
+
+  const checked = await tools
+    .get("speclaw_check")!
+    .handler({ projectPath: root, event: "PreToolUse", payload: { file_path: ".env" } });
+  assert.ok(isTextResult(checked));
+  assert.match((checked as { content: { text: string }[] }).content[0]!.text, /"verdict"/);
 });
 
 test("lawbook handlers run the workflow end to end through the transport", async (t) => {

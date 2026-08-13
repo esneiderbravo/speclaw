@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
-import { AGENTS, detectConfiguredAgents } from "../../shared/agents.js";
+import { AGENTS, agentById, detectConfiguredAgents } from "../../shared/agents.js";
+import { globError, hasBackend, readLawManifest } from "./laws.js";
 
 /** A single health-check line with a pass/fail verdict and remediation hint. */
 interface Check {
@@ -115,5 +116,101 @@ export function doctor(projectPath: string): Check[] {
     detail: has(".mcp.json") ? "present" : "missing — scaffold writes it",
   });
 
+  lawEnforcementChecks(projectPath, checks);
+
   return checks;
+}
+
+/** The law ids recorded as loaded into agent context, from the append-only log. */
+function loadedLawIds(projectPath: string): Set<string> {
+  const loaded = new Set<string>();
+  try {
+    const log = fs.readFileSync(path.join(projectPath, ".speclaw", "context-log.jsonl"), "utf8");
+    for (const line of log.split(/\r?\n/)) {
+      if (!line.trim()) continue;
+      const ids = (JSON.parse(line) as { lawIds?: string[] }).lawIds ?? [];
+      for (const id of ids) loaded.add(id);
+    }
+  } catch {
+    // No log yet — hooks have not recorded any context loads.
+  }
+  return loaded;
+}
+
+/**
+ * Append the law-enforcement health checks: manifest presence and backend
+ * coverage, glob validity (caught here rather than at runtime), context-coverage
+ * with the post-compact caveat, and the agents where blocking laws don't apply.
+ */
+function lawEnforcementChecks(projectPath: string, checks: Check[]): void {
+  const manifest = readLawManifest(projectPath);
+  if (!manifest) {
+    checks.push({
+      name: "law manifest",
+      ok: false,
+      detail: "missing — run `speclaw init`/`update` to seed .speclaw/laws-manifest.json",
+    });
+    return;
+  }
+
+  const withBackend = manifest.laws.filter(hasBackend);
+  const noBackend = manifest.laws.filter((l) => !hasBackend(l));
+  checks.push({
+    name: "law manifest",
+    ok: true,
+    detail:
+      `${manifest.laws.length} law(s): ${withBackend.length} enforced (path)` +
+      (noBackend.length
+        ? `, ${noBackend.length} declared without a backend yet (${noBackend
+            .map((l) => l.id)
+            .join(", ")})`
+        : ""),
+  });
+
+  // Glob validation — a malformed scope must fail loudly here, never silently
+  // match zero files at runtime.
+  const badGlobs: string[] = [];
+  for (const law of manifest.laws) {
+    for (const pattern of law.scope) {
+      const err = globError(pattern);
+      if (err) badGlobs.push(`${law.id}: ${pattern} (${err})`);
+    }
+  }
+  checks.push({
+    name: "law scope globs",
+    ok: badGlobs.length === 0,
+    detail: badGlobs.length === 0 ? "all valid" : `malformed: ${badGlobs.join("; ")}`,
+  });
+
+  // Context coverage — which laws actually entered the agent's context.
+  const loaded = loadedLawIds(projectPath);
+  const declared = manifest.laws.map((l) => l.id);
+  const missing = declared.filter((id) => !loaded.has(id));
+  checks.push({
+    name: "law context coverage",
+    ok: true,
+    detail:
+      `${declared.length - missing.length} of ${declared.length} laws loaded into context` +
+      (missing.length ? ` — not yet loaded: ${missing.join(", ")}` : "") +
+      ". Note: after a compact, root CLAUDE.md is re-injected but `paths:`-scoped rules are not," +
+      " until a matching file is next touched — so a path-scoped law can be out of context" +
+      " exactly when it matters, which is why it is also a hook.",
+  });
+
+  // Agent asymmetry — where blocking laws cannot be enforced at the keystroke.
+  const configured = detectConfiguredAgents(projectPath);
+  const unhooked = configured
+    .map((id) => agentById(id))
+    .filter((a) => a && !a.hooks)
+    .map((a) => a!.label);
+  if (unhooked.length) {
+    const blocking = manifest.laws.filter((l) => l.enforcement === "bloqueo").length;
+    checks.push({
+      name: "hook coverage across agents",
+      ok: true,
+      detail:
+        `no hook support for ${unhooked.join(", ")} — your ${blocking} blocking law(s) apply ` +
+        "there only via `speclaw verify`.",
+    });
+  }
 }

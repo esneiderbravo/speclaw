@@ -4,8 +4,9 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { tmpRepo } from "../helpers/env.js";
-import { seedSampleRepo } from "../helpers/fixtures.js";
+import { seedSampleRepo, sampleProfile } from "../helpers/fixtures.js";
 import { runCli, cliBuilt } from "../helpers/cli.js";
+import { scaffold } from "../../src/modules/foundation/scaffold.js";
 
 // The e2e suite drives the built dist/ CLI. It requires `npm run build` to have
 // run first (CI does this before `npm test`); otherwise it skips with a notice.
@@ -99,6 +100,33 @@ test("doctor on an unconfigured project exits non-zero and reports checks", { sk
   const r = runCli(["doctor"], { cwd: root });
   assert.equal(r.code, 1);
   assert.match(r.stdout + r.stderr, /ai-specs/);
+});
+
+test("check --hook-payload denies a .env edit with exit code 2", { skip }, (t) => {
+  const root = tmpRepo(t);
+  scaffold(root, sampleProfile(), [], ["claude"]); // seeds the manifest (has a .env bloqueo law)
+
+  const deny = runCli(["check", "--hook-payload", "-"], {
+    cwd: root,
+    input: JSON.stringify({
+      hook_event_name: "PreToolUse",
+      tool_name: "Write",
+      tool_input: { file_path: ".env" },
+    }),
+  });
+  assert.equal(deny.code, 2);
+  assert.match(deny.stdout, /"permissionDecision":\s*"deny"/);
+
+  const allow = runCli(["check", "--hook-payload", "-"], {
+    cwd: root,
+    input: JSON.stringify({
+      hook_event_name: "PreToolUse",
+      tool_name: "Write",
+      tool_input: { file_path: "README.md" },
+    }),
+  });
+  assert.equal(allow.code, 0);
+  assert.match(allow.stdout, /"permissionDecision":\s*"allow"/);
 });
 
 test("lawbook init then list runs the workflow from the shell", { skip }, (t) => {
