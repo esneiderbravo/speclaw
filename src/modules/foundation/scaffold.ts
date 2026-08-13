@@ -8,6 +8,8 @@ import { installWorkflow } from "../lawbook/register.js";
 import { installPack, loadPacks } from "../tools/packs.js";
 import { readManifest, writeManifest } from "../../shared/manifest.js";
 import { pkgVersion } from "../../shared/version.js";
+import { LawManifest, readLawManifest, seedManifest, writeLawManifest } from "./laws.js";
+import { HookInstallResult, installHooks } from "./hooks.js";
 
 const ASSETS = assetsDir(import.meta.url);
 
@@ -55,6 +57,23 @@ const FOUNDATION_DEFAULTS: Record<string, string> = {
 export interface ScaffoldReport extends InstallReport {
   /** Ordered next actions for the agent/user after scaffolding. */
   nextSteps: string[];
+  /** Which agents got hooks, which were skipped, and any laws rejected for bad globs. */
+  hooks?: HookInstallResult;
+}
+
+/**
+ * Ensure the project has a law manifest, seeding it from the package's starter
+ * laws when absent. The manifest is a derived artifact under the gitignored
+ * `.speclaw/`; seeding only when missing keeps a curated manifest (the MVP's
+ * authoring surface until executable-laws) from being overwritten on update.
+ */
+function ensureLawManifest(projectPath: string, report: InstallReport): LawManifest {
+  const existing = readLawManifest(projectPath);
+  if (existing) return existing;
+  const seed = seedManifest();
+  writeLawManifest(projectPath, seed);
+  report.written.push(path.join(projectPath, ".speclaw", "laws-manifest.json"));
+  return seed;
 }
 
 /**
@@ -160,6 +179,16 @@ export function scaffold(
     report,
   );
   for (const id of agents) configureAgent(projectPath, id, report); // only the chosen agents
+
+  // Compile the declared laws into agent hooks for every hook-capable agent just
+  // configured. The seam is the manifest: check-dispatcher enforces `path` laws;
+  // executable-laws will extend the same manifest with more backends.
+  const lawManifest = ensureLawManifest(projectPath, report);
+  report.hooks = installHooks(projectPath, agents, lawManifest, report, {
+    baselines: managedOpts.baselines,
+    backup: managedOpts.backup,
+    record,
+  });
 
   // Record what was installed so `speclaw update` can re-apply these packs and
   // gate feature migrations by version, plus the managed-file baselines that let

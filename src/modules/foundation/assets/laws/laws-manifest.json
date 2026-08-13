@@ -1,0 +1,49 @@
+{
+  "version": 1,
+  "laws": [
+    {
+      "id": "law~no-secrets-in-repo~1",
+      "title": "No secrets in the repository",
+      "rationale": "A committed secret is a leaked secret; enforcement at the keystroke is the only reliable guard.",
+      "severity": "error",
+      "scope": ["**/.env", "**/.env.*", "**/*.env"],
+      "prose": "Never write a .env file into the repository. Secrets live in the environment, not in version control.",
+      "verification": { "kind": "path" },
+      "enforcement": "bloqueo",
+      "source": { "file": "docs/standards/base-standards.md" }
+    },
+    {
+      "id": "law~local-first~1",
+      "title": "Local-first is non-negotiable",
+      "rationale": "speclaw runs entirely on the user's machine; every new dependency must be justified in the PR.",
+      "severity": "warn",
+      "scope": ["package.json"],
+      "prose": "Justify any new dependency in the PR: it must not break 'runs offline with no API keys'.",
+      "verification": { "kind": "path" },
+      "enforcement": "feedback",
+      "source": { "file": "LAWS.md" }
+    },
+    {
+      "id": "law~protect-templates~1",
+      "title": "Protect the templates",
+      "rationale": "Assets under src/modules/*/assets/** are product output; the build must copy them and the {{placeholder}} contracts must stay intact.",
+      "severity": "warn",
+      "scope": ["src/modules/*/assets/**"],
+      "prose": "Assets under src/modules/*/assets/** are product output — keep the {{placeholder}} and speclaw-init contracts intact, and let the build copy them (never hand-copy into dist/).",
+      "verification": { "kind": "path" },
+      "enforcement": "feedback",
+      "source": { "file": "LAWS.md" }
+    },
+    {
+      "id": "law~honest-attribution~1",
+      "title": "Keep attribution honest",
+      "rationale": "Compass reimplements CodeGraph and Lawbook reimplements OpenSpec (both MIT); ATTRIBUTION.md must stay accurate.",
+      "severity": "info",
+      "scope": ["ATTRIBUTION.md"],
+      "prose": "Keep ATTRIBUTION.md accurate as the Compass and Lawbook modules evolve.",
+      "verification": { "kind": "path" },
+      "enforcement": "feedback",
+      "source": { "file": "LAWS.md" }
+    }
+  ]
+}

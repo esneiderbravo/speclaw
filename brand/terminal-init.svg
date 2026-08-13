@@ -18,8 +18,8 @@
   <text x="36" y="218"><tspan class="gr">  ✓ </tspan><tspan class="cr">Lawbook workspace </tspan><tspan class="mu">— lawbook/</tspan></text>
 
   <text x="36" y="258"><tspan class="cy">◇ </tspan><tspan class="cr b">Configuring agents</tspan></text>
-  <text x="36" y="292"><tspan class="gr">  ✓ </tspan><tspan class="cr">Claude Code    </tspan><tspan class="mu">— symlinks + MCP</tspan></text>
-  <text x="36" y="322"><tspan class="gr">  ✓ </tspan><tspan class="cr">Cursor         </tspan><tspan class="mu">— symlinks + MCP</tspan></text>
+  <text x="36" y="292"><tspan class="gr">  ✓ </tspan><tspan class="cr">Claude Code    </tspan><tspan class="mu">— symlinks · MCP · law hooks</tspan></text>
+  <text x="36" y="322"><tspan class="gr">  ✓ </tspan><tspan class="cr">Cursor         </tspan><tspan class="mu">— symlinks · MCP</tspan></text>
 
   <text x="36" y="362"><tspan class="cy">◇ </tspan><tspan class="cr b">Indexing your code with Compass</tspan></text>
   <rect x="64" y="376" width="360" height="15" rx="7.5" fill="#1A2427"/>
