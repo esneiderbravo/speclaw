@@ -3,6 +3,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { text } from "../../shared/mcp.js";
 import { scaffold } from "./scaffold.js";
 import { doctor } from "./doctor.js";
+import { checkAction, CheckEvent } from "./check.js";
 import { loadPacks } from "../tools/packs.js";
 import { AGENTS, configureAgent } from "../../shared/agents.js";
 import { emptyReport } from "../../shared/install.js";
@@ -157,6 +158,24 @@ export function registerFoundation(server: McpServer): void {
       configureAgent(projectPath, agent, report);
       return text(report);
     },
+  );
+
+  server.registerTool(
+    "speclaw_check",
+    {
+      // ≤12 words: this is invoked by speclaw's hooks, never called directly.
+      description: "Invoked by speclaw's hooks to enforce laws — do not call directly.",
+      inputSchema: {
+        projectPath: z.string().describe("Absolute path to the project"),
+        event: z
+          .enum(["PreToolUse", "PostToolUse", "Stop", "InstructionsLoaded"])
+          .describe("The hook event that fired"),
+        toolName: z.string().optional().describe("The tool the agent is invoking, when relevant"),
+        payload: z.record(z.unknown()).describe("The raw hook event payload from the agent"),
+      },
+    },
+    async ({ projectPath, event, toolName, payload }) =>
+      text(checkAction({ projectPath, event: event as CheckEvent, toolName, payload })),
   );
 
   server.registerTool(

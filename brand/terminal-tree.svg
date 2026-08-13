@@ -16,7 +16,7 @@
   <text x="34" y="244"><tspan class="tr">│   └── </tspan><tspan class="cr">standards/*.md    </tspan><tspan class="mu">the granular laws</tspan></text>
   <text x="34" y="274"><tspan class="tr">├── </tspan><tspan class="cr">ai-specs/             </tspan><tspan class="mu">skills, commands, agents</tspan></text>
   <text x="34" y="304"><tspan class="tr">├── </tspan><tspan class="cr">lawbook/              </tspan><tspan class="mu">specs · changes · archive</tspan></text>
-  <text x="34" y="334"><tspan class="tr">├── </tspan><tspan class="cr">.claude/ .cursor/ …   </tspan><tspan class="mu">symlinks (chosen agents)</tspan></text>
+  <text x="34" y="334"><tspan class="tr">├── </tspan><tspan class="cr">.claude/ .cursor/ …   </tspan><tspan class="mu">symlinks + law hooks (chosen agents)</tspan></text>
   <text x="34" y="364"><tspan class="tr">├── </tspan><tspan class="cr">.mcp.json             </tspan><tspan class="mu">MCP server registration</tspan></text>
-  <text x="34" y="394"><tspan class="tr">└── </tspan><tspan class="cy">.speclaw/             </tspan><tspan class="mu">local Compass index (gitignored)</tspan></text>
+  <text x="34" y="394"><tspan class="tr">└── </tspan><tspan class="cy">.speclaw/             </tspan><tspan class="mu">Compass index + law manifest (gitignored)</tspan></text>
 </svg>
