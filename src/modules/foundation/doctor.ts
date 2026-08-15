@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { AGENTS, agentById, detectConfiguredAgents } from "../../shared/agents.js";
-import { globError, hasBackend, readLawManifest } from "./laws.js";
+import { globError, hasBackend, hasBatchBackend, readLawManifest } from "./laws.js";
 
 /** A single health-check line with a pass/fail verdict and remediation hint. */
 interface Check {
@@ -153,13 +153,15 @@ function lawEnforcementChecks(projectPath: string, checks: Check[]): void {
     return;
   }
 
-  const withBackend = manifest.laws.filter(hasBackend);
-  const noBackend = manifest.laws.filter((l) => !hasBackend(l));
+  const withPath = manifest.laws.filter(hasBackend);
+  const withBatch = manifest.laws.filter(hasBatchBackend);
+  const noBackend = manifest.laws.filter((l) => !hasBackend(l) && !hasBatchBackend(l));
   checks.push({
     name: "law manifest",
     ok: true,
     detail:
-      `${manifest.laws.length} law(s): ${withBackend.length} enforced (path)` +
+      `${manifest.laws.length} law(s): ${withPath.length} enforced (path), ` +
+      `${withBatch.length} verified (deps/graph)` +
       (noBackend.length
         ? `, ${noBackend.length} declared without a backend yet (${noBackend
             .map((l) => l.id)
@@ -167,8 +169,22 @@ function lawEnforcementChecks(projectPath: string, checks: Check[]): void {
         : ""),
   });
 
-  // Glob validation — a malformed scope must fail loudly here, never silently
-  // match zero files at runtime.
+  // Graph-engine availability — the deps/graph backends need the Compass index.
+  if (withBatch.length > 0) {
+    const indexed = fs.existsSync(path.join(projectPath, ".speclaw", "index.db"));
+    checks.push({
+      name: "graph law engines",
+      ok: indexed,
+      detail: indexed
+        ? `index present — ${withBatch.length} deps/graph law(s) evaluable via \`speclaw laws verify\``
+        : `${withBatch.length} deps/graph law(s) will be skipped (no-index) — run the \`compass_index\` tool`,
+    });
+  }
+
+  // Glob validation — a malformed scope glob must fail loudly here, never
+  // silently match zero files at runtime. (A malformed deps/graph regex is
+  // rejected earlier, when the manifest is validated, so a manifest that reaches
+  // here has none.)
   const badGlobs: string[] = [];
   for (const law of manifest.laws) {
     for (const pattern of law.scope) {
