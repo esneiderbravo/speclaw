@@ -24,13 +24,68 @@ export type Enforcement =
   | "gate"; // Stop + CI (verify-ci) — blocks the merge, not the keystroke
 
 /**
- * How a law is checked. Only `path` (pure glob matching against the action's
- * target) is implemented here; every other kind is written to the manifest but
- * reported by `doctor` as "declared, no backend yet" and ignored at runtime,
- * until executable-laws supplies its engine.
+ * The set of verification-backend kinds a law can name. `path` runs on the
+ * action-time hot path; `deps` and `graph` run in the batch verifier
+ * (`law_verify`); the rest are declared-only until a later `executable-laws`
+ * slice supplies their engine.
  */
 export type VerificationKind =
   "path" | "ast" | "graph" | "deps" | "process" | "traceability" | "semantic" | "none";
+
+/**
+ * A dependency-cruiser-style file/import rule for the `deps` backend. `from`/`to`
+ * are **regular expressions on POSIX paths** (not globs): a capture group in
+ * `from` is referenceable as `$1` in `to`/`toNot`, so one rule covers "no feature
+ * imports another feature".
+ */
+export interface DepsRule {
+  /** Optional human name for the rule, surfaced in findings. */
+  name?: string;
+  /** Regex the source file path must match for the rule to apply. */
+  from: string;
+  /** Regex the destination file path must match to count as a dependency. */
+  to: string;
+  /** Optional regex that excludes destinations (e.g. the source's own feature). */
+  toNot?: string;
+  /** `forbidden` (default): a match is a violation. `required`: absence is. */
+  type?: "forbidden" | "required";
+  /** Edge kinds to consider; defaults to every kind present in the index. */
+  edgeKinds?: string[];
+}
+
+/**
+ * A rule for the `graph` backend: dependency cycles and transitive reachability
+ * over the file-level import graph.
+ */
+export interface GraphRule {
+  /** Optional human name for the rule, surfaced in findings. */
+  name?: string;
+  /** Forbid dependency cycles among the files in scope. */
+  circular?: boolean;
+  /** Forbid a transitive path from a `from` file to any `to` file. */
+  reachable?: boolean;
+  /** Regex on the source file path (used by `reachable`). */
+  from?: string;
+  /** Regex on the destination file path (used by `reachable`). */
+  to?: string;
+}
+
+/**
+ * How a law is checked, as a discriminated union on `kind`. This EXTENDS the
+ * check-dispatcher model — it never rewrites it: the `path` and other
+ * payload-free arms are unchanged, and `deps`/`graph` add a validated rule
+ * payload. A manifest entry written by an older version whose `verification` is
+ * `{ "kind": "path" }` still validates against the `path` arm.
+ */
+export type Verification =
+  | { kind: "path" }
+  | { kind: "deps"; rule: DepsRule }
+  | { kind: "graph"; rule: GraphRule }
+  | { kind: "ast" }
+  | { kind: "process" }
+  | { kind: "traceability" }
+  | { kind: "semantic" }
+  | { kind: "none" };
 
 /** A single declared law in the manifest. */
 export interface Law {
@@ -44,7 +99,7 @@ export interface Law {
   scope: string[];
   /** The natural-language instruction, cited verbatim when blocking. */
   prose: string;
-  verification: { kind: VerificationKind };
+  verification: Verification;
   enforcement: Enforcement;
   /** Provenance, so a block can point back at the source. */
   source: { file: string; line?: number };
@@ -57,6 +112,34 @@ export interface LawManifest {
   laws: Law[];
 }
 
+const depsRuleSchema = z.object({
+  name: z.string().optional(),
+  from: z.string(),
+  to: z.string(),
+  toNot: z.string().optional(),
+  type: z.enum(["forbidden", "required"]).optional(),
+  edgeKinds: z.array(z.string()).optional(),
+});
+
+const graphRuleSchema = z.object({
+  name: z.string().optional(),
+  circular: z.boolean().optional(),
+  reachable: z.boolean().optional(),
+  from: z.string().optional(),
+  to: z.string().optional(),
+});
+
+const verificationSchema = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("path") }),
+  z.object({ kind: z.literal("deps"), rule: depsRuleSchema }),
+  z.object({ kind: z.literal("graph"), rule: graphRuleSchema }),
+  z.object({ kind: z.literal("ast") }),
+  z.object({ kind: z.literal("process") }),
+  z.object({ kind: z.literal("traceability") }),
+  z.object({ kind: z.literal("semantic") }),
+  z.object({ kind: z.literal("none") }),
+]);
+
 const lawSchema = z.object({
   id: z.string().min(1),
   title: z.string().min(1),
@@ -64,24 +147,72 @@ const lawSchema = z.object({
   severity: z.enum(["error", "warn", "info"]),
   scope: z.array(z.string()),
   prose: z.string().min(1),
-  verification: z.object({
-    kind: z.enum(["path", "ast", "graph", "deps", "process", "traceability", "semantic", "none"]),
-  }),
+  verification: verificationSchema,
   enforcement: z.enum(["bloqueo", "feedback", "gate"]),
   source: z.object({ file: z.string(), line: z.number().optional() }),
 });
 
-const manifestSchema = z.object({
-  version: z.number(),
-  laws: z.array(lawSchema),
-});
+// Reject a malformed `from`/`to` regex when the manifest is validated — naming
+// the law id, not a bare array index — rather than letting it explode at verify
+// time. Mirrors the generation-time treatment of malformed globs.
+const manifestSchema = z
+  .object({
+    version: z.number(),
+    laws: z.array(lawSchema),
+  })
+  .superRefine((manifest, ctx) => {
+    manifest.laws.forEach((law, i) => {
+      const v = law.verification;
+      const patterns: Array<[string, string | undefined]> = [];
+      if (v.kind === "deps") {
+        patterns.push(["from", v.rule.from], ["to", v.rule.to], ["toNot", v.rule.toNot]);
+      } else if (v.kind === "graph") {
+        patterns.push(["from", v.rule.from], ["to", v.rule.to]);
+      }
+      for (const [field, pattern] of patterns) {
+        if (pattern == null) continue;
+        const err = regexError(pattern);
+        if (err) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ["laws", i, "verification", "rule", field],
+            message: `${law.id}: verification.rule.${field} is not a valid regular expression (${err})`,
+          });
+        }
+      }
+    });
+  });
 
-/** The verification backends this change actually evaluates at runtime. */
+/** Backends evaluated on the action-time hot path (`speclaw_check`) — glob only. */
 export const IMPLEMENTED_BACKENDS: readonly VerificationKind[] = ["path"];
 
-/** True when a law's verification backend is evaluated at runtime (only `path` today). */
+/** Backends evaluated by the batch verifier (`law_verify`) — they read the index. */
+export const BATCH_BACKENDS: readonly VerificationKind[] = ["deps", "graph"];
+
+/** True when a law is evaluated on the action-time hot path (only `path` today). */
 export function hasBackend(law: Law): boolean {
   return IMPLEMENTED_BACKENDS.includes(law.verification.kind);
+}
+
+/** True when a law is evaluated by the batch verifier (`deps`/`graph`). */
+export function hasBatchBackend(law: Law): boolean {
+  return BATCH_BACKENDS.includes(law.verification.kind);
+}
+
+/**
+ * Validate a regular expression without using it, so manifest generation and
+ * `doctor` can fail loudly on a malformed `from`/`to` pattern.
+ *
+ * @param pattern - A regular-expression source string.
+ * @returns An error message if the pattern does not compile, else null.
+ */
+export function regexError(pattern: string): string | null {
+  try {
+    new RegExp(pattern);
+    return null;
+  } catch (err) {
+    return (err as Error).message;
+  }
 }
 
 /** Absolute path to a project's compiled law manifest (under the gitignored `.speclaw/`). */

@@ -5,8 +5,10 @@ import {
   compileGlob,
   globError,
   hasBackend,
+  hasBatchBackend,
   matchesScope,
   readLawManifest,
+  regexError,
   seedManifest,
   writeLawManifest,
   type Law,
@@ -51,9 +53,65 @@ test("matchesScope OR-s positives and excludes negatives; empty = everywhere", (
   assert.ok(!matchesScope(["src/**"], "docs/readme.md"));
 });
 
-test("hasBackend is true only for the implemented path backend", () => {
+test("hasBackend is the action-time gate: path only, never a batch backend", () => {
   assert.ok(hasBackend(lawOf({ verification: { kind: "path" } })));
-  assert.ok(!hasBackend(lawOf({ verification: { kind: "deps" } })));
+  assert.ok(!hasBackend(lawOf({ verification: { kind: "ast" } })));
+  // deps/graph are batch backends — they must NOT run on the action-time hot path.
+  assert.ok(!hasBackend(lawOf({ verification: { kind: "deps", rule: { from: "^a", to: "^b" } } })));
+});
+
+test("hasBatchBackend covers deps and graph, not path", () => {
+  assert.ok(
+    hasBatchBackend(lawOf({ verification: { kind: "deps", rule: { from: "^a", to: "^b" } } })),
+  );
+  assert.ok(hasBatchBackend(lawOf({ verification: { kind: "graph", rule: { circular: true } } })));
+  assert.ok(!hasBatchBackend(lawOf({ verification: { kind: "path" } })));
+});
+
+test("a deps law with a rule payload validates and round-trips", (t) => {
+  const root = tmpRepo(t);
+  const law = lawOf({
+    id: "law~no-domain-to-infra~1",
+    scope: ["src/domain/**"],
+    enforcement: "gate",
+    verification: { kind: "deps", rule: { from: "^src/domain/", to: "^src/infra/" } },
+  });
+  writeLawManifest(root, { version: 1, laws: [law] });
+  const back = readLawManifest(root);
+  assert.ok(back);
+  const v = back.laws[0]!.verification;
+  assert.equal(v.kind, "deps");
+  // Narrow through the discriminated union — no cast, no unsafe chaining.
+  if (v.kind === "deps") assert.equal(v.rule.from, "^src/domain/");
+});
+
+test("a legacy { kind: 'path' } manifest entry still validates", (t) => {
+  const root = tmpRepo(t);
+  // Exactly the shape check-dispatcher wrote before this change.
+  writeLawManifest(root, { version: 1, laws: [lawOf({ verification: { kind: "path" } })] });
+  assert.equal(readLawManifest(root)?.laws[0]?.verification.kind, "path");
+});
+
+test("a malformed deps regex is rejected at validation time, naming the law id", (t) => {
+  const root = tmpRepo(t);
+  assert.throws(
+    () =>
+      writeLawManifest(root, {
+        version: 1,
+        laws: [
+          lawOf({
+            id: "law~bad~1",
+            verification: { kind: "deps", rule: { from: "^(", to: "^b" } },
+          }),
+        ],
+      }),
+    /law~bad~1/,
+  );
+});
+
+test("regexError flags an invalid pattern and passes a valid one", () => {
+  assert.match(regexError("^(") ?? "", /./);
+  assert.equal(regexError("^src/domain/"), null);
 });
 
 test("the shipped seed manifest is valid and path-only", () => {
