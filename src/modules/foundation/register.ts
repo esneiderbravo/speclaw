@@ -4,6 +4,7 @@ import { text } from "../../shared/mcp.js";
 import { scaffold } from "./scaffold.js";
 import { doctor } from "./doctor.js";
 import { checkAction, CheckEvent } from "./check.js";
+import { BatchEngine, verifyLaws } from "./verify.js";
 import { loadPacks } from "../tools/packs.js";
 import { AGENTS, configureAgent } from "../../shared/agents.js";
 import { emptyReport } from "../../shared/install.js";
@@ -176,6 +177,31 @@ export function registerFoundation(server: McpServer): void {
     },
     async ({ projectPath, event, toolName, payload }) =>
       text(checkAction({ projectPath, event: event as CheckEvent, toolName, payload })),
+  );
+
+  server.registerTool(
+    "law_verify",
+    {
+      // ≤30 words: the batch counterpart to speclaw_check, for the Stop hook and CI.
+      description:
+        "Verify the project's deterministic laws (dependency and graph rules) and return violations by file. Run before claiming an architecture task done.",
+      inputSchema: {
+        projectPath: z.string().describe("Absolute path to the project"),
+        paths: z
+          .array(z.string())
+          .optional()
+          .describe("Restrict to source files under these project-relative paths"),
+        engines: z
+          .array(z.enum(["deps", "graph"]))
+          .optional()
+          .describe("Which batch engines to run; omit for all"),
+        lawIds: z.array(z.string()).optional().describe("Restrict to these law ids"),
+      },
+    },
+    async ({ projectPath, paths, engines, lawIds }) =>
+      text(
+        verifyLaws({ projectPath, paths, engines: engines as BatchEngine[] | undefined, lawIds }),
+      ),
   );
 
   server.registerTool(
