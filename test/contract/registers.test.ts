@@ -14,6 +14,7 @@ test("each register function declares its expected tools", () => {
     "configure_agent",
     "doctor",
     "init_project",
+    "law_verify",
     "scaffold",
     "speclaw_check",
   ]);
@@ -57,6 +58,17 @@ test("tool input schemas validate required fields", () => {
   assert.doesNotThrow(() =>
     check.parse({ projectPath: "/x", event: "PreToolUse", payload: { file_path: "a" } }),
   );
+
+  const verify = schemaOf(foundation.get("law_verify")!);
+  assert.throws(() => verify.parse({ projectPath: "/x", engines: ["nope"] }));
+  assert.doesNotThrow(() => verify.parse({ projectPath: "/x" }));
+  assert.doesNotThrow(() => verify.parse({ projectPath: "/x", engines: ["deps", "graph"] }));
+});
+
+test("the law_verify description stays within the token-budget word ceiling", () => {
+  const verify = captureTools(registerFoundation).get("law_verify")!;
+  const words = verify.config.description!.trim().split(/\s+/).length;
+  assert.ok(words <= 30, `law_verify description is ${words} words (must be ≤ 30)`);
 });
 
 test("foundation handlers wrap their results as MCP text", async (t) => {
