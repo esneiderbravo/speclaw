@@ -1,0 +1,42 @@
+# Dogfood: verify THIS checkout, not the last published release.
+name: ⚖️ speclaw
+on: pull_request
+
+permissions: {}
+
+jobs:
+  verify:
+    name: ⚖️ Verify laws
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: ⚙️ Setup Node 24
+        uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: 📦 Install
+        run: npm ci
+
+      - name: 🔨 Build
+        run: npm run build
+
+      - name: 🧭 Index
+        run: node dist/cli/index.js index
+
+      - name: ⚖️ Verify
+        run: node dist/cli/index.js verify --ci --sarif speclaw.sarif --json speclaw.json --strict-engines --path src
+
+      - name: 🛡️ Upload SARIF
+        uses: github/codeql-action/upload-sarif@v4
+        if: always()
+        with:
+          sarif_file: speclaw.sarif

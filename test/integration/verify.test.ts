@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import type { DatabaseSync } from "node:sqlite";
 import { tmpRepo } from "../helpers/env.js";
 import { openDb } from "../../src/modules/compass/db.js";
-import { writeLawManifest, type Law } from "../../src/modules/foundation/laws.js";
+import { seedManifest, writeLawManifest, type Law } from "../../src/modules/foundation/laws.js";
 import { verifyLaws } from "../../src/modules/foundation/verify.js";
 
 /** Seed files + one node each, and return an edge-adder (dst null = unresolved). */
@@ -139,15 +139,15 @@ test("a law with an unimplemented backend is inert — not counted at all", (t) 
   assert.ok(!report.findings.some((f) => f.lawId === "law~ast~1"));
 });
 
-test("no manifest yields an empty, well-formed report", (t) => {
+test("no manifest falls back to the seed (batch laws skip without an index)", (t) => {
   const root = tmpRepo(t);
   const report = verifyLaws({ projectPath: root });
-  assert.deepEqual(report.summary, {
-    evaluated: 0,
-    passed: 0,
-    failed: 0,
-    skipped: 0,
-    unknown: 0,
-  });
-  assert.deepEqual(report.findings, []);
+  const seedBatch = seedManifest().laws.filter(
+    (l) => l.verification.kind === "deps" || l.verification.kind === "graph",
+  );
+  assert.ok(seedBatch.length >= 1);
+  assert.equal(report.summary.passed, 0);
+  assert.equal(report.summary.skipped, seedBatch.length);
+  assert.ok(report.skipped.every((s) => s.reason === "no-index"));
+  assert.ok(report.skipped[0]?.detail?.includes("compass_index"));
 });

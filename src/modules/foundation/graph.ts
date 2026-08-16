@@ -1,8 +1,8 @@
 import type { DatabaseSync } from "node:sqlite";
 import { GraphRule, Law } from "./laws.js";
-import type { Finding } from "./verify.js";
+import type { Finding } from "./verify-model.js";
 import type { EngineResult } from "./deps.js";
-import { underPaths } from "./verify.js";
+import { underPaths } from "./verify-model.js";
 
 // Motor C — the `graph` backend: dependency cycles and transitive reachability
 // over the file-level import graph. Cycle detection uses an ITERATIVE Tarjan (a

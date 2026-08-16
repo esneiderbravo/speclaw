@@ -8,7 +8,13 @@ import { installWorkflow } from "../lawbook/register.js";
 import { installPack, loadPacks } from "../tools/packs.js";
 import { readManifest, writeManifest } from "../../shared/manifest.js";
 import { pkgVersion } from "../../shared/version.js";
-import { LawManifest, readLawManifest, seedManifest, writeLawManifest } from "./laws.js";
+import {
+  LawManifest,
+  mergeSeedLaws,
+  readLawManifest,
+  seedManifest,
+  writeLawManifest,
+} from "./laws.js";
 import { HookInstallResult, installHooks } from "./hooks.js";
 
 const ASSETS = assetsDir(import.meta.url);
@@ -62,18 +68,39 @@ export interface ScaffoldReport extends InstallReport {
 }
 
 /**
- * Ensure the project has a law manifest, seeding it from the package's starter
- * laws when absent. The manifest is a derived artifact under the gitignored
- * `.speclaw/`; seeding only when missing keeps a curated manifest (the MVP's
- * authoring surface until executable-laws) from being overwritten on update.
+ * Ensure the project has a law manifest. Missing → seed. Present → append any
+ * shipped seed law whose `id` is absent (never overwrite a curated entry).
  */
 function ensureLawManifest(projectPath: string, report: InstallReport): LawManifest {
   const existing = readLawManifest(projectPath);
-  if (existing) return existing;
-  const seed = seedManifest();
-  writeLawManifest(projectPath, seed);
-  report.written.push(path.join(projectPath, ".speclaw", "laws-manifest.json"));
-  return seed;
+  if (!existing) {
+    const seed = seedManifest();
+    writeLawManifest(projectPath, seed);
+    report.written.push(path.join(projectPath, ".speclaw", "laws-manifest.json"));
+    return seed;
+  }
+  const { manifest, added } = mergeSeedLaws(existing);
+  if (added.length > 0) {
+    writeLawManifest(projectPath, manifest);
+    report.written.push(path.join(projectPath, ".speclaw", "laws-manifest.json"));
+  }
+  return manifest;
+}
+
+/**
+ * Write `.github/workflows/speclaw.yml` from the shipped template when the
+ * path does not exist. Never overwrite — the user's CI is theirs.
+ */
+function ensureVerifyWorkflow(projectPath: string, report: InstallReport): void {
+  const dest = path.join(projectPath, ".github", "workflows", "speclaw.yml");
+  if (fs.existsSync(dest)) {
+    report.skipped.push(dest);
+    return;
+  }
+  const src = path.join(ASSETS, "workflows", "speclaw.yml");
+  fs.mkdirSync(path.dirname(dest), { recursive: true });
+  fs.copyFileSync(src, dest);
+  report.written.push(dest);
 }
 
 /**
@@ -184,6 +211,7 @@ export function scaffold(
   // configured. The seam is the manifest: check-dispatcher enforces `path` laws;
   // executable-laws will extend the same manifest with more backends.
   const lawManifest = ensureLawManifest(projectPath, report);
+  ensureVerifyWorkflow(projectPath, report);
   report.hooks = installHooks(projectPath, agents, lawManifest, report, {
     baselines: managedOpts.baselines,
     backup: managedOpts.backup,
