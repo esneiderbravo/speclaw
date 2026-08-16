@@ -37,6 +37,7 @@ Other
   doctor                   Verify the installation
   check                    Evaluate an action against the laws (hooks call this; --dry-run to preview)
   laws verify              Verify the deterministic dependency/graph laws against the index
+  verify                   Verify laws for CI: exit codes, --sarif, --json, --strict-engines
   mcp                      Start the MCP server (used by your agent's config)
   help                     Show this help
   --version                Print the installed speclaw version
@@ -121,6 +122,8 @@ async function dispatch(
       return (await import("./commands/check.js")).runCheck(flags);
     case "laws":
       return (await import("./commands/laws.js")).runLaws(flags);
+    case "verify":
+      return (await import("./commands/verify.js")).runVerify(flags);
     default:
       ui.err(`Unknown command: ${cmd}`);
       console.log(HELP);

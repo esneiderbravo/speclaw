@@ -1,0 +1,22 @@
+# Consumer template. init/update write this only when the path is missing.
+# Never the untrusted PR trigger. The verify job has no secrets.
+name: speclaw
+on: pull_request
+
+permissions: {}
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: esneiderbravo/speclaw@v1
+      - uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: speclaw.sarif

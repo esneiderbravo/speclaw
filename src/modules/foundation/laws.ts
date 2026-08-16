@@ -265,6 +265,35 @@ export function seedManifest(): LawManifest {
   return manifestSchema.parse(raw);
 }
 
+/**
+ * The manifest the batch verifier should use: the project's file when present,
+ * otherwise the shipped seed (so a clean CI clone does not silently pass).
+ *
+ * @param projectPath - Project root to read from.
+ */
+export function loadManifestForVerify(projectPath: string): LawManifest {
+  return readLawManifest(projectPath) ?? seedManifest();
+}
+
+/**
+ * Append shipped seed laws whose `id` is not already in `existing`. Existing
+ * entries are never overwritten — a curated law keeps its prose, scope, and
+ * enforcement across `update`.
+ *
+ * @param existing - The project's current manifest.
+ * @returns The merged manifest and the ids that were added.
+ */
+export function mergeSeedLaws(existing: LawManifest): { manifest: LawManifest; added: string[] } {
+  const seed = seedManifest();
+  const have = new Set(existing.laws.map((l) => l.id));
+  const extra = seed.laws.filter((l) => !have.has(l.id));
+  if (extra.length === 0) return { manifest: existing, added: [] };
+  return {
+    manifest: { ...existing, laws: [...existing.laws, ...extra] },
+    added: extra.map((l) => l.id),
+  };
+}
+
 // ─── Glob matching (the `path` backend) ──────────────────────────────────────
 
 /**

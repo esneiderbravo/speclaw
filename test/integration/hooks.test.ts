@@ -31,15 +31,35 @@ test("scaffold seeds the law manifest and installs Claude hooks", (t) => {
   assert.deepEqual(report.hooks?.hooked, ["claude"]);
 });
 
-test("a curated manifest is preserved on a refresh (update)", (t) => {
+test("a curated manifest keeps existing entries on refresh and gains missing seed ids", (t) => {
   const root = tmpRepo(t);
   scaffold(root, sampleProfile(), [], ["claude"]);
-  // Curate the manifest, then re-scaffold as `update` does (refreshManaged).
-  const custom = { version: 1, laws: [] as unknown[] };
+  const custom = {
+    version: 1,
+    laws: [
+      {
+        id: "law~no-secrets-in-repo~1",
+        title: "CUSTOM",
+        severity: "error",
+        scope: ["**/.env"],
+        prose: "keep this",
+        verification: { kind: "path" },
+        enforcement: "bloqueo",
+        source: { file: "LAWS.md" },
+      },
+    ],
+  };
   writeFileSync(join(root, ".speclaw", "laws-manifest.json"), JSON.stringify(custom) + "\n");
   scaffold(root, sampleProfile(), [], ["claude"], { refreshManaged: true });
-  const after = JSON.parse(read(root, ".speclaw/laws-manifest.json"));
-  assert.deepEqual(after.laws, [], "the curated (empty) manifest was not overwritten");
+  const after = JSON.parse(read(root, ".speclaw/laws-manifest.json")) as {
+    laws: Array<{ id: string; title: string }>;
+  };
+  const kept = after.laws.find((l) => l.id === "law~no-secrets-in-repo~1");
+  assert.equal(kept?.title, "CUSTOM", "existing entries are not overwritten");
+  assert.ok(
+    after.laws.some((l) => l.id === "law~shared-stays-inner~1"),
+    "missing seed ids are appended",
+  );
 });
 
 test("a real PreToolUse payload against the scaffolded manifest is blocked", (t) => {
