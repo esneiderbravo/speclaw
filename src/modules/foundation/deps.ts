@@ -1,7 +1,7 @@
 import type { DatabaseSync } from "node:sqlite";
 import { DepsRule, Law } from "./laws.js";
-import type { Finding } from "./verify.js";
-import { underPaths } from "./verify.js";
+import type { Finding } from "./verify-model.js";
+import { underPaths } from "./verify-model.js";
 
 // Motor B — the `deps` backend. File-granularity dependency rules evaluated as
 // SQL over the existing `edges`/`nodes`/`files` tables (no new table): it
