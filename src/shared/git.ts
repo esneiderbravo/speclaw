@@ -38,3 +38,54 @@ export function listTrackedPaths(projectPath: string, candidates: string[]): str
     return res.status === 0 && res.stdout.trim().length > 0;
   });
 }
+
+/**
+ * The merge-base SHA of `ref` and `HEAD`, or `null` when the repo is missing,
+ * shallow, or `ref` is unknown. Callers that need a PR diff must treat `null`
+ * as "cannot see the base" — never as "nothing changed".
+ *
+ * @param projectPath - Directory inside the work tree.
+ * @param ref - The other end of the range (e.g. `origin/main`, a SHA).
+ */
+export function mergeBase(projectPath: string, ref: string): string | null {
+  if (!isGitRepo(projectPath)) return null;
+  const res = spawnSync("git", ["-C", projectPath, "merge-base", ref, "HEAD"], {
+    encoding: "utf8",
+  });
+  if (res.status !== 0) return null;
+  const sha = res.stdout.trim();
+  return sha || null;
+}
+
+/**
+ * Project-relative paths changed between `base` and `HEAD` (added, copied,
+ * modified, renamed). Uses `merge-base` so merge commits in the range are not
+ * counted as the PR's own work. Returns `[]` when the merge base cannot be
+ * resolved — callers in CI must fail that case rather than treat it as clean.
+ *
+ * @param projectPath - Directory inside the work tree.
+ * @param base - The other end of the range (branch name or SHA).
+ */
+export function changedFiles(projectPath: string, base: string): string[] {
+  const mb = mergeBase(projectPath, base);
+  if (!mb) return [];
+  const res = spawnSync(
+    "git",
+    [
+      "-C",
+      projectPath,
+      "-c",
+      "core.quotePath=false",
+      "diff",
+      "--name-only",
+      "--diff-filter=ACMR",
+      `${mb}...HEAD`,
+    ],
+    { encoding: "utf8" },
+  );
+  if (res.status !== 0 || typeof res.stdout !== "string") return [];
+  return res.stdout
+    .split("\n")
+    .map((l) => l.trim())
+    .filter(Boolean);
+}

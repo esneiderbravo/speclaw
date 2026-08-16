@@ -1,0 +1,25 @@
+name: "speclaw verify"
+description: "Verify your project's laws. Deterministic, no model, no secrets."
+inputs:
+  version:
+    description: "speclaw version to run"
+    default: "latest"
+  fail-on:
+    description: "error | warn | info"
+    default: "error"
+  strict-engines:
+    description: "Fail if any law could not be evaluated"
+    default: "true"
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-node@v5
+      with:
+        node-version: "24"
+    - shell: bash
+      run: |
+        npx --yes @esneiderbravo/speclaw@${{ inputs.version }} index
+        npx --yes @esneiderbravo/speclaw@${{ inputs.version }} verify --ci \
+          --sarif speclaw.sarif --json speclaw.json \
+          --fail-on ${{ inputs.fail-on }} \
+          ${{ inputs.strict-engines == 'true' && '--strict-engines' || '' }}

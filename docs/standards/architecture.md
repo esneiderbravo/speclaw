@@ -20,11 +20,11 @@ live under `src/modules/*`; the CLI (`src/cli/*`) and shared core
 
 | Module | Path | Responsibility |
 |--------|------|----------------|
-| foundation | `src/modules/foundation/` | Analyze a repo and scaffold its constitution: `LAWS.md`, `docs/standards/*`, `CLAUDE.md`/`AGENTS.md`, `docs/compass.md`, plus `doctor` health checks. Tools: `init_project`, `scaffold`, `configure_agent`, `doctor`. |
+| foundation | `src/modules/foundation/` | Analyze a repo and scaffold its constitution: `LAWS.md`, `docs/standards/*`, `CLAUDE.md`/`AGENTS.md`, `docs/compass.md`, plus `doctor` health checks and deterministic law verification (`deps`/`graph`). Tools: `init_project`, `scaffold`, `configure_agent`, `doctor`, `speclaw_check`, `law_verify`. |
 | compass | `src/modules/compass/` | The local code graph: tree-sitter parse → extract → `node:sqlite` index, semantic recall, impact/trace, interactive visualize, and a file watcher. Tools: `compass_index`/`explore`/`search`/`recall`/`impact`/`trace`/`watch`. |
 | lawbook | `src/modules/lawbook/` | The spec-driven workflow engine over `lawbook/`: init, validate, sync, archive, list. Tools: `lawbook_init`/`validate`/`sync`/`archive`/`list`. |
 | tools | `src/modules/tools/` | Opt-in skill/agent packs (currently the dev-agents). Tools: `list_packs`, `add_pack`. |
-| cli | `src/cli/` | The terminal surface over the same capabilities: `init`, `update`, `agent`, `index`/`watch`, `explore`/`search`/`recall`/`impact`/`trace`, `visualize`, `lawbook …`, `doctor`, `mcp`. |
+| cli | `src/cli/` | The terminal surface over the same capabilities: `init`, `update`, `agent`, `index`/`watch`, `explore`/`search`/`recall`/`impact`/`trace`, `visualize`, `lawbook …`, `doctor`, `check`, `laws verify`, `verify`, `mcp`. |
 | shared | `src/shared/` | Cross-cutting core: filesystem install, path resolution, template render, agent configuration + symlinks, manifest, version/update check, the MCP `text()` result helper. |
 
 ## Layering — strictly enforced

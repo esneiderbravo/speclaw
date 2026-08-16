@@ -82,7 +82,7 @@ too (also `pnpm dlx` / `yarn dlx`) — but installing globally means you can run
 
 | Module | What it does |
 | :-- | :-- |
-| **Foundation** | The project's constitution: `LAWS.md` binding a set of granular standards under `docs/standards/` (base, architecture, backend, frontend, testing, documentation, conventions, lawbook), plus strict `CLAUDE.md` / `AGENTS.md` agent contracts — filled from your real codebase. It also **enforces** them: blocking laws compile into agent hooks that deny a forbidden edit at the keystroke (`speclaw check` / `speclaw_check`), and architectural laws are verified deterministically against the Compass graph — dependency rules (`deps`) and cycles (`graph`) — via `speclaw laws verify` / `law_verify`, which reports each law as passed, failed, skipped, or unknown (an unresolved reference is *unknown*, never a silent pass). |
+| **Foundation** | The project's constitution: `LAWS.md` binding a set of granular standards under `docs/standards/` (base, architecture, backend, frontend, testing, documentation, conventions, lawbook), plus strict `CLAUDE.md` / `AGENTS.md` agent contracts — filled from your real codebase. It also **enforces** them: blocking laws compile into agent hooks that deny a forbidden edit at the keystroke (`speclaw check` / `speclaw_check`), and architectural laws are verified deterministically against the Compass graph — dependency rules (`deps`) and cycles (`graph`) — via `speclaw verify` (CI orchestrator: exit codes, SARIF, markdown) and `speclaw laws verify` / `law_verify`. Each law is reported as passed, failed, skipped, or unknown (an unresolved reference is *unknown*, never a silent pass). |
 | **Compass** | speclaw's own local code graph. Parses your code (tree-sitter) into nodes + edges plus a local vector store, so an agent finds and understands code with a fraction of the tokens a grep/read loop would cost. No LLM, 100% local, lives in `.speclaw/` (gitignored). |
 | **Lawbook** | speclaw's own spec-driven workflow: `draft → build → sync → archive` (and `explore`), backed by `lawbook_*` engine tools. No external CLI. |
 | **Tools** | Opt-in packs of skills and subagents (currently the dev-agents) that agents use for specific tasks. |
@@ -207,6 +207,35 @@ and source. `speclaw check --dry-run --path <file>` previews what would block, a
 `speclaw doctor` reports how many of your laws actually reached the agent's
 context. Agents without hooks (Cursor, Codex) enforce the same laws in CI via
 `speclaw verify`.
+
+<br/>
+
+## <img src="https://raw.githubusercontent.com/esneiderbravo/speclaw/main/brand/diamond.png" height="20" alt="◆" align="absmiddle">&nbsp; Verify in CI
+
+`speclaw verify` evaluates your `deps` and `graph` laws against the local Compass
+index. It is deterministic: **no model, no API key, no network.**
+
+```bash
+speclaw verify --ci --sarif speclaw.sarif --json speclaw.json
+```
+
+| Exit | Meaning |
+| :-- | :-- |
+| **0** | No findings at or above `--fail-on` (default `error`) |
+| **1** | At least one finding at or above `--fail-on` |
+| **2** | Usage error (unknown `--fail-on` / `--format`) |
+| **3** | Environment (shallow clone under `--ci`, or an unwritable `--sarif`/`--json` path) |
+| **4** | At least one law was skipped, and `--strict-engines` was set |
+
+On GitHub:
+
+```yaml
+- uses: esneiderbravo/speclaw@v1
+```
+
+`init` / `update` write `.github/workflows/speclaw.yml` only when that path is
+missing — they never overwrite your CI. Make the check required in branch
+protection yourself; speclaw does not.
 
 <br/>
 
