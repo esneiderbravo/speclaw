@@ -25,6 +25,7 @@ test("the consumer workflow template has no pull_request_target and empty defaul
   assert.match(yml, /contents:\s*read/);
   assert.match(yml, /security-events:\s*write/);
   assert.match(yml, /uses:\s*esneiderbravo\/speclaw@v1/);
+  assert.match(yml, /codeql-action\/upload-sarif@v4/);
   assert.match(yml, /^name:\s*⚖️ speclaw\s*$/m);
   assert.match(yml, /name:\s*⚖️ Verify laws/);
 });
@@ -47,6 +48,7 @@ test("the dogfood workflow verifies this checkout via dist/, not npx of a publis
   assert.doesNotMatch(yml, /npx .*@esneiderbravo\/speclaw/);
   assert.doesNotMatch(yml, /pull_request_target/);
   assert.match(yml, /fetch-depth:\s*0/);
+  assert.match(yml, /codeql-action\/upload-sarif@v4/);
   assert.match(yml, /^name:\s*⚖️ speclaw\s*$/m);
   assert.match(yml, /🧭 Index/);
   assert.match(yml, /⚖️ Verify/);
