@@ -85,6 +85,14 @@ const MIGRATIONS: Migration[] = [
       "in docs/standards/testing-standards.md (the 'Manual & end-to-end verification' section).\n" +
       "- Preserve all project-specific wording; only apply these speclaw-authored changes.",
   },
+  {
+    version: "0.3.4",
+    describe: "CI verify workflow (if missing) and seed-law merge",
+    agentPrompt:
+      "- If you want pull requests gated on speclaw, add the `speclaw` GitHub check as a " +
+      "required status check in branch protection. speclaw never enables that itself.\n" +
+      "- Preserve all project-specific wording; only apply these speclaw-authored changes.",
+  },
 ];
 
 /**

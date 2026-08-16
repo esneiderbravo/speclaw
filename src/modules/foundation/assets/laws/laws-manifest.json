@@ -44,6 +44,55 @@
       "verification": { "kind": "path" },
       "enforcement": "feedback",
       "source": { "file": "LAWS.md" }
+    },
+    {
+      "id": "law~shared-stays-inner~1",
+      "title": "shared stays the innermost layer",
+      "rationale": "shared/ must not import modules/ or cli/, or the layering law is inverted.",
+      "severity": "error",
+      "scope": ["src/shared/**"],
+      "prose": "src/shared must not import from src/modules or src/cli.",
+      "verification": {
+        "kind": "deps",
+        "rule": {
+          "from": "^src/shared/",
+          "to": "^src/(modules|cli)/",
+          "type": "forbidden",
+          "edgeKinds": ["import"]
+        }
+      },
+      "enforcement": "gate",
+      "source": { "file": "docs/standards/architecture.md" }
+    },
+    {
+      "id": "law~compass-does-not-import-foundation~1",
+      "title": "Compass does not import foundation",
+      "rationale": "foundation already imports compass; the reverse would be a module cycle.",
+      "severity": "error",
+      "scope": ["src/modules/compass/**"],
+      "prose": "src/modules/compass must not import from src/modules/foundation.",
+      "verification": {
+        "kind": "deps",
+        "rule": {
+          "from": "^src/modules/compass/",
+          "to": "^src/modules/foundation/",
+          "type": "forbidden",
+          "edgeKinds": ["import"]
+        }
+      },
+      "enforcement": "gate",
+      "source": { "file": "docs/standards/architecture.md" }
+    },
+    {
+      "id": "law~no-module-cycles~1",
+      "title": "No circular module dependencies",
+      "rationale": "Modules may reuse another module's exported helper, but there are no circular dependencies.",
+      "severity": "error",
+      "scope": ["src/modules/**"],
+      "prose": "There are no circular dependencies between modules.",
+      "verification": { "kind": "graph", "rule": { "circular": true } },
+      "enforcement": "gate",
+      "source": { "file": "docs/standards/architecture.md" }
     }
   ]
 }

@@ -7,6 +7,8 @@ import {
   hasBackend,
   hasBatchBackend,
   matchesScope,
+  loadManifestForVerify,
+  mergeSeedLaws,
   readLawManifest,
   regexError,
   seedManifest,
@@ -114,11 +116,42 @@ test("regexError flags an invalid pattern and passes a valid one", () => {
   assert.equal(regexError("^src/domain/"), null);
 });
 
-test("the shipped seed manifest is valid and path-only", () => {
+test("the shipped seed manifest is valid and includes path plus batch laws", () => {
   const seed = seedManifest();
   assert.ok(seed.laws.length >= 1);
-  for (const l of seed.laws) assert.equal(l.verification.kind, "path");
+  assert.ok(seed.laws.some((l) => l.verification.kind === "path"));
+  assert.ok(seed.laws.some((l) => l.verification.kind === "deps"));
+  assert.ok(seed.laws.some((l) => l.verification.kind === "graph"));
   assert.ok(seed.laws.some((l) => l.enforcement === "bloqueo"));
+  assert.ok(seed.laws.some((l) => l.id === "law~shared-stays-inner~1"));
+  assert.ok(seed.laws.some((l) => l.id === "law~compass-does-not-import-foundation~1"));
+  assert.ok(seed.laws.some((l) => l.id === "law~no-module-cycles~1"));
+  const shared = seed.laws.find((l) => l.id === "law~shared-stays-inner~1");
+  assert.equal(shared?.verification.kind, "deps");
+  if (shared?.verification.kind === "deps") {
+    assert.deepEqual(shared.verification.rule.edgeKinds, ["import"]);
+  }
+});
+
+test("mergeSeedLaws appends missing seed ids and never overwrites existing entries", () => {
+  const custom = lawOf({
+    id: "law~no-secrets-in-repo~1",
+    title: "CUSTOM TITLE",
+    prose: "keep this",
+  });
+  const { manifest, added } = mergeSeedLaws({ version: 1, laws: [custom] });
+  const kept = manifest.laws.find((l) => l.id === "law~no-secrets-in-repo~1");
+  assert.equal(kept?.title, "CUSTOM TITLE");
+  assert.equal(kept?.prose, "keep this");
+  assert.ok(added.includes("law~shared-stays-inner~1"));
+  assert.ok(!added.includes("law~no-secrets-in-repo~1"));
+});
+
+test("loadManifestForVerify falls back to the seed when the file is missing", (t) => {
+  const root = tmpRepo(t);
+  const loaded = loadManifestForVerify(root);
+  assert.ok(loaded.laws.some((l) => l.id === "law~no-secrets-in-repo~1"));
+  assert.equal(readLawManifest(root), null, "fallback must not write the file");
 });
 
 test("write/read round-trips a manifest and validation rejects a bad law", (t) => {

@@ -3,10 +3,12 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { tmpRepo } from "../helpers/env.js";
+import { tmpRepo, write, read, has } from "../helpers/env.js";
 import { seedSampleRepo, sampleProfile } from "../helpers/fixtures.js";
 import { runCli, cliBuilt } from "../helpers/cli.js";
 import { scaffold } from "../../src/modules/foundation/scaffold.js";
+import { gitInit, commit } from "../helpers/git.js";
+import { spawnSync } from "node:child_process";
 
 // The e2e suite drives the built dist/ CLI. It requires `npm run build` to have
 // run first (CI does this before `npm test`); otherwise it skips with a notice.
@@ -162,4 +164,103 @@ test("a query without an index exits non-zero with a helpful message", { skip },
   const r = runCli(["explore", "whatever"], { cwd: root });
   assert.equal(r.code, 1);
   assert.match(r.stdout + r.stderr, /No index/);
+});
+
+test("help lists the verify command", { skip }, () => {
+  const r = runCli(["help"]);
+  assert.equal(r.code, 0);
+  assert.match(r.stdout, /\bverify\b/);
+});
+
+test("verify emits no header even when forced interactive", { skip }, (t) => {
+  const root = tmpRepo(t);
+  const r = runCli(["verify"], { cwd: root, ...FORCED });
+  assert.doesNotMatch(r.stdout, /where specs become law/);
+});
+
+test("verify --fail-on with an unknown value exits 2", { skip }, (t) => {
+  const root = tmpRepo(t);
+  const r = runCli(["verify", "--fail-on", "fatal"], { cwd: root });
+  assert.equal(r.code, 2);
+});
+
+test("verify --format with an unknown value exits 2", { skip }, (t) => {
+  const root = tmpRepo(t);
+  const r = runCli(["verify", "--format", "xml"], { cwd: root });
+  assert.equal(r.code, 2);
+});
+
+test("verify without an index exits 0; --strict-engines exits 4", { skip }, (t) => {
+  const root = tmpRepo(t);
+  const soft = runCli(["verify"], { cwd: root });
+  assert.equal(soft.code, 0);
+  const strict = runCli(["verify", "--strict-engines"], { cwd: root });
+  assert.equal(strict.code, 4);
+  assert.match(strict.stdout + strict.stderr, /no-index/);
+});
+
+test("verify --json and --sarif write well-formed artifacts", { skip }, (t) => {
+  const root = tmpRepo(t);
+  const r = runCli(["verify", "--json", "out.json", "--sarif", "out.sarif"], { cwd: root });
+  assert.equal(r.code, 0);
+  assert.ok(has(root, "out.json"));
+  assert.ok(has(root, "out.sarif"));
+  const json = JSON.parse(read(root, "out.json")) as { schemaVersion: number };
+  assert.equal(json.schemaVersion, 1);
+  const sarif = JSON.parse(read(root, "out.sarif")) as { version: string };
+  assert.equal(sarif.version, "2.1.0");
+});
+
+test("verify --json (boolean) prints the report on stdout", { skip }, (t) => {
+  const root = tmpRepo(t);
+  const r = runCli(["verify", "--json"], { cwd: root });
+  assert.equal(r.code, 0);
+  const parsed = JSON.parse(r.stdout) as { schemaVersion: number };
+  assert.equal(parsed.schemaVersion, 1);
+});
+
+test("verify --ci on a shallow clone exits 3", { skip }, (t) => {
+  const origin = tmpRepo(t);
+  gitInit(origin);
+  commit(origin, "one", [{ path: "a.ts", content: "a\n" }]);
+  const parent = tmpRepo(t);
+  const dest = path.join(parent, "shallow");
+  spawnSync("git", ["clone", "--depth=1", "-q", `file://${origin}`, dest], { encoding: "utf8" });
+  const r = runCli(["verify", "--ci"], { cwd: dest });
+  assert.equal(r.code, 3);
+  assert.match(r.stdout + r.stderr, /fetch-depth: 0/);
+});
+
+test("verify cannot write SARIF to a missing directory and exits 3", { skip }, (t) => {
+  const root = tmpRepo(t);
+  const r = runCli(["verify", "--sarif", path.join("nope", "out.sarif")], { cwd: root });
+  assert.equal(r.code, 3);
+});
+
+test("verify appends markdown to $GITHUB_STEP_SUMMARY when set", { skip }, (t) => {
+  const root = tmpRepo(t);
+  const summary = path.join(root, "summary.md");
+  write(root, "summary.md", "");
+  const r = runCli(["verify"], { cwd: root, env: { GITHUB_STEP_SUMMARY: summary } });
+  assert.equal(r.code, 0);
+  assert.match(read(root, "summary.md"), /speclaw/);
+});
+
+test("verify --ci exits 1 when a seed graph law finds a cycle", { skip }, (t) => {
+  const root = tmpRepo(t);
+  write(
+    root,
+    "src/a.ts",
+    'import { b } from "./b.js";\nexport function a(): number {\n  return b();\n}\n',
+  );
+  write(
+    root,
+    "src/b.ts",
+    'import { a } from "./a.js";\nexport function b(): number {\n  return a();\n}\n',
+  );
+  const indexed = runCli(["index"], { cwd: root });
+  assert.equal(indexed.code, 0, indexed.stderr);
+  const r = runCli(["verify", "--ci"], { cwd: root });
+  assert.equal(r.code, 1);
+  assert.match(r.stdout + r.stderr, /law~no-module-cycles~1/);
 });

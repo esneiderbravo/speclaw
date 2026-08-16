@@ -1,6 +1,6 @@
 import { performance } from "node:perf_hooks";
 import { openDb, indexExists } from "../compass/db.js";
-import { Severity, hasBatchBackend, readLawManifest } from "./laws.js";
+import { Severity, hasBatchBackend, loadManifestForVerify } from "./laws.js";
 import { runDepsLaw } from "./deps.js";
 import { runGraphLaw } from "./graph.js";
 
@@ -86,10 +86,12 @@ export function underPaths(file: string, paths: string[] | undefined): boolean {
  * index and return a four-state report.
  *
  * When the project has no index, every selected batch law is reported as
- * `skipped` with reason `no-index` (never silently passed). Each evaluated law
- * lands in exactly one of `passed` / `failed` / `unknown`: it fails when the
- * engine produced a finding, is `unknown` when it produced none but rests on
- * unresolved edges (which could hide a violation), and passes otherwise.
+ * `skipped` with reason `no-index` (never silently passed). When the gitignored
+ * manifest file is missing, the shipped seed is used so a clean clone does not
+ * report an empty pass. Each evaluated law lands in exactly one of `passed` /
+ * `failed` / `unknown`: it fails when the engine produced a finding, is
+ * `unknown` when it produced none but rests on unresolved edges (which could
+ * hide a violation), and passes otherwise.
  *
  * @param args - The project, and optional `paths` / `engines` / `lawIds` filters.
  * @returns The {@link VerifyReport}.
@@ -117,8 +119,7 @@ export function verifyLaws(args: VerifyArgs): VerifyReport {
     elapsedMs: performance.now() - start,
   });
 
-  const manifest = readLawManifest(args.projectPath);
-  if (!manifest) return done();
+  const manifest = loadManifestForVerify(args.projectPath);
 
   const engines = args.engines;
   const selected = manifest.laws.filter((law) => {
