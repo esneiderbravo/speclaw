@@ -65,10 +65,10 @@ test("tool input schemas validate required fields", () => {
   assert.doesNotThrow(() => verify.parse({ projectPath: "/x", engines: ["deps", "graph"] }));
 });
 
-test("the law_verify description stays within the token-budget word ceiling", () => {
+test("the law_verify description stays within the word ceiling", () => {
   const verify = captureTools(registerFoundation).get("law_verify")!;
   const words = verify.config.description!.trim().split(/\s+/).length;
-  assert.ok(words <= 30, `law_verify description is ${words} words (must be ≤ 30)`);
+  assert.ok(words <= 25, `law_verify description is ${words} words (must be ≤ 25)`);
 });
 
 test("foundation handlers wrap their results as MCP text", async (t) => {

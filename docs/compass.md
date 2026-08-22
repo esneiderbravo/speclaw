@@ -42,6 +42,13 @@ a missing graph is not license to skip Compass. The only legitimate fallbacks
 to Grep/Read: a Compass call returned nothing useful for your query, or the
 target isn't indexed code (stylesheets, JSON/config, markdown, logs).
 
+<!-- speclaw:map:start -->
+speclaw · 116 files · 344 nodes
+src/ (63)  test/ (48)  scripts/ (4)  eslint.config.js/ (1)
+hubs: tmpRepo 158 · has 79 · write 67 · parse 41 · commit 38 · read 37 · runCli 31 · emptyReport 28 · openDb 26 · gitInit 26 · text 22 · specInit 22
+entry: src/server.ts (mcp) · src/cli/index.ts (bin)
+<!-- speclaw:map:end -->
+
 ## Project-specific starting points
 
 **Entrypoints**

@@ -1,7 +1,8 @@
 import path from "node:path";
 import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { text } from "../../shared/mcp.js";
+import { defineTool, text, type ToolSpec } from "../../shared/mcp.js";
+import { shouldExpose, type RegisterOpts } from "../../shared/exposure.js";
 import { assetsDir } from "../../shared/paths.js";
 import { copyRendered, CopyOpts, InstallReport } from "../../shared/install.js";
 import { specInit, specValidate, specSync, specArchive, specList } from "./engine.js";
@@ -31,70 +32,54 @@ export function installWorkflow(
   copyRendered(path.join(ASSETS, "rules"), path.join(aiSpecs, "rules"), vars, report, opts);
 }
 
-// ─── The spec module: speclaw's own spec-driven workflow (no external OpenSpec) ───
-// Mechanical operations behind the draft/build/sync/archive/explore commands.
-
 /** Register the spec workflow MCP tools (init, list, validate, sync, archive). */
-export function registerSpec(server: McpServer): void {
-  server.registerTool(
+export function registerSpec(server: McpServer, opts: RegisterOpts = {}): void {
+  const minimal = Boolean(opts.minimal);
+  const add = <Shape extends z.ZodRawShape>(
+    name: string,
+    description: string,
+    inputSchema: Shape,
+    handler: ToolSpec<Shape>["handler"],
+  ) => {
+    if (!shouldExpose(name, minimal)) return;
+    defineTool(server, { name, description, inputSchema, handler });
+  };
+
+  add(
     "lawbook_init",
-    {
-      description:
-        "Initialize speclaw's spec-driven workflow in a project: creates lawbook/ (specs/, changes/, changes/archive/, config.yaml, README). Idempotent — never overwrites existing files.",
-      inputSchema: { projectPath: z.string().describe("Absolute path to the project") },
-    },
+    "Create the lawbook/ workspace (specs, changes, archive, config). Idempotent.",
+    { projectPath: z.string() },
     async ({ projectPath }) => text(specInit(projectPath)),
   );
 
-  server.registerTool(
+  add(
     "lawbook_list",
-    {
-      description:
-        "List the spec workspace: active changes, archived changes, and canonical capabilities under spec/.",
-      inputSchema: { projectPath: z.string().describe("Absolute path to the project") },
-    },
+    "List active changes, archives, and canonical capabilities under lawbook/.",
+    { projectPath: z.string() },
     async ({ projectPath }) => text(specList(projectPath)),
   );
 
-  server.registerTool(
+  add(
     "lawbook_validate",
-    {
-      description:
-        "Validate a change's artifacts: proposal.md and tasks.md present, and delta specs use normative language (SHALL/MUST), '### Requirement:' headers, and '#### Scenario:' acceptance criteria. Returns the blocking issues to fix plus advisory (non-blocking) warnings — a capability name that resembles an existing canonical one, or requirements dropped versus the canonical. Used by the draft/build commands before proceeding.",
-      inputSchema: {
-        projectPath: z.string().describe("Absolute path to the project"),
-        change: z.string().describe("Change name (folder under lawbook/changes/)"),
-      },
-    },
+    "Validate a change's proposal, tasks, and delta specs before build or sync.",
+    { projectPath: z.string(), change: z.string() },
     async ({ projectPath, change }) => text(specValidate(projectPath, change)),
   );
 
-  server.registerTool(
+  add(
     "lawbook_sync",
-    {
-      description:
-        "Promote a change's delta specs into the canonical lawbook/specs/ (per capability), without archiving. Reports each promoted spec as created (new capability) or updated (overwrote an existing one). Backs the `sync` command.",
-      inputSchema: {
-        projectPath: z.string().describe("Absolute path to the project"),
-        change: z.string().describe("Change name (folder under lawbook/changes/)"),
-      },
-    },
+    "Promote a change's delta specs into canonical lawbook/specs/ without archiving.",
+    { projectPath: z.string(), change: z.string() },
     async ({ projectPath, change }) => text(specSync(projectPath, change)),
   );
 
-  server.registerTool(
+  add(
     "lawbook_archive",
+    "Sync a change into canonical specs, then move it under changes/archive/.",
     {
-      description:
-        "Finalize a change: sync its delta specs into lawbook/specs/, then move it to lawbook/changes/archive/<date>-<name>/. Backs the `archive` command. Pass today's date as YYYY-MM-DD.",
-      inputSchema: {
-        projectPath: z.string().describe("Absolute path to the project"),
-        change: z.string().describe("Change name (folder under lawbook/changes/)"),
-        date: z
-          .string()
-          .regex(/^\d{4}-\d{2}-\d{2}$/)
-          .describe("Today's date, YYYY-MM-DD"),
-      },
+      projectPath: z.string(),
+      change: z.string(),
+      date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
     },
     async ({ projectPath, change, date }) => text(specArchive(projectPath, change, date)),
   );
