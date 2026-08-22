@@ -139,7 +139,12 @@ export async function runUpdate(flags: Flags): Promise<void> {
       // Re-exec the NEWLY installed binary so migrations run with the new assets
       // and any new feature steps — not this (now-stale) process. Carry --backup
       // through so the refresh honors it after the upgrade.
-      const reArgs = ["update", "--migrate-only", ...(backup ? ["--backup"] : [])];
+      const reArgs = [
+        "update",
+        "--migrate-only",
+        ...(backup ? ["--backup"] : []),
+        ...(flags.minimal ? ["--minimal"] : []),
+      ];
       const re = spawnSync("speclaw", reArgs, {
         stdio: "inherit",
         shell: winShell,
@@ -157,7 +162,7 @@ export async function runUpdate(flags: Flags): Promise<void> {
     }
   }
 
-  applyProjectMigrations(cwd, backup);
+  applyProjectMigrations(cwd, backup, flags.minimal ? true : undefined);
 }
 
 /**
@@ -168,8 +173,10 @@ export async function runUpdate(flags: Flags): Promise<void> {
  * @param backup - When true, a locally edited managed file is copied to
  *   `<file>.bak` before it is refreshed; the default overwrites it in place
  *   (recoverable from git) and only reports the overwrite.
+ * @param minimal - When true, persist minimal exposure; when undefined, keep
+ *   the manifest's existing value.
  */
-function applyProjectMigrations(cwd: string, backup: boolean): void {
+function applyProjectMigrations(cwd: string, backup: boolean, minimal?: boolean): void {
   const initialized =
     fs.existsSync(path.join(cwd, "ai-specs")) || fs.existsSync(path.join(cwd, "LAWS.md"));
   if (!initialized) {
@@ -190,6 +197,7 @@ function applyProjectMigrations(cwd: string, backup: boolean): void {
   const report = scaffold(cwd, { project_name: detectProjectName(cwd) }, packs, agents, {
     refreshManaged: true,
     backup,
+    ...(minimal !== undefined ? { minimal } : {}),
   });
 
   const changed = report.written.filter((w) => !w.includes(".gitignore"));

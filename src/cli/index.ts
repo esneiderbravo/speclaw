@@ -12,7 +12,9 @@ Install globally so the command is always available:
 
 Setup
   init                     Interactive setup: pick agents, scaffold, index, get the prompt
+                           (--minimal omits setup/lifecycle MCP tools)
   update                   Upgrade speclaw and apply only what's new (no re-init)
+                           (--minimal persists minimal exposure; omit to keep prior)
   agent list               Show which agents are configured
   agent add <id>           Configure another agent later (symlinks + MCP)
 
@@ -35,6 +37,7 @@ Lawbook (spec-driven workflow)
 
 Other
   doctor                   Verify the installation
+  budget                   Measure always-on context cost (tools, skills, instructions)
   check                    Evaluate an action against the laws (hooks call this; --dry-run to preview)
   laws verify              Verify the deterministic dependency/graph laws against the index
   verify                   Verify laws for CI: exit codes, --sarif, --json, --strict-engines
@@ -57,6 +60,7 @@ const HEADER_COMMANDS = new Set<string | undefined>([
   "update",
   "agent",
   "doctor",
+  "budget",
   "index",
   "watch",
   "lawbook",
@@ -67,11 +71,12 @@ const HEADER_COMMANDS = new Set<string | undefined>([
  * header-eligible command AND stdout is an interactive terminal (so pipes,
  * redirection, and CI stay clean — mirroring the color gate in `ui.ts`). A
  * forced-color signal counts as interactive so the header is exercisable in a
- * child process.
+ * child process. `budget --json` is machine-consumed and suppresses the header.
  */
-function maybeHeader(cmd: string | undefined): void {
+function maybeHeader(cmd: string | undefined, flags: ReturnType<typeof parseFlags>): void {
   if (!process.stdout.isTTY && process.env.FORCE_COLOR !== "1") return;
   if (!HEADER_COMMANDS.has(cmd)) return;
+  if (cmd === "budget" && flags.json) return;
   header();
 }
 
@@ -118,6 +123,8 @@ async function dispatch(
       return (await import("./commands/lawbook.js")).runSpec(flags);
     case "doctor":
       return (await import("./commands/doctor.js")).runDoctor(flags);
+    case "budget":
+      return (await import("./commands/budget.js")).runBudget(flags);
     case "check":
       return (await import("./commands/check.js")).runCheck(flags);
     case "laws":
@@ -135,7 +142,7 @@ async function dispatch(
 async function main(): Promise<void> {
   const [cmd, ...rest] = process.argv.slice(2);
   const flags = parseFlags(rest);
-  maybeHeader(cmd);
+  maybeHeader(cmd, flags);
   await dispatch(cmd, flags);
   await maybeNotifyUpdate(cmd);
 }

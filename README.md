@@ -91,6 +91,30 @@ Compass is inspired by [CodeGraph](https://github.com/colbymchenry/codegraph) an
 
 <br/>
 
+## <img src="https://raw.githubusercontent.com/esneiderbravo/speclaw/main/brand/diamond.png" height="20" alt="◆" align="absmiddle">&nbsp; Context cost
+
+speclaw publishes and **gates** its own always-on context cost. Measured with a
+deterministic offline estimator (`speclaw/estimate-v1`, about ±8% vs Anthropic's
+tokenizer on this corpus — not a BPE dependency):
+
+| | Tokens |
+| :-- | --: |
+| **speclaw budget (always-on)** | **~11.7k** (budget ceiling **13.0k**) |
+| Spec Kit commands alone | ~18.6k ([spec-kit#1401](https://github.com/github/spec-kit/issues/1401)) |
+
+```bash
+speclaw budget          # human table
+speclaw budget --json   # machine-readable; used by the suite gate
+speclaw init --minimal  # omit setup/lifecycle MCP tools from registration
+```
+
+Raising a number in committed `token-budget.json` is a reviewable PR. Optional
+calibration (never CI): `npm run budget:calibrate` with `ANTHROPIC_API_KEY`.
+MCP servers cannot mark tools `defer_loading` — savings come from shorter
+definitions, omitted registration (`--minimal`), and JIT skill steps.
+
+<br/>
+
 ## <img src="https://raw.githubusercontent.com/esneiderbravo/speclaw/main/brand/diamond.png" height="20" alt="◆" align="absmiddle">&nbsp; The spec-driven workflow (Lawbook)
 
 Lawbook is speclaw's answer to the biggest risk with AI agents: **code that

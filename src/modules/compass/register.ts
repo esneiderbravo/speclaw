@@ -1,128 +1,99 @@
 import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { text } from "../../shared/mcp.js";
+import { defineTool, text, type ToolSpec } from "../../shared/mcp.js";
+import { shouldExpose, type RegisterOpts } from "../../shared/exposure.js";
 import { buildIndex } from "./indexer.js";
 import { explore, search, recall, impact, trace } from "./query.js";
 import { startWatch, stopWatch, watchStatus } from "./watcher.js";
 import { visualize } from "./visualize.js";
 
 // ─── Compass: speclaw's own code-intelligence engine (no external deps) ───
-// A local graph of the codebase (nodes = definitions, edges = calls/imports)
-// plus a local vector store for semantic recall. Lives in .speclaw/ (gitignored).
 
 /**
- * Register all Compass MCP tools (index, explore, search, recall, impact,
- * trace, watch) on the given server.
+ * Register Compass MCP tools on the given server.
  *
- * @param server - The MCP server to register the Compass tools on.
+ * @param server - The MCP server to register on.
+ * @param opts - Exposure options (`minimal` omits setup/specialized tools).
  */
-export function registerCompass(server: McpServer): void {
-  server.registerTool(
+export function registerCompass(server: McpServer, opts: RegisterOpts = {}): void {
+  const minimal = Boolean(opts.minimal);
+  const add = <Shape extends z.ZodRawShape>(
+    name: string,
+    description: string,
+    inputSchema: Shape,
+    handler: ToolSpec<Shape>["handler"],
+  ) => {
+    if (!shouldExpose(name, minimal)) return;
+    defineTool(server, { name, description, inputSchema, handler });
+  };
+
+  add(
     "compass_index",
-    {
-      description:
-        "Build or incrementally refresh the Compass — speclaw's local code graph (.speclaw/index.db). Parses TS/JS/Python with tree-sitter into nodes (definitions) and edges (calls/imports), and computes a local vector embedding per node for semantic recall. Files unchanged since the last run are skipped by content hash. Run once after init and whenever you want a fresh graph.",
-      inputSchema: { projectPath: z.string().describe("Absolute path to the project") },
-    },
+    "Build or refresh the local code graph index. Run once per project, then on demand.",
+    { projectPath: z.string() },
     async ({ projectPath }) => text(await buildIndex(projectPath)),
   );
 
-  server.registerTool(
+  add(
     "compass_explore",
-    {
-      description:
-        "Explore a node in the Compass: returns its verbatim source, location, callees, and resolved callers (blast radius). Use this BEFORE grep/read when locating or understanding code. Requires compass_index to have run.",
-      inputSchema: {
-        projectPath: z.string().describe("Absolute path to the project"),
-        node: z.string().describe("Exact node name to explore (function/class/method/type)"),
-      },
-    },
+    "Read a symbol's source plus callers and callees. Prefer this before grep or Read.",
+    { projectPath: z.string(), node: z.string() },
     async ({ projectPath, node }) => text(explore(projectPath, node)),
   );
 
-  server.registerTool(
+  add(
     "compass_search",
-    {
-      description:
-        "Structural search of the Compass: find nodes by name or keyword (substring match). Returns name, kind, and file:line per hit. Cheaper and more structural than grep. Requires compass_index to have run.",
-      inputSchema: {
-        projectPath: z.string().describe("Absolute path to the project"),
-        query: z.string().describe("Name or keyword to search for"),
-        limit: z.number().optional().describe("Max results (default 25)"),
-      },
-    },
+    "Find symbols by name or keyword (substring). Cheaper structural search than grep.",
+    { projectPath: z.string(), query: z.string(), limit: z.number().optional() },
     async ({ projectPath, query, limit }) => text(search(projectPath, query, limit ?? 25)),
   );
 
-  server.registerTool(
+  add(
     "compass_recall",
-    {
-      description:
-        "Semantic search of the Compass: describe what you're looking for in natural language ('where auth tokens are validated') and get the nodes ranked by meaning, using the local vector store — even when the identifier names don't contain your words. Requires compass_index to have run.",
-      inputSchema: {
-        projectPath: z.string().describe("Absolute path to the project"),
-        query: z.string().describe("Natural-language description of the code you want"),
-        limit: z.number().optional().describe("Max results (default 15)"),
-      },
-    },
+    "Find symbols by meaning via local embeddings. Use when names are unknown.",
+    { projectPath: z.string(), query: z.string(), limit: z.number().optional() },
     async ({ projectPath, query, limit }) => text(await recall(projectPath, query, limit ?? 15)),
   );
 
-  server.registerTool(
+  add(
     "compass_impact",
-    {
-      description:
-        "Blast radius: every node that transitively calls the target, up to a depth. Answers 'what could break if I change this?' before editing. Includes dynamic-dispatch callers (matched by name). Requires compass_index.",
-      inputSchema: {
-        projectPath: z.string().describe("Absolute path to the project"),
-        node: z.string().describe("Node name whose dependents you want"),
-        maxDepth: z.number().optional().describe("Max hops to traverse (default 4)"),
-      },
-    },
+    "List transitive callers of a symbol (blast radius) before editing.",
+    { projectPath: z.string(), node: z.string(), maxDepth: z.number().optional() },
     async ({ projectPath, node, maxDepth }) => text(impact(projectPath, node, maxDepth ?? 4)),
   );
 
-  server.registerTool(
+  add(
     "compass_trace",
+    "Find a call path between two symbols within a depth limit.",
     {
-      description:
-        "Trace a call path from one node to another: returns the chain of calls linking them (or null if none within depth). Useful to understand how an entrypoint reaches a sink. Requires compass_index.",
-      inputSchema: {
-        projectPath: z.string().describe("Absolute path to the project"),
-        from: z.string().describe("Starting node name"),
-        to: z.string().describe("Target node name"),
-        maxDepth: z.number().optional().describe("Max hops to search (default 8)"),
-      },
+      projectPath: z.string(),
+      from: z.string(),
+      to: z.string(),
+      maxDepth: z.number().optional(),
     },
     async ({ projectPath, from, to, maxDepth }) =>
       text(trace(projectPath, from, to, maxDepth ?? 8)),
   );
 
-  server.registerTool(
+  add(
     "compass_visualize",
+    "Write an offline HTML graph to .speclaw/graph.html for interactive exploration.",
     {
-      description:
-        "Generate an interactive, offline HTML visualization of the code graph into .speclaw/graph.html (gitignored). Nodes are definitions, edges are calls; drag/zoom/hover to explore. Pass a node to focus on its neighborhood, else the most-connected nodes are shown. Requires compass_index.",
-      inputSchema: {
-        projectPath: z.string().describe("Absolute path to the project"),
-        node: z.string().optional().describe("Focus on this node's neighborhood (optional)"),
-        depth: z.number().optional().describe("BFS depth around the focus node (default 2)"),
-        limit: z.number().optional().describe("Max nodes for the whole-graph view (default 300)"),
-      },
+      projectPath: z.string(),
+      node: z.string().optional(),
+      depth: z.number().optional(),
+      limit: z.number().optional(),
     },
     async ({ projectPath, node, depth, limit }) =>
       text(visualize(projectPath, { focus: node, depth, limit })),
   );
 
-  server.registerTool(
+  add(
     "compass_watch",
+    "Start, stop, or status a debounced file watcher that re-indexes on change.",
     {
-      description:
-        "Keep the Compass index fresh automatically: start/stop a file watcher that incrementally re-indexes on change (debounced). action=start|stop|status. Optional — the index is also refreshed on demand by compass_index.",
-      inputSchema: {
-        projectPath: z.string().describe("Absolute path to the project"),
-        action: z.enum(["start", "stop", "status"]).describe("start, stop, or status"),
-      },
+      projectPath: z.string(),
+      action: z.enum(["start", "stop", "status"]),
     },
     async ({ projectPath, action }) => {
       const result =
