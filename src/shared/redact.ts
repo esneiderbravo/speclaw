@@ -2,6 +2,33 @@ import os from "node:os";
 import path from "node:path";
 
 /**
+ * Replace every occurrence of `from` that sits on a path boundary (not as a
+ * substring of a longer path). Prevents `/home/runner` from mangling
+ * `/opt/home/runner/...` into `/opt~/...` on GitHub Actions.
+ */
+function replacePathToken(text: string, from: string, to: string): string {
+  if (!from || from.length < 2) return text;
+  let out = text;
+  let idx = 0;
+  while ((idx = out.indexOf(from, idx)) !== -1) {
+    const before = idx === 0 ? "" : out[idx - 1]!;
+    const afterIdx = idx + from.length;
+    const after = afterIdx >= out.length ? "" : out[afterIdx]!;
+    // Preceding char must not continue a path segment (blocks /opt + /home/…).
+    const beforeOk = idx === 0 || !/[A-Za-z0-9._-]/.test(before);
+    // Following char must end the token or continue as a separator.
+    const afterOk = after === "" || after === "/" || after === "\\" || /[\s'",):]/.test(after);
+    if (beforeOk && afterOk) {
+      out = out.slice(0, idx) + to + out.slice(afterIdx);
+      idx += to.length;
+    } else {
+      idx += 1;
+    }
+  }
+  return out;
+}
+
+/**
  * Redact absolute paths and usernames so a doctor report is safe to paste into
  * a public issue. Home becomes `~`, the project root becomes `<project>`, and
  * OS usernames are scrubbed from path segments.
@@ -24,19 +51,16 @@ export function redactText(text: string, projectPath: string): string {
   push(projectPath.replace(/\//g, "\\"), "<project>");
   push(home, "~");
   push(home.replace(/\//g, "\\"), "~");
-  // Windows-style home without drive letter variants
   push(`C:\\Users\\${user}`, "~");
   push(`c:\\Users\\${user}`, "~");
 
-  // Longest first so nested prefixes don't leave residues.
   replacements.sort((a, b) => b[0].length - a[0].length);
   for (const [from, to] of replacements) {
-    out = out.split(from).join(to);
-    if (from.includes("\\")) out = out.split(from.replace(/\\/g, "/")).join(to);
+    out = replacePathToken(out, from, to);
+    if (from.includes("\\")) out = replacePathToken(out, from.replace(/\\/g, "/"), to);
   }
 
   if (user && user.length > 1) {
-    // Path segment scrub — avoid eating the username inside unrelated words.
     const seg = new RegExp(`(^|[/\\\\])${escapeRegExp(user)}(?=[/\\\\]|$)`, "gi");
     out = out.replace(seg, `$1<user>`);
   }
