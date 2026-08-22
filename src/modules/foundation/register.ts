@@ -1,6 +1,7 @@
 import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { text } from "../../shared/mcp.js";
+import { defineTool, text, type ToolSpec } from "../../shared/mcp.js";
+import { shouldExpose, type RegisterOpts } from "../../shared/exposure.js";
 import { scaffold } from "./scaffold.js";
 import { doctor } from "./doctor.js";
 import { checkAction, CheckEvent } from "./check.js";
@@ -9,98 +10,67 @@ import { loadPacks } from "../tools/packs.js";
 import { AGENTS, configureAgent } from "../../shared/agents.js";
 import { emptyReport } from "../../shared/install.js";
 
-const profileShape = {
-  project_name: z.string().describe("Short project name, e.g. the repo name"),
-  project_description: z
-    .string()
-    .optional()
-    .describe("One-line description of what the project does"),
-  organization: z.string().optional().describe("Company/team name"),
-  stack_summary: z
-    .string()
-    .optional()
-    .describe("e.g. 'Next.js 15 + TypeScript frontend, FastAPI + PostgreSQL backend'"),
-  architecture: z
-    .string()
-    .optional()
-    .describe("e.g. 'hexagonal architecture with bounded contexts'"),
-  test_commands: z
-    .string()
-    .optional()
-    .describe("Real commands, e.g. 'pytest backend/tests && npm run test'"),
-  lint_commands: z
-    .string()
-    .optional()
-    .describe("Real commands, e.g. 'ruff check . && npm run lint && tsc --noEmit'"),
-  branch_pattern: z.string().optional().describe("e.g. 'feature/<ticket-id>-<slug>'"),
-  commit_style: z.string().optional().describe("e.g. 'conventional commits, imperative, English'"),
-  custom_laws: z
-    .string()
-    .optional()
-    .describe(
-      "Extra markdown appended to LAWS.md — project-specific binding rules the analysis surfaced",
-    ),
-  compass_hints: z
-    .string()
-    .optional()
-    .describe(
-      "Markdown bullets with the repo's real entrypoints and common traces, inserted into docs/compass.md",
-    ),
-  base_standards_extra: z
-    .string()
-    .optional()
-    .describe(
-      "Markdown with any project-specific cross-cutting rules, appended to docs/standards/base-standards.md",
-    ),
-  modules_table: z
-    .string()
-    .optional()
-    .describe(
-      "Markdown table of the repo's real modules/bounded contexts + one-line responsibility, for docs/standards/architecture.md",
-    ),
-  layering_rules: z
-    .string()
-    .optional()
-    .describe(
-      "Markdown describing the layers and their allowed dependencies, for docs/standards/architecture.md",
-    ),
-  backend_layers: z
-    .string()
-    .optional()
-    .describe(
-      "Markdown layer table (Layer | File | Responsibility) from the real backend, for docs/standards/backend-standards.md",
-    ),
-  frontend_layers: z
-    .string()
-    .optional()
-    .describe(
-      "Markdown layer table from the real frontend, for docs/standards/frontend-standards.md",
-    ),
-  versioning_rules: z
-    .string()
-    .optional()
-    .describe("The repo's versioning/release convention, for docs/standards/conventions.md"),
-  documentation_extra: z
-    .string()
-    .optional()
-    .describe(
-      "Repo-specific docstring notes (keep only the languages used, the enforced linter), appended to docs/standards/documentation.md",
-    ),
+/** Human help text for init_project's questionnaire (not embedded in MCP schemas). */
+const profileFieldHelp: Record<string, string> = {
+  project_name: "Short project name, e.g. the repo name",
+  project_description: "One-line description of what the project does",
+  organization: "Company/team name",
+  stack_summary: "e.g. 'Next.js 15 + TypeScript frontend, FastAPI + PostgreSQL backend'",
+  architecture: "e.g. 'hexagonal architecture with bounded contexts'",
+  test_commands: "Real commands, e.g. 'pytest backend/tests && npm run test'",
+  lint_commands: "Real commands, e.g. 'ruff check . && npm run lint && tsc --noEmit'",
+  branch_pattern: "e.g. 'feature/<ticket-id>-<slug>'",
+  commit_style: "e.g. 'conventional commits, imperative, English'",
+  custom_laws: "Extra markdown for LAWS.md — project-specific binding rules",
+  compass_hints: "Markdown bullets with real entrypoints for docs/compass.md",
+  base_standards_extra: "Extra cross-cutting rules for base-standards.md",
+  modules_table: "Markdown table of modules/bounded contexts",
+  layering_rules: "Layers and allowed dependencies for architecture.md",
+  backend_layers: "Backend layer table for backend-standards.md",
+  frontend_layers: "Frontend layer table for frontend-standards.md",
+  versioning_rules: "Versioning/release convention for conventions.md",
+  documentation_extra: "Repo-specific docstring notes for documentation.md",
 };
 
-// ─── The foundation module: analyze the repo, then write the constitution ───
+/** Lean Zod shape for scaffold — no .describe() text (that cost rides in every request). */
+const profileShape = {
+  project_name: z.string(),
+  project_description: z.string().optional(),
+  organization: z.string().optional(),
+  stack_summary: z.string().optional(),
+  architecture: z.string().optional(),
+  test_commands: z.string().optional(),
+  lint_commands: z.string().optional(),
+  branch_pattern: z.string().optional(),
+  commit_style: z.string().optional(),
+  custom_laws: z.string().optional(),
+  compass_hints: z.string().optional(),
+  base_standards_extra: z.string().optional(),
+  modules_table: z.string().optional(),
+  layering_rules: z.string().optional(),
+  backend_layers: z.string().optional(),
+  frontend_layers: z.string().optional(),
+  versioning_rules: z.string().optional(),
+  documentation_extra: z.string().optional(),
+};
 
-/** Register the foundation MCP tools (init_project, scaffold, configure_agent, doctor). */
-export function registerFoundation(server: McpServer): void {
-  server.registerTool(
+/** Register foundation MCP tools. */
+export function registerFoundation(server: McpServer, opts: RegisterOpts = {}): void {
+  const minimal = Boolean(opts.minimal);
+  const add = <Shape extends z.ZodRawShape>(
+    name: string,
+    description: string,
+    inputSchema: Shape,
+    handler: ToolSpec<Shape>["handler"],
+  ) => {
+    if (!shouldExpose(name, minimal)) return;
+    defineTool(server, { name, description, inputSchema, handler });
+  };
+
+  add(
     "init_project",
-    {
-      description:
-        "START HERE to initialize speclaw in a project. Returns the analysis questionnaire the agent must answer by reading the target repo, plus the available skill packs. Do NOT guess answers — investigate the codebase (package.json, pyproject.toml, CI config, existing docs) and confirm the pack selection with the user before calling scaffold.",
-      inputSchema: {
-        projectPath: z.string().describe("Absolute path to the project to initialize"),
-      },
-    },
+    "Start here to initialize speclaw: returns the analysis questionnaire and packs.",
+    { projectPath: z.string() },
     async () => {
       const packs = loadPacks();
       return text({
@@ -113,46 +83,31 @@ export function registerFoundation(server: McpServer): void {
           "6. Call the 'scaffold' tool with { projectPath, profile, packs }.",
           "7. Follow the nextSteps returned by scaffold: complete the HTML-comment sections still left in docs/standards/*, then run the lawbook_init and compass_index tools (both built into speclaw — no external installs).",
         ],
-        profileFields: Object.fromEntries(
-          Object.entries(profileShape).map(([key, schema]) => [key, schema.description ?? ""]),
-        ),
+        profileFields: profileFieldHelp,
         packs,
       });
     },
   );
 
-  server.registerTool(
+  add(
     "scaffold",
+    "Write foundation, lawbook workflow, packs, IDE symlinks, and .mcp.json. Never overwrites.",
     {
-      description:
-        "Write the speclaw setup into a project: the foundation (LAWS.md constitution + granular docs/standards/* + CLAUDE.md + AGENTS.md + docs/compass.md), the lawbook workflow (always), the selected tool packs, multi-IDE symlinks (.claude/.cursor/.codex/.agents), .mcp.json wiring for speclaw, and .gitignore for .speclaw/. Never overwrites existing files. Call init_project first.",
-      inputSchema: {
-        projectPath: z.string().describe("Absolute path to the project"),
-        profile: z.object(profileShape).describe("Project profile gathered by analyzing the repo"),
-        packs: z.array(z.string()).describe("Optional tool pack names (quality, workflow, agents)"),
-        agents: z
-          .array(z.string())
-          .optional()
-          .describe(
-            `Agent ids to configure (symlinks + MCP): ${AGENTS.map((a) => a.id).join(", ")}. Usually the CLI handles this; omit to write content only.`,
-          ),
-      },
+      projectPath: z.string(),
+      profile: z.object(profileShape),
+      packs: z.array(z.string()),
+      agents: z.array(z.string()).optional(),
     },
     async ({ projectPath, profile, packs, agents }) =>
       text(scaffold(projectPath, profile, packs, agents ?? [])),
   );
 
-  server.registerTool(
+  add(
     "configure_agent",
+    "Add one agent's IDE symlinks and MCP config to an already-scaffolded project.",
     {
-      description:
-        "Configure one agent's integration in an already-scaffolded project: create its IDE symlinks into ai-specs and register the speclaw MCP server in its config. Re-runnable; add agents one at a time.",
-      inputSchema: {
-        projectPath: z.string().describe("Absolute path to the project"),
-        agent: z
-          .enum(AGENTS.map((a) => a.id) as [string, ...string[]])
-          .describe("Agent id to configure"),
-      },
+      projectPath: z.string(),
+      agent: z.enum(AGENTS.map((a) => a.id) as [string, ...string[]]),
     },
     async ({ projectPath, agent }) => {
       const report = emptyReport();
@@ -161,42 +116,27 @@ export function registerFoundation(server: McpServer): void {
     },
   );
 
-  server.registerTool(
+  add(
     "speclaw_check",
+    "Invoked by speclaw's hooks to enforce laws — do not call directly.",
     {
-      // ≤12 words: this is invoked by speclaw's hooks, never called directly.
-      description: "Invoked by speclaw's hooks to enforce laws — do not call directly.",
-      inputSchema: {
-        projectPath: z.string().describe("Absolute path to the project"),
-        event: z
-          .enum(["PreToolUse", "PostToolUse", "Stop", "InstructionsLoaded"])
-          .describe("The hook event that fired"),
-        toolName: z.string().optional().describe("The tool the agent is invoking, when relevant"),
-        payload: z.record(z.unknown()).describe("The raw hook event payload from the agent"),
-      },
+      projectPath: z.string(),
+      event: z.enum(["PreToolUse", "PostToolUse", "Stop", "InstructionsLoaded"]),
+      toolName: z.string().optional(),
+      payload: z.record(z.unknown()),
     },
     async ({ projectPath, event, toolName, payload }) =>
       text(checkAction({ projectPath, event: event as CheckEvent, toolName, payload })),
   );
 
-  server.registerTool(
+  add(
     "law_verify",
+    "Verify deterministic deps/graph laws and return violations by file.",
     {
-      // ≤30 words: the batch counterpart to speclaw_check, for the Stop hook and CI.
-      description:
-        "Verify the project's deterministic laws (dependency and graph rules) and return violations by file. Run before claiming an architecture task done.",
-      inputSchema: {
-        projectPath: z.string().describe("Absolute path to the project"),
-        paths: z
-          .array(z.string())
-          .optional()
-          .describe("Restrict to source files under these project-relative paths"),
-        engines: z
-          .array(z.enum(["deps", "graph"]))
-          .optional()
-          .describe("Which batch engines to run; omit for all"),
-        lawIds: z.array(z.string()).optional().describe("Restrict to these law ids"),
-      },
+      projectPath: z.string(),
+      paths: z.array(z.string()).optional(),
+      engines: z.array(z.enum(["deps", "graph"])).optional(),
+      lawIds: z.array(z.string()).optional(),
     },
     async ({ projectPath, paths, engines, lawIds }) =>
       text(
@@ -204,13 +144,10 @@ export function registerFoundation(server: McpServer): void {
       ),
   );
 
-  server.registerTool(
+  add(
     "doctor",
-    {
-      description:
-        "Verify a speclaw installation: ai-specs presence, the foundation (LAWS.md + standards + agent contracts), IDE symlinks health, the lawbook/ workflow, the Compass index, and .mcp.json wiring. Returns a checklist with remediation hints.",
-      inputSchema: { projectPath: z.string().describe("Absolute path to the project") },
-    },
+    "Verify the speclaw install: foundation, symlinks, lawbook, Compass, and MCP wiring.",
+    { projectPath: z.string() },
     async ({ projectPath }) => {
       const checks = doctor(projectPath);
       const failed = checks.filter((c) => !c.ok);

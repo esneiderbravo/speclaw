@@ -10,6 +10,7 @@ const SKIP_DIRS = new Set([
   ".git",
   "node_modules",
   "dist",
+  "dist-test",
   "build",
   ".next",
   "out",
@@ -222,5 +223,14 @@ export async function buildIndex(
   } finally {
     db.close();
   }
+
+  // Compact map in committed docs/compass.md (between markers) — zero tool-call cost.
+  try {
+    const { writeCompactMap } = await import("./map.js");
+    writeCompactMap(projectPath);
+  } catch {
+    // Map generation must never fail an index run.
+  }
+
   return stats;
 }

@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "estimator": "speclaw/estimate-v1",
+  "surfaces": {
+    "tools": 3000,
+    "skillsAndCommands": 2800,
+    "alwaysOnInstructions": 7500
+  },
+  "total": 13000,
+  "perTool": 600,
+  "maxDescriptionWords": 25,
+  "dispatcher": 500,
+  "map": 300,
+  "minimal": {
+    "tools": 1200,
+    "total": 11000
+  },
+  "note": "Raising any number here requires justification in the PR description. Measured baseline (full): ~11.7k always-on; Spec Kit commands alone ~18.6k."
+}

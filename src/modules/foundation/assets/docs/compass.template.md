@@ -42,6 +42,9 @@ a missing graph is not license to skip Compass. The only legitimate fallbacks
 to Grep/Read: a Compass call returned nothing useful for your query, or the
 target isn't indexed code (stylesheets, JSON/config, markdown, logs).
 
+<!-- speclaw:map:start -->
+<!-- speclaw:map:end -->
+
 ## Project-specific starting points
 
 <!-- Filled in during speclaw init: the project's real entrypoints, core

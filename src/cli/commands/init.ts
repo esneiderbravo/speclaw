@@ -105,7 +105,9 @@ export async function runInit(flags: Flags): Promise<void> {
       "speclaw is already set up here — your existing files are kept; only missing pieces are added.",
     );
   }
-  const report = scaffold(cwd, profile, packs, agents);
+  const report = scaffold(cwd, profile, packs, agents, {
+    minimal: Boolean(flags.minimal),
+  });
   ui.ok(`Foundation ${c.muted("— LAWS.md + 8 standards + CLAUDE.md/AGENTS.md")}`);
   ui.ok(`Lawbook workflow ${c.muted("— draft · build · sync · archive · explore")}`);
   for (const p of packs) ui.ok(`${PACK_LABELS[p] ?? p + " pack"}`);

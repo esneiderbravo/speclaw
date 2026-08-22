@@ -7,7 +7,7 @@ import prettier from "eslint-config-prettier";
 import globals from "globals";
 
 export default tseslint.config(
-  { ignores: ["dist/**", "node_modules/**", ".speclaw/**", "brand/**"] },
+  { ignores: ["dist/**", "dist-test/**", "node_modules/**", ".speclaw/**", "brand/**"] },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {
