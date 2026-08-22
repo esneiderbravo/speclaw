@@ -146,19 +146,11 @@ export function registerFoundation(server: McpServer, opts: RegisterOpts = {}): 
 
   add(
     "doctor",
-    "Verify the speclaw install: foundation, symlinks, lawbook, Compass, and MCP wiring.",
+    "Verify the speclaw install; returns a versioned DoctorReport (schemaVersion 1).",
     { projectPath: z.string() },
     async ({ projectPath }) => {
-      const checks = doctor(projectPath);
-      const failed = checks.filter((c) => !c.ok);
-      return text({
-        healthy: failed.length === 0,
-        checks,
-        summary:
-          failed.length === 0
-            ? "Everything is within the law."
-            : `${failed.length} check(s) failed — see details.`,
-      });
+      const report = await doctor(projectPath, { redact: true });
+      return text(report);
     },
   );
 }

@@ -13,6 +13,39 @@ welcome. Please read this before opening a pull request.
 - The maintainer has final say on what is merged. Not every PR will be
   accepted, and that's okay: scope and direction are curated on purpose.
 
+## Stable install one-liner (do not break)
+
+The primary documented install command is:
+
+```bash
+npx @esneiderbravo/speclaw@latest init
+```
+
+This string is a **frozen contract**. Third-party directories and newsletters
+copy it and never update. It MUST keep working; if a new install path is ever
+needed, the old one-liner MUST continue to work (and MAY print a notice). Do
+not invent alternate first-line install commands in the README.
+
+## Trusted publishing (maintainers)
+
+Releases publish via npm **Trusted Publishing (OIDC)** from
+`.github/workflows/publish.yml` when `package.json` version changes on `main`.
+There is no long-lived `NPM_TOKEN` in CI.
+
+1. On npmjs.com → package settings → **Trusted Publisher**: repository
+   `esneiderbravo/speclaw`, workflow `publish.yml`.
+2. After OIDC publish works, **revoke any classic npm tokens** that could still
+   publish the package — a leftover token defeats the model.
+3. Anyone can verify a release:
+
+   ```bash
+   npm audit signatures
+   gh attestation verify <tarball> --owner esneiderbravo
+   ```
+
+Roadmap pieces that ship product behavior MUST bump `package.json` (and the
+lockfile) in the same PR so auto-publish runs.
+
 ## How to propose a change
 
 1. **Fork** the repository and create a branch from `main`.
@@ -21,6 +54,7 @@ welcome. Please read this before opening a pull request.
    ```bash
    npm ci
    npm run build
+   npm test
    ```
 4. **Open a pull request** describing *what* changed and *why*. Link any
    related issue.
@@ -34,8 +68,10 @@ welcome. Please read this before opening a pull request.
 
 ## Reporting issues
 
-Open a GitHub issue with steps to reproduce. For anything security-sensitive,
-please **do not** open a public issue — contact the maintainer directly.
+Open a GitHub issue with the **Bug report** template. Paste
+`speclaw doctor --json` (required; redacted by default). For anything
+security-sensitive, please **do not** open a public issue — contact the
+maintainer directly.
 
 ## License
 

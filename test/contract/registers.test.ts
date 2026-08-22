@@ -90,7 +90,7 @@ test("foundation handlers wrap their results as MCP text", async (t) => {
 
   const health = await tools.get("doctor")!.handler({ projectPath: root });
   assert.ok(isTextResult(health));
-  assert.match((health as { content: { text: string }[] }).content[0]!.text, /"healthy"/);
+  assert.match((health as { content: { text: string }[] }).content[0]!.text, /"schemaVersion"/);
 
   const checked = await tools
     .get("speclaw_check")!
