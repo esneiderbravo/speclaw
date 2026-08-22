@@ -167,7 +167,7 @@ export function scaffold(
   profile: Profile,
   packNames: string[],
   agents: string[] = [],
-  opts: { refreshManaged?: boolean; backup?: boolean } = {},
+  opts: { refreshManaged?: boolean; backup?: boolean; minimal?: boolean } = {},
 ): ScaffoldReport {
   if (!fs.existsSync(projectPath)) {
     throw new Error(`projectPath does not exist: ${projectPath}`);
@@ -221,7 +221,13 @@ export function scaffold(
   // Record what was installed so `speclaw update` can re-apply these packs and
   // gate feature migrations by version, plus the managed-file baselines that let
   // a later update tell user edits from stale files.
-  writeManifest(projectPath, pkgVersion(), packNames, record);
+  writeManifest(
+    projectPath,
+    pkgVersion(),
+    packNames,
+    record,
+    opts.minimal !== undefined ? { minimal: opts.minimal } : {},
+  );
 
   report.nextSteps = [
     "Run the `lawbook_init` tool to set up the spec-driven workflow (creates lawbook/). No external CLI needed — it's built into speclaw.",

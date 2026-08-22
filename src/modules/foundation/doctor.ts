@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { AGENTS, agentById, detectConfiguredAgents } from "../../shared/agents.js";
+import { isMinimalMode } from "../../shared/exposure.js";
 import { globError, hasBackend, hasBatchBackend, readLawManifest } from "./laws.js";
 
 /** A single health-check line with a pass/fail verdict and remediation hint. */
@@ -117,6 +118,15 @@ export function doctor(projectPath: string): Check[] {
   });
 
   lawEnforcementChecks(projectPath, checks);
+
+  const minimal = isMinimalMode(projectPath);
+  checks.push({
+    name: "exposure profile",
+    ok: true,
+    detail: minimal
+      ? "minimal — setup/lifecycle MCP tools are omitted from registration"
+      : "full — all MCP tools registered (no server-side defer_loading)",
+  });
 
   return checks;
 }

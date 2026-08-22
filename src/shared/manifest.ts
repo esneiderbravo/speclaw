@@ -18,6 +18,11 @@ export interface Manifest {
    * it" (safe to overwrite silently) from "the user edited it" (back up first).
    */
   baselines: Record<string, string>;
+  /**
+   * When true, the MCP server omits setup/lifecycle tools (minimal exposure).
+   * Persists across `update` unless explicitly changed.
+   */
+  minimal?: boolean;
 }
 
 function manifestPath(projectPath: string): string {
@@ -40,10 +45,16 @@ export function readManifest(projectPath: string): Manifest | null {
         m.baselines && typeof m.baselines === "object"
           ? (m.baselines as Record<string, string>)
           : {},
+      minimal: Boolean(m.minimal),
     };
   } catch {
     return null;
   }
+}
+
+export interface WriteManifestOpts {
+  /** When set, updates the minimal flag; when omitted, preserves the previous value. */
+  minimal?: boolean;
 }
 
 /**
@@ -54,20 +65,26 @@ export function readManifest(projectPath: string): Manifest | null {
  * @param version - The speclaw version doing the write.
  * @param packs - Pack names installed in this run.
  * @param baselines - Managed-file hashes to merge over the recorded ones.
+ * @param opts - Optional `minimal` flag; omitted keeps the prior value (default false).
  */
 export function writeManifest(
   projectPath: string,
   version: string,
   packs: string[],
   baselines: Record<string, string> = {},
+  opts: WriteManifestOpts = {},
 ): void {
   const prev = readManifest(projectPath);
   const merged = Array.from(new Set([...(prev?.packs ?? []), ...packs]));
   const mergedBaselines = { ...(prev?.baselines ?? {}), ...baselines };
+  const minimal = opts.minimal !== undefined ? opts.minimal : (prev?.minimal ?? false);
   const p = manifestPath(projectPath);
   fs.mkdirSync(path.dirname(p), { recursive: true });
-  fs.writeFileSync(
-    p,
-    JSON.stringify({ version, packs: merged, baselines: mergedBaselines }, null, 2) + "\n",
-  );
+  const body: Manifest = {
+    version,
+    packs: merged,
+    baselines: mergedBaselines,
+    ...(minimal ? { minimal: true } : {}),
+  };
+  fs.writeFileSync(p, JSON.stringify(body, null, 2) + "\n");
 }
