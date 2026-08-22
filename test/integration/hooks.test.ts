@@ -77,7 +77,7 @@ test("a real PreToolUse payload against the scaffolded manifest is blocked", (t)
   assert.match(r.reason ?? "", /law~no-secrets-in-repo~1/);
 });
 
-test("InstructionsLoaded end-to-end records coverage and doctor reports it", (t) => {
+test("InstructionsLoaded end-to-end records coverage and doctor reports it", async (t) => {
   const root = tmpRepo(t);
   scaffold(root, sampleProfile(), [], ["claude"]);
   clearLawCache();
@@ -85,21 +85,20 @@ test("InstructionsLoaded end-to-end records coverage and doctor reports it", (t)
   checkAction({ projectPath: root, event: "InstructionsLoaded", payload: { file: "LAWS.md" } });
   assert.ok(has(root, ".speclaw/context-log.jsonl"));
 
-  const checks = doctor(root);
-  const coverage = checks.find((c) => c.name === "law context coverage")!;
-  assert.match(coverage.detail, /of \d+ laws loaded/);
-  assert.match(coverage.detail, /after a compact/);
+  const report = await doctor(root, { offline: true });
+  const compact = report.sections.flatMap((s) => s.checks).find((c) => c.id === "notes.compact")!;
+  assert.match(compact.detail ?? "", /laws seen in context-log|of \d+ laws/i);
+  assert.match(compact.detail ?? "", /paths:/);
 
-  const cursorless = checks.find((c) => c.name === "law manifest")!;
-  assert.match(cursorless.detail, /law\(s\)/);
+  const laws = report.sections.flatMap((s) => s.checks).find((c) => c.id === "cfg.laws")!;
+  assert.match(laws.detail ?? "", /declared|path/i);
 });
 
-test("doctor flags an agent without hook support as asymmetric", (t) => {
+test("doctor flags an agent without hook support as asymmetric", async (t) => {
   const root = tmpRepo(t);
   scaffold(root, sampleProfile(), [], ["claude", "cursor"]);
-  const checks = doctor(root);
-  const asym = checks.find((c) => c.name === "hook coverage across agents");
-  assert.ok(asym, "expected an asymmetry check");
-  assert.match(asym!.detail, /Cursor/);
-  assert.match(asym!.detail, /speclaw verify/);
+  const report = await doctor(root, { offline: true });
+  const caps = report.sections.flatMap((s) => s.checks).find((c) => c.id === "notes.capabilities")!;
+  assert.match(caps.detail ?? "", /cursor: hooks=no/);
+  assert.match(caps.detail ?? "", /claude: hooks=yes/);
 });

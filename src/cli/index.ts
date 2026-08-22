@@ -36,8 +36,9 @@ Lawbook (spec-driven workflow)
   lawbook archive <c>      Finalize and archive a change
 
 Other
-  doctor                   Verify the installation
+  doctor                   Verify the installation (--json, --offline, --strict)
   budget                   Measure always-on context cost (tools, skills, instructions)
+  telemetry status         Confirm speclaw ships no telemetry
   check                    Evaluate an action against the laws (hooks call this; --dry-run to preview)
   laws verify              Verify the deterministic dependency/graph laws against the index
   verify                   Verify laws for CI: exit codes, --sarif, --json, --strict-engines
@@ -61,6 +62,7 @@ const HEADER_COMMANDS = new Set<string | undefined>([
   "agent",
   "doctor",
   "budget",
+  "telemetry",
   "index",
   "watch",
   "lawbook",
@@ -71,12 +73,14 @@ const HEADER_COMMANDS = new Set<string | undefined>([
  * header-eligible command AND stdout is an interactive terminal (so pipes,
  * redirection, and CI stay clean — mirroring the color gate in `ui.ts`). A
  * forced-color signal counts as interactive so the header is exercisable in a
- * child process. `budget --json` is machine-consumed and suppresses the header.
+ * child process. `budget --json` and `doctor --json` are machine-consumed and
+ * suppress the header.
  */
 function maybeHeader(cmd: string | undefined, flags: ReturnType<typeof parseFlags>): void {
   if (!process.stdout.isTTY && process.env.FORCE_COLOR !== "1") return;
   if (!HEADER_COMMANDS.has(cmd)) return;
   if (cmd === "budget" && flags.json) return;
+  if (cmd === "doctor" && flags.json) return;
   header();
 }
 
@@ -125,6 +129,8 @@ async function dispatch(
       return (await import("./commands/doctor.js")).runDoctor(flags);
     case "budget":
       return (await import("./commands/budget.js")).runBudget(flags);
+    case "telemetry":
+      return (await import("./commands/telemetry.js")).runTelemetry(flags);
     case "check":
       return (await import("./commands/check.js")).runCheck(flags);
     case "laws":

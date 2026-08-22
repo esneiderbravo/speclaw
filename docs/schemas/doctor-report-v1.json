@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/esneiderbravo/speclaw/docs/schemas/doctor-report-v1.json",
+  "title": "DoctorReport",
+  "type": "object",
+  "required": ["schemaVersion", "generatedAt", "speclaw", "status", "redacted", "sections"],
+  "additionalProperties": false,
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "generatedAt": { "type": "string", "format": "date-time" },
+    "speclaw": {
+      "type": "object",
+      "required": ["version", "mode", "installKind"],
+      "additionalProperties": false,
+      "properties": {
+        "version": { "type": "string" },
+        "mode": { "enum": ["full", "minimal"] },
+        "installKind": { "enum": ["npx", "local", "global", "unknown"] }
+      }
+    },
+    "status": { "enum": ["ok", "warn", "error", "skip"] },
+    "redacted": { "type": "boolean" },
+    "sections": {
+      "type": "array",
+      "minItems": 5,
+      "maxItems": 5,
+      "items": {
+        "type": "object",
+        "required": ["id", "status", "checks"],
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "enum": ["environment", "configuration", "authentication", "connectivity", "notes"]
+          },
+          "status": { "enum": ["ok", "warn", "error", "skip"] },
+          "checks": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["id", "title", "status"],
+              "additionalProperties": false,
+              "properties": {
+                "id": { "type": "string" },
+                "title": { "type": "string" },
+                "status": { "enum": ["ok", "warn", "error", "skip"] },
+                "value": {
+                  "type": ["string", "number", "boolean", "null"]
+                },
+                "detail": { "type": "string" },
+                "remedy": { "type": "string" },
+                "docs": { "type": "string" }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

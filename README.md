@@ -5,6 +5,8 @@
 <br/>
 
 <a href="https://www.npmjs.com/package/@esneiderbravo/speclaw"><img src="https://img.shields.io/npm/v/@esneiderbravo/speclaw?color=0E8E8E&labelColor=0B0F10&style=flat-square&label=npm" alt="npm"></a>
+&nbsp;<a href="https://github.com/esneiderbravo/speclaw/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/esneiderbravo/speclaw/ci.yml?branch=main&label=CI&labelColor=0B0F10&style=flat-square&color=0E8E8E" alt="CI"></a>
+&nbsp;<a href="https://www.npmjs.com/package/@esneiderbravo/speclaw?activeTab=versions"><img src="https://img.shields.io/badge/provenance-SLSA-0E8E8E?labelColor=0B0F10&style=flat-square" alt="npm provenance"></a>
 &nbsp;<a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-0E8E8E?labelColor=0B0F10&style=flat-square" alt="MIT"></a>
 &nbsp;<img src="https://img.shields.io/badge/node-%E2%89%A522-0E8E8E?labelColor=0B0F10&style=flat-square" alt="Node >= 22">
 
@@ -29,32 +31,40 @@ One command. No cloud, no LLM, no API keys — <b>everything runs on your machin
 <br/>
 
 > [!TIP]
-> **Install once, then one command sets everything up.** Install speclaw globally, run
-> `speclaw init`, pick the agents you use, and speclaw scaffolds the project, indexes
-> your code, and hands your agent a ready-to-paste prompt to finish the setup.
+> **One command. Detects your agents and wires only those.** Paste
+> `npx @esneiderbravo/speclaw@latest init` — speclaw detects Claude Code, Cursor,
+> Codex, Windsurf, and generic `AGENTS.md` surfaces, scaffolds the constitution +
+> lawbook, indexes your code, and registers the local MCP server — only for the
+> agents you pick. This one-liner is a **stable contract** (see
+> [CONTRIBUTING.md](CONTRIBUTING.md)); do not invent alternate install commands in
+> directories or newsletters.
 
 <br/>
 
 ## <img src="https://raw.githubusercontent.com/esneiderbravo/speclaw/main/brand/diamond.png" height="20" alt="◆" align="absmiddle">&nbsp; Quick start
 
-Install speclaw globally (once), then run `init` in your project root:
-
 ```bash
-npm i -g @esneiderbravo/speclaw
-speclaw init
+npx @esneiderbravo/speclaw@latest init
 ```
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/esneiderbravo/speclaw/main/brand/terminal-quickstart.png" width="800" alt="speclaw init">
 </p>
 
-The `speclaw` command is now available everywhere — run `speclaw index`,
-`speclaw visualize`, or `speclaw lawbook …` directly in any project.
+Prefer a global install for repeated CLI use?
+
+```bash
+npm i -g @esneiderbravo/speclaw
+speclaw init
+```
+
+The `speclaw` command is then available everywhere — run `speclaw index`,
+`speclaw doctor`, `speclaw visualize`, or `speclaw lawbook …` directly.
 
 `init` will:
 
-1. **Ask which agents you use** (Claude Code, Cursor, Codex, …) — and configure
-   only those. Add more later; nothing is forced on you.
+1. **Ask which agents you use** (Claude Code, Cursor, Codex, Windsurf, …) — and
+   configure only those. Add more later; nothing is forced on you.
 2. Write the **foundation** (constitution + standards) and the **lawbook workflow**,
    and compile your blocking laws into **agent hooks** for the agents that support them.
 3. **Index your code** with a live progress bar and a summary of what it found.
@@ -62,9 +72,23 @@ The `speclaw` command is now available everywhere — run `speclaw index`,
 5. Print a prompt to paste into your agent so it fills the constitution with your
    project's real architecture and conventions.
 
-Prefer not to install globally? A one-off `npx @esneiderbravo/speclaw init` works
-too (also `pnpm dlx` / `yarn dlx`) — but installing globally means you can run the
-`speclaw` commands directly afterwards.
+When something breaks, run `speclaw doctor --json` and paste it into an issue
+(required on bug reports). Output is redacted by default.
+
+<br/>
+
+## <img src="https://raw.githubusercontent.com/esneiderbravo/speclaw/main/brand/diamond.png" height="20" alt="◆" align="absmiddle">&nbsp; Verify a release (provenance)
+
+Every npm publish is signed via **Trusted Publishing (OIDC)** and carries a
+SLSA provenance attestation tied to this repository and workflow. That proves
+*where* the tarball was built — not that its contents are benign. Pair it with
+your own review and (later) law-integrity pinning.
+
+```bash
+npm audit signatures
+# After downloading the tarball from the registry:
+gh attestation verify <tarball> --owner esneiderbravo
+```
 
 <br/>
 

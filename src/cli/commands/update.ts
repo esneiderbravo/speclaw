@@ -106,6 +106,14 @@ const MIGRATIONS: Migration[] = [
       "(no server-side defer_loading).\n" +
       "- Preserve all project-specific wording; only apply these speclaw-authored changes.",
   },
+  {
+    version: "0.3.6",
+    describe: "Doctor JSON diagnostics and stable install one-liner",
+    agentPrompt:
+      "- Mention that `speclaw doctor --json` is the support report (redacted by default) " +
+      "and that the stable install command is `npx @esneiderbravo/speclaw@latest init`.\n" +
+      "- Preserve all project-specific wording; only apply these speclaw-authored changes.",
+  },
 ];
 
 /**
