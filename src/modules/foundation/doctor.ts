@@ -8,7 +8,7 @@ import { pkgName, pkgVersion } from "../../shared/version.js";
 import { indexExists, openDb } from "../compass/db.js";
 import { specList } from "../lawbook/engine.js";
 import { globError, hasBackend, hasBatchBackend, readLawManifest } from "./laws.js";
-import { redactValue } from "./redact.js";
+import { redactValue } from "../../shared/redact.js";
 
 /** Pass / warn / fail / not-applicable for a single diagnostic check. */
 export type CheckStatus = "ok" | "warn" | "error" | "skip";

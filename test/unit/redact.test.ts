@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import os from "node:os";
 import path from "node:path";
-import { redactText, redactValue } from "../../src/modules/foundation/redact.js";
+import { redactText, redactValue } from "../../src/shared/redact.js";
 
 test("redactText replaces home and project with tokens", () => {
   const home = os.homedir();
@@ -15,11 +15,21 @@ test("redactText replaces home and project with tokens", () => {
   assert.match(out, /~/);
 });
 
+test("redactText does not treat a longer path containing homedir as home", () => {
+  // On GHA, homedir is `/home/runner`. Naïve split/join would turn
+  // `/opt/home/runner/...` into `/opt~/...`. Boundary-aware replace must not.
+  const home = os.homedir();
+  const project = path.join("/var", "proj");
+  const decoy = `/opt${home}/secret/file.ts`;
+  const out = redactText(decoy, project);
+  assert.equal(out.includes("/opt~/"), false);
+  assert.equal(out.startsWith("/opt"), true);
+});
+
 test("redactText scrubs username path segments outside home", () => {
   const user = os.userInfo().username;
   const project = path.join("/var", "proj");
-  // Path that is not under $HOME, so home→~ does not already remove the user.
-  const raw = `/opt/home/${user}/secret/file.ts`;
+  const raw = `/srv/data/${user}/secret/file.ts`;
   const out = redactText(raw, project);
   assert.equal(out.includes(`/${user}/`), false);
   assert.match(out, /<user>/);
