@@ -93,6 +93,19 @@ const MIGRATIONS: Migration[] = [
       "required status check in branch protection. speclaw never enables that itself.\n" +
       "- Preserve all project-specific wording; only apply these speclaw-authored changes.",
   },
+  {
+    version: "0.3.5",
+    describe: "Context budget: compact map markers and budget-aware agent contracts",
+    agentPrompt:
+      "- In docs/compass.md, ensure the markers `<!-- speclaw:map:start -->` and " +
+      "`<!-- speclaw:map:end -->` exist (usually just above 'Project-specific starting points') " +
+      "so `compass_index` can regenerate the compact project map between them. Do not hand-edit " +
+      "the content between the markers.\n" +
+      "- Optionally note in CLAUDE.md / AGENTS.md that `speclaw budget` reports always-on context " +
+      "cost and that `speclaw init --minimal` / `SPECLAW_MINIMAL=1` omit setup MCP tools " +
+      "(no server-side defer_loading).\n" +
+      "- Preserve all project-specific wording; only apply these speclaw-authored changes.",
+  },
 ];
 
 /**
