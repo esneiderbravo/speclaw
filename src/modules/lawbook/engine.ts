@@ -2,6 +2,19 @@ import fs from "node:fs";
 import path from "node:path";
 import { coverageArchiveBlockers } from "./coverage.js";
 import { sealCapability, type SealSummary } from "./anchors.js";
+import {
+  artifactNeeds,
+  confirmedLevel,
+  countUncheckedTasks,
+  gatherSignals,
+  hasDisciplineReport,
+  loadCeremonyConfig,
+  proposeLevel,
+  type CeremonyLevel,
+  type CeremonyTargets,
+} from "./levels.js";
+
+export type { CeremonyLevel, CeremonyTargets };
 
 // speclaw's own spec-driven workflow engine. Inspired by OpenSpec's model
 // (proposals, delta specs, changes, archive) but implemented from scratch and
@@ -38,7 +51,12 @@ mandatory_task_steps:
   - "Archive the change within the same PR (lawbook:archive)."
 
 # A change is required for new behavior, endpoints, schema changes, or UI flows;
-# one-line fixes need not have one.
+# one-line fixes may use ceremony level 0 (\`speclaw quick\`) instead of full artifacts.
+
+# Ceremony levels (adaptive). Defaults match speclaw's built-in thresholds.
+ceremony:
+  cuts: [3, 8, 15]
+  hotspotFloor: 0.7
 `;
 
 const README_MD = `# lawbook/ — the spec-driven workflow (speclaw)
@@ -46,18 +64,21 @@ const README_MD = `# lawbook/ — the spec-driven workflow (speclaw)
 This directory is managed by speclaw's **lawbook** module.
 
 - \`specs/\` — the canonical specifications (the current source of truth).
-- \`changes/<name>/\` — an in-flight change: \`proposal.md\`, \`tasks.md\`,
-  \`design.md\`, and \`specs/<capability>/spec.md\` delta specs.
+- \`changes/<name>/\` — an in-flight change. Artifact volume follows the
+  confirmed ceremony level in \`change.json\` (0=quick … 3=full). Missing
+  \`change.json\` means level 3 (proposal, design, tasks, delta specs).
 - \`changes/archive/\` — completed, archived changes.
-- \`config.yaml\` — mandatory task steps and workflow rules.
+- \`config.yaml\` — mandatory task steps, coverage, and optional ceremony cuts.
 
 ## Workflow
 
-1. \`lawbook:draft\` — describe the change; generates proposal, delta specs, tasks.
-2. \`lawbook:build\` — implement the tasks.
-3. \`lawbook:sync\` — promote the change's delta specs into \`specs/\`.
-4. \`lawbook:archive\` — sync + move the change to \`changes/archive/\`.
-5. \`lawbook:explore\` — think through an idea before or during a change.
+1. \`lawbook:explore\` — think through an idea before or during a change.
+2. \`lawbook:draft\` / \`speclaw quick\` — propose/confirm a ceremony level, then
+   scaffold only the artifacts that level requires.
+3. \`lawbook:build\` — implement the tasks.
+4. \`lawbook:sync\` — promote the change's delta specs into \`specs/\` (when the
+   level requires specs).
+5. \`lawbook:archive\` — sync (if needed) + move the change to \`changes/archive/\`.
 `;
 
 /** Outcome of initializing the spec workspace. */
@@ -176,18 +197,21 @@ function deltaSpecFiles(changeDir: string): string[] {
 }
 
 /**
- * Validate a change's artifacts: proposal.md and tasks.md must be present, and
- * each delta spec must use normative language (SHALL/MUST), a "### Requirement:"
- * header, and a "#### Scenario:" acceptance criterion.
+ * Validate a change's artifacts against its confirmed ceremony level
+ * (missing `change.json` ⇒ level 3 / full ceremony).
  *
  * @param projectPath - Absolute path to the project root.
  * @param change - Change name (folder under lawbook/changes/).
- * @returns The validation verdict and the list of issues to fix; never throws
- *   for a missing change — it is reported as an issue with `valid: false`.
+ * @param remeasure - Optional targets to re-score scope growth (paths/symbols).
  */
-export function specValidate(projectPath: string, change: string): ValidationResult {
+export function specValidate(
+  projectPath: string,
+  change: string,
+  remeasure?: CeremonyTargets,
+): ValidationResult {
   const changeDir = path.join(specRoot(projectPath), "changes", change);
   const issues: string[] = [];
+  const warnings: string[] = [];
   if (!fs.existsSync(changeDir)) {
     return {
       change,
@@ -197,18 +221,50 @@ export function specValidate(projectPath: string, change: string): ValidationRes
       deltaSpecs: [],
     };
   }
-  if (!fs.existsSync(path.join(changeDir, "proposal.md"))) issues.push("missing proposal.md");
-  const tasksPath = path.join(changeDir, "tasks.md");
-  if (!fs.existsSync(tasksPath)) issues.push("missing tasks.md");
+
+  const level = confirmedLevel(projectPath, change);
+  const needs = artifactNeeds(level);
+
+  if (needs.record && !fs.existsSync(path.join(changeDir, "record.md"))) {
+    issues.push(`missing record.md (required at ceremony level ${level})`);
+  }
+  if (needs.proposal && !fs.existsSync(path.join(changeDir, "proposal.md"))) {
+    issues.push(`missing proposal.md (required at ceremony level ${level})`);
+  }
+  if (needs.design && !fs.existsSync(path.join(changeDir, "design.md"))) {
+    issues.push(`missing design.md (required at ceremony level ${level})`);
+  }
+  if (needs.designOptionalWithJustification && !fs.existsSync(path.join(changeDir, "design.md"))) {
+    const record = path.join(changeDir, "record.md");
+    const text = fs.existsSync(record) ? fs.readFileSync(record, "utf8") : "";
+    if (!/design\s*(omitted|skipped|n\/a)/i.test(text) && !/why.*design/i.test(text)) {
+      issues.push(`level ${level}: design.md omitted without justification in record.md`);
+    }
+  }
+  if (needs.tasksFile && !fs.existsSync(path.join(changeDir, "tasks.md"))) {
+    issues.push(`missing tasks.md (required at ceremony level ${level})`);
+  }
 
   const deltas = deltaSpecFiles(changeDir);
-  if (deltas.length === 0)
-    issues.push("no delta specs under specs/ (a change should specify what it changes)");
+  if (needs.deltaSpecs && deltas.length === 0) {
+    issues.push(`no delta specs under specs/ (required at ceremony level ${level})`);
+  }
+
+  // Scope-growth: when remeasure targets provided (or change.json has prior signals
+  // with paths we cannot recover), only check if caller passes targets.
+  if (remeasure && (remeasure.paths.length > 0 || remeasure.symbols.length > 0)) {
+    const { thresholds } = loadCeremonyConfig(projectPath);
+    const measured = proposeLevel(gatherSignals(projectPath, remeasure, thresholds), thresholds);
+    if (measured.level !== null && measured.level >= level + 2) {
+      issues.push(
+        `scope grew: measured level ${measured.level}, recorded ${level} — run promote or justify (${measured.rationale})`,
+      );
+    }
+  }
 
   const root = specRoot(projectPath);
   const changeSpecs = path.join(changeDir, "specs");
   const capabilities = canonicalCapabilities(root);
-  const warnings: string[] = [];
   for (const file of deltas) {
     const rel = path.relative(changeDir, file);
     const content = fs.readFileSync(file, "utf8");
@@ -222,7 +278,6 @@ export function specValidate(projectPath: string, change: string): ValidationRes
       issues.push(`${rel}: no "### Requirement:" header`);
     }
 
-    // Advisory divergence checks against the canonical specs.
     const relFromSpecs = path.relative(changeSpecs, file);
     const capability = relFromSpecs.split(path.sep)[0]!;
     const nearMatch = nearMatchCapability(capability, capabilities);
@@ -329,10 +384,9 @@ export interface ArchiveResult {
  * Deterministic completeness checks that gate archiving a change. Returns the
  * blocking reasons; an empty array means the change may be archived.
  *
- * A change is blocked when any task is still unchecked, when it has no discipline
- * report under reports/, or when its delta specs are not synced — the canonical
- * spec is missing for, or differs from, a delta (meaning sync was not run after
- * the last spec edit). The reports/README.md scaffold does not count as a report.
+ * Gates respect the confirmed ceremony level (missing `change.json` ⇒ level 3).
+ * Every level still requires checked tasks and a discipline report. Delta-spec
+ * sync is required only when the level demands delta specs.
  *
  * @param projectPath - Absolute path to the project root.
  * @param change - Change name (folder under lawbook/changes/).
@@ -343,35 +397,45 @@ export function specArchivePreconditions(projectPath: string, change: string): s
   const changeDir = path.join(root, "changes", change);
   if (!fs.existsSync(changeDir)) return [`change "${change}" not found under lawbook/changes/`];
   const blockers: string[] = [];
+  const level = confirmedLevel(projectPath, change);
+  const needs = artifactNeeds(level);
 
-  // 1. Every task must be checked.
-  const tasksPath = path.join(changeDir, "tasks.md");
-  if (!fs.existsSync(tasksPath)) {
-    blockers.push("missing tasks.md");
-  } else {
-    const unchecked = (fs.readFileSync(tasksPath, "utf8").match(/^\s*[-*]\s+\[ \]/gm) ?? []).length;
-    if (unchecked > 0) blockers.push(`${unchecked} unchecked task(s) in tasks.md`);
+  // 1. Every task must be checked (tasks.md, or checklist in record.md at level 0).
+  if (needs.tasksFile) {
+    const tasksPath = path.join(changeDir, "tasks.md");
+    if (!fs.existsSync(tasksPath)) {
+      blockers.push("missing tasks.md");
+    } else {
+      const unchecked = countUncheckedTasks(fs.readFileSync(tasksPath, "utf8"));
+      if (unchecked > 0) blockers.push(`${unchecked} unchecked task(s) in tasks.md`);
+    }
+  } else if (needs.record) {
+    const recordPath = path.join(changeDir, "record.md");
+    if (!fs.existsSync(recordPath)) {
+      blockers.push("missing record.md");
+    } else {
+      const unchecked = countUncheckedTasks(fs.readFileSync(recordPath, "utf8"));
+      if (unchecked > 0) blockers.push(`${unchecked} unchecked task(s) in record.md`);
+    }
   }
 
   // 2. At least one discipline report must exist (README.md scaffold aside).
-  const reportsDir = path.join(changeDir, "reports");
-  const reports = fs.existsSync(reportsDir)
-    ? fs.readdirSync(reportsDir).filter((n) => n.endsWith(".md") && n.toLowerCase() !== "readme.md")
-    : [];
-  if (reports.length === 0) {
+  if (!hasDisciplineReport(changeDir)) {
     blockers.push("no discipline report under reports/ (build must record what was tested)");
   }
 
-  // 3. Delta specs must already be synced into the canonical specs.
-  for (const file of deltaSpecFiles(changeDir)) {
-    const rel = path.relative(path.join(changeDir, "specs"), file);
-    const canonical = path.join(root, "specs", rel);
-    if (!fs.existsSync(canonical)) {
-      blockers.push(`spec not synced: lawbook/specs/${rel} missing (run sync first)`);
-    } else if (fs.readFileSync(file, "utf8") !== fs.readFileSync(canonical, "utf8")) {
-      blockers.push(
-        `spec not synced: lawbook/specs/${rel} differs from the delta (run sync first)`,
-      );
+  // 3. Delta specs must already be synced — only when the level requires them.
+  if (needs.deltaSpecs) {
+    for (const file of deltaSpecFiles(changeDir)) {
+      const rel = path.relative(path.join(changeDir, "specs"), file);
+      const canonical = path.join(root, "specs", rel);
+      if (!fs.existsSync(canonical)) {
+        blockers.push(`spec not synced: lawbook/specs/${rel} missing (run sync first)`);
+      } else if (fs.readFileSync(file, "utf8") !== fs.readFileSync(canonical, "utf8")) {
+        blockers.push(
+          `spec not synced: lawbook/specs/${rel} differs from the delta (run sync first)`,
+        );
+      }
     }
   }
 
@@ -382,8 +446,8 @@ export function specArchivePreconditions(projectPath: string, change: string): s
 }
 
 /**
- * Finalize a change: promote its delta specs (via {@link specSync}), then move
- * it to changes/archive/<date>-<name>/.
+ * Finalize a change: promote its delta specs (via {@link specSync}) when the
+ * ceremony level requires them, then move it to changes/archive/<date>-<name>/.
  *
  * @param projectPath - Absolute path to the project root.
  * @param change - Change name (folder under lawbook/changes/).
@@ -402,7 +466,11 @@ export function specArchive(projectPath: string, change: string, date: string): 
       `cannot archive "${change}" — resolve first:\n${blockers.map((b) => `  - ${b}`).join("\n")}`,
     );
   }
-  const { promoted, created, updated } = specSync(projectPath, change);
+  const level = confirmedLevel(projectPath, change);
+  const sync = artifactNeeds(level).deltaSpecs
+    ? specSync(projectPath, change)
+    : { change, promoted: [] as string[], created: [] as string[], updated: [] as string[] };
+  const { promoted, created, updated } = sync;
   const seals = sealPromotedCapabilities(projectPath, change, [
     ...promoted,
     ...created,
@@ -458,6 +526,8 @@ export interface ListResult {
   initialized: boolean;
   /** Names of in-flight changes under changes/ (excluding archive/). */
   activeChanges: string[];
+  /** Confirmed ceremony level per active change (missing change.json ⇒ 3). */
+  activeLevels: Record<string, CeremonyLevel>;
   /** Names of completed changes under changes/archive/. */
   archivedChanges: string[];
   /** Names of canonical capabilities under specs/. */
@@ -474,7 +544,13 @@ export interface ListResult {
 export function specList(projectPath: string): ListResult {
   const root = specRoot(projectPath);
   if (!fs.existsSync(root)) {
-    return { initialized: false, activeChanges: [], archivedChanges: [], capabilities: [] };
+    return {
+      initialized: false,
+      activeChanges: [],
+      activeLevels: {},
+      archivedChanges: [],
+      capabilities: [],
+    };
   }
   const dirsIn = (rel: string): string[] => {
     const abs = path.join(root, rel);
@@ -484,9 +560,15 @@ export function specList(projectPath: string): ListResult {
       .filter((e) => e.isDirectory() && e.name !== "archive")
       .map((e) => e.name);
   };
+  const activeChanges = dirsIn("changes");
+  const activeLevels: Record<string, CeremonyLevel> = {};
+  for (const name of activeChanges) {
+    activeLevels[name] = confirmedLevel(projectPath, name);
+  }
   return {
     initialized: true,
-    activeChanges: dirsIn("changes"),
+    activeChanges,
+    activeLevels,
     archivedChanges: dirsIn("changes/archive"),
     capabilities: dirsIn("specs"),
   };

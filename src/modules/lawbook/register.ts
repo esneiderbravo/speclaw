@@ -6,6 +6,7 @@ import { shouldExpose, type RegisterOpts } from "../../shared/exposure.js";
 import { assetsDir } from "../../shared/paths.js";
 import { copyRendered, CopyOpts, InstallReport } from "../../shared/install.js";
 import { specInit, specValidate, specSync, specArchive, specList } from "./engine.js";
+import { handleLevel } from "./quick.js";
 import { buildCoverageReport, loadCoverageConfig, renderCoverageAgent } from "./coverage.js";
 import { buildDriftReport, renderDriftAgent } from "./drift.js";
 
@@ -59,6 +60,21 @@ export function registerSpec(server: McpServer, opts: RegisterOpts = {}): void {
     "List active changes, archives, and canonical capabilities under lawbook/.",
     { projectPath: z.string() },
     async ({ projectPath }) => text(specList(projectPath)),
+  );
+
+  add(
+    "lawbook_level",
+    "Propose, set, promote, or explain a change's ceremony level (0–3).",
+    {
+      projectPath: z.string(),
+      mode: z.enum(["propose", "set", "promote", "explain"]),
+      change: z.string().optional(),
+      paths: z.array(z.string()).optional(),
+      symbols: z.array(z.string()).optional(),
+      level: z.union([z.literal(0), z.literal(1), z.literal(2), z.literal(3)]).optional(),
+      reason: z.string().optional(),
+    },
+    async (args) => text(handleLevel(args)),
   );
 
   add(

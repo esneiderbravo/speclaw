@@ -63,6 +63,7 @@ test("minimal registration omits the omit-set", () => {
   const names = new Set(collectRegisteredTools(true).map((t) => t.name));
   assert.ok(!names.has("compass_index"));
   assert.ok(!names.has("init_project"));
+  assert.ok(!names.has("lawbook_level"));
   assert.ok(names.has("compass_explore"));
   assert.ok(names.has("speclaw_check"));
 });

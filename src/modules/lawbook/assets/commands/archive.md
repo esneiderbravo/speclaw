@@ -1,11 +1,10 @@
 ---
-description: Finalize a completed change — sync specs into canonical, then archive it.
+description: Finalize a completed change — sync specs when needed, then archive it.
 ---
 
 Archive the completed change: $ARGUMENTS
 
-Follow the `archive` skill: confirm every task is done and gates are green, run
-the reconciliation review (recommend a sync with short insights if the code
-drifted past the contracts), run `lawbook_validate`, then `lawbook_archive` with
-today's date (YYYY-MM-DD). It syncs the specs and moves the change to
-`lawbook/changes/archive/`. Never move the folder by hand.
+Follow the `archive` skill: confirm every task (or level-0 checklist) is done
+and gates are green, reconcile if the level has delta specs, run
+`lawbook_validate`, then `lawbook_archive` with today's date (YYYY-MM-DD). Sync
+runs only when the ceremony level requires specs. Never move the folder by hand.

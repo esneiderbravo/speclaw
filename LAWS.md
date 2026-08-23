@@ -31,8 +31,8 @@
 2. **The standards are enforced, not advisory.** A violation is a blocking
    finding in review.
 3. **Amendments go through the lawbook workflow.** A standard is changed like code — via a
-   reviewed change (see the lawbook law). An agent may propose an amendment;
-   it may never silently ignore a standard.
+   reviewed change at the appropriate ceremony level (see the lawbook law). An agent may
+   propose an amendment; it may never silently ignore a standard.
 4. **Entry points reference the law.** [`CLAUDE.md`](CLAUDE.md) and
    [`AGENTS.md`](AGENTS.md) point every agent here first.
 

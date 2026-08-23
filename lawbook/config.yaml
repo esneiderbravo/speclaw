@@ -21,3 +21,8 @@ coverage:
   gateArchive: true
   # Applied when a requirement omits Needs:.
   defaultNeeds: [impl, utest]
+
+# Ceremony levels (adaptive). Absent or invalid cuts → built-in defaults.
+ceremony:
+  cuts: [3, 8, 15]
+  hotspotFloor: 0.7

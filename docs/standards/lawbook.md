@@ -6,18 +6,26 @@ mechanical steps are speclaw MCP tools).
 
 ## The loop
 
-No non-trivial change lands without a spec change:
+No non-trivial change lands without a lawbook change. Artifact volume follows
+the **confirmed ceremony level** in `change.json` (0=quick … 3=full). Missing
+`change.json` means level 3 (today's full set).
 
 1. **explore** — think an idea through before committing (writes nothing).
-2. **draft** — create `lawbook/changes/<name>/`: `proposal.md`, delta specs under
-   `specs/<capability>/spec.md`, `design.md`, `tasks.md`, and a `reports/`
-   folder.
+2. **draft** / **quick** — propose a ceremony level from graph signals
+   (`lawbook_level` / `speclaw lawbook level`), confirm it, then scaffold only
+   what that level needs:
+   - **0** — `record.md` (inline checklist) + `reports/` (`speclaw quick`)
+   - **1** — record + `tasks.md` + ≥1 delta requirement + reports
+   - **2** — `proposal.md` + tasks + delta specs + reports (design optional
+     with justification)
+   - **3** — proposal + design + tasks + delta specs + reports
 3. **build** — implement the tasks in order, keeping code and spec in
    agreement, and write the discipline reports under `reports/`.
 4. **sync** — reconcile the delta specs against what was actually built, then
-   promote them into the canonical `lawbook/specs/` (`lawbook_sync`). The tool
-   is a deterministic copy; the agent does the code↔spec reconciliation first.
-5. **archive** — finalize: reconcile, sync, then move the change to
+   promote them into the canonical `lawbook/specs/` (`lawbook_sync`) when the
+   level requires specs. The tool is a deterministic copy; the agent does the
+   code↔spec reconciliation first.
+5. **archive** — finalize: reconcile, sync when needed, then move the change to
    `lawbook/changes/archive/` (`lawbook_archive`), **within the same PR** —
    never a post-merge chore. The archive is gated (see below).
 
@@ -58,13 +66,13 @@ built against the delta specs and, when the code has drifted past the original
 contracts, shows short insights and reconciles the delta specs.
 
 `lawbook_archive` is then **gated in the engine** — it refuses to archive (and
-reports the reason) while any task is unchecked, while `reports/` holds no
-discipline report, while the delta specs are not yet synced into the
-canonical specs, or while an identified requirement has a direct coverage
-defect (`speclaw coverage` / `lawbook_coverage`; disable with
-`coverage.gateArchive: false` in `lawbook/config.yaml`). Because the gate
-covers both the tool and the CLI, a change reaches the archive only when it is
-genuinely complete: reconcile, `sync`, then archive.
+reports the reason) while any task is unchecked (or the level-0 checklist in
+`record.md`), while `reports/` holds no discipline report, while delta specs
+are required but not yet synced into the canonical specs, or while an
+identified requirement has a direct coverage defect (`speclaw coverage` /
+`lawbook_coverage`; disable with `coverage.gateArchive: false` in
+`lawbook/config.yaml`). Because the gate covers both the tool and the CLI, a
+change reaches the archive only when it is genuinely complete.
 
 ## Coverage and drift
 
