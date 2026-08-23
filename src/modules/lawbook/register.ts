@@ -6,6 +6,7 @@ import { shouldExpose, type RegisterOpts } from "../../shared/exposure.js";
 import { assetsDir } from "../../shared/paths.js";
 import { copyRendered, CopyOpts, InstallReport } from "../../shared/install.js";
 import { specInit, specValidate, specSync, specArchive, specList } from "./engine.js";
+import { buildCoverageReport, loadCoverageConfig, renderCoverageAgent } from "./coverage.js";
 
 const ASSETS = assetsDir(import.meta.url);
 
@@ -82,5 +83,22 @@ export function registerSpec(server: McpServer, opts: RegisterOpts = {}): void {
       date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
     },
     async ({ projectPath, change, date }) => text(specArchive(projectPath, change, date)),
+  );
+
+  add(
+    "lawbook_coverage",
+    "Report which requirements lack impl/test coverage before declaring work done.",
+    {
+      projectPath: z.string(),
+      change: z.string().optional(),
+      onlyDefects: z.boolean().optional(),
+      json: z.boolean().optional(),
+    },
+    async ({ projectPath, change, onlyDefects, json }) => {
+      const cfg = loadCoverageConfig(projectPath);
+      const report = buildCoverageReport(projectPath, { change, cfg });
+      if (json) return text(JSON.stringify(report));
+      return text(renderCoverageAgent(report, onlyDefects !== false));
+    },
   );
 }

@@ -22,11 +22,35 @@ export interface ExtractedRef {
   ownerIndex: number | null; // enclosing symbol index, or null for file scope
 }
 
+/**
+ * A requirement-coverage directive found in a comment node
+ * (`// Covers: req~name~1`, `# Covers:`, `@covers`).
+ */
+export interface ExtractedCoverage {
+  kind: "covers" | "needs";
+  artifactType: string;
+  name: string;
+  revision: number;
+  line: number;
+  /** Preferred symbol index (next def within 2 lines, else innermost container). */
+  ownerIndex: number | null;
+  startByte: number;
+  endByte: number;
+  endLine: number;
+}
+
 /** The result of extracting a source file: its definitions and their references. */
 export interface Extraction {
   symbols: ExtractedSymbol[];
   refs: ExtractedRef[];
+  coverage: ExtractedCoverage[];
 }
+
+const COMMENT_TYPES = new Set(["comment", "line_comment", "block_comment"]);
+/** `Covers:` / `Needs:` / `@covers` at the start of a comment line. */
+const RE_DIRECTIVE = /(?:^|\s|\*)\s*(?:@)?(covers|needs)\s*:?\s+([^\n*]+)/i;
+/** One OFT-shaped id: type~name~revision. */
+const RE_ID = /\b([a-z]{2,6})~([A-Za-z0-9._-]+)~(\d+)\b/g;
 
 const DEF_LOOKUP = new WeakMap<LangConfig, Map<string, string>>();
 
@@ -63,14 +87,66 @@ function signatureOf(node: Node): string {
   return node.text.split("\n")[0]!.trim().slice(0, 200);
 }
 
+/** Parse Covers:/Needs: directives from a comment node's text. */
+function parseCoverageComment(
+  node: Node,
+  ownerIndex: number | null,
+): Omit<ExtractedCoverage, "ownerIndex">[] {
+  const text = node.text;
+  const dir = RE_DIRECTIVE.exec(text);
+  if (!dir) return [];
+  const kind = dir[1]!.toLowerCase() as "covers" | "needs";
+  const out: Omit<ExtractedCoverage, "ownerIndex">[] = [];
+  for (const m of dir[2]!.matchAll(RE_ID)) {
+    out.push({
+      kind,
+      artifactType: m[1]!,
+      name: m[2]!,
+      revision: Number(m[3]),
+      line: node.startPosition.row + 1,
+      startByte: node.startIndex,
+      endByte: node.endIndex,
+      endLine: node.endPosition.row + 1,
+    });
+  }
+  // silence unused until attribution; ownerIndex filled by attachCoverage
+  void ownerIndex;
+  return out;
+}
+
 /**
- * Walk a parsed tree extracting definitions (with nesting) and the call/import
- * references each definition contains. Single traversal, O(nodes).
+ * Attribute a coverage comment to a symbol: next def within 2 lines, else
+ * innermost containing symbol, else file-level (null).
+ */
+function attachCoverage(
+  raw: Omit<ExtractedCoverage, "ownerIndex">[],
+  symbols: ExtractedSymbol[],
+): ExtractedCoverage[] {
+  return raw.map((c) => {
+    const next = symbols.find((s) => s.startByte >= c.endByte);
+    if (next && next.startLine - c.endLine <= 2) {
+      return { ...c, ownerIndex: symbols.indexOf(next) };
+    }
+    const containing = symbols
+      .map((s, i) => ({ s, i }))
+      .filter(({ s }) => s.startByte <= c.startByte && c.endByte <= s.endByte)
+      .sort((a, b) => a.s.endByte - a.s.startByte - (b.s.endByte - b.s.startByte));
+    if (containing.length > 0) {
+      return { ...c, ownerIndex: containing[0]!.i };
+    }
+    return { ...c, ownerIndex: null };
+  });
+}
+
+/**
+ * Walk a parsed tree extracting definitions (with nesting), call/import
+ * references, and requirement-coverage directives from comment nodes. Single
+ * traversal, O(nodes).
  *
  * @param source - The full source text of the file.
  * @param lang - Language configuration describing definition/call/import nodes.
- * @returns The extracted symbols and references; `parentIndex`/`ownerIndex`
- * fields index back into the `symbols` array to express nesting and ownership.
+ * @returns The extracted symbols, references, and coverage directives;
+ * `parentIndex`/`ownerIndex` fields index back into the `symbols` array.
  * @throws If the source cannot be parsed for the given language.
  */
 export async function extract(source: string, lang: LangConfig): Promise<Extraction> {
@@ -79,6 +155,7 @@ export async function extract(source: string, lang: LangConfig): Promise<Extract
   const importSet = new Set(lang.importNodes);
   const symbols: ExtractedSymbol[] = [];
   const refs: ExtractedRef[] = [];
+  const rawCoverage: Omit<ExtractedCoverage, "ownerIndex">[] = [];
 
   const walk = (node: Node, ownerIndex: number | null): void => {
     let nextOwner = ownerIndex;
@@ -109,6 +186,8 @@ export async function extract(source: string, lang: LangConfig): Promise<Extract
         line: node.startPosition.row + 1,
         ownerIndex,
       });
+    } else if (COMMENT_TYPES.has(node.type)) {
+      rawCoverage.push(...parseCoverageComment(node, ownerIndex));
     }
 
     for (let i = 0; i < node.childCount; i++) {
@@ -119,5 +198,5 @@ export async function extract(source: string, lang: LangConfig): Promise<Extract
 
   walk(tree.rootNode, null);
   tree.delete();
-  return { symbols, refs };
+  return { symbols, refs, coverage: attachCoverage(rawCoverage, symbols) };
 }

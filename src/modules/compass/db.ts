@@ -78,10 +78,28 @@ CREATE TABLE IF NOT EXISTS git_history_cache (
   payload TEXT NOT NULL,
   computed_at INTEGER NOT NULL
 );
+-- coverage_links: derived requirement-coverage directives from comment nodes.
+-- Spec items themselves are NOT persisted — always reparsed from disk.
+CREATE TABLE IF NOT EXISTS coverage_links (
+  id INTEGER PRIMARY KEY,
+  artifact_type TEXT NOT NULL,
+  name TEXT NOT NULL,
+  revision INTEGER NOT NULL,
+  kind TEXT NOT NULL,
+  file_path TEXT NOT NULL,
+  line INTEGER NOT NULL,
+  node_id INTEGER REFERENCES nodes(id) ON DELETE CASCADE,
+  source_type TEXT NOT NULL,
+  origin TEXT NOT NULL,
+  UNIQUE (artifact_type, name, revision, kind, file_path, line)
+);
+CREATE INDEX IF NOT EXISTS idx_cov_target ON coverage_links(artifact_type, name, revision);
+CREATE INDEX IF NOT EXISTS idx_cov_file ON coverage_links(file_path);
+CREATE INDEX IF NOT EXISTS idx_cov_node ON coverage_links(node_id);
 `;
 
 /** Schema version stamped into the `meta` table on first creation. */
-export const SCHEMA_VERSION = "4";
+export const SCHEMA_VERSION = "5";
 
 /** The stamped schema version, or null if the db predates versioning / has no meta table. */
 function readSchemaVersion(db: DatabaseSync): string | null {
@@ -116,6 +134,7 @@ function isStale(db: DatabaseSync): boolean {
 /** Drop every table (children first) so the current schema can be recreated cleanly. */
 function resetSchema(db: DatabaseSync): void {
   db.exec(`
+    DROP TABLE IF EXISTS coverage_links;
     DROP TABLE IF EXISTS git_history_cache;
     DROP TABLE IF EXISTS node_embeddings;
     DROP TABLE IF EXISTS edges;
