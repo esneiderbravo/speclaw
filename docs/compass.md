@@ -29,7 +29,7 @@ a request, not whole files.
 
 | Tool | Use it to |
 |------|-----------|
-| `compass_index` | Build/refresh the graph (`.speclaw/index.db`). Incremental — unchanged files are skipped by hash. Run once after init and after significant edits. |
+| `compass_index` | Build/refresh the graph (`.speclaw/index.db`). Incremental — unchanged files are skipped by hash. Run once after init and after significant edits. Schema **5** also rebuilds derived `coverage_links` from `Covers:` / `@covers` comment directives (used by `speclaw coverage` / `lawbook_coverage`). |
 | `compass_explore` | Read a node's verbatim source plus its callers and callees. The default before editing. |
 | `compass_search` | Structural search: find nodes by name/keyword. |
 | `compass_recall` | Semantic search: describe what you want in natural language and get nodes ranked by meaning. |
@@ -43,9 +43,9 @@ to Grep/Read: a Compass call returned nothing useful for your query, or the
 target isn't indexed code (stylesheets, JSON/config, markdown, logs).
 
 <!-- speclaw:map:start -->
-speclaw · 124 files · 381 nodes
-src/ (66)  test/ (53)  scripts/ (4)  eslint.config.js/ (1)
-hubs: tmpRepo 168 · write 68 · has 67 · parse 49 · commit 38 · read 37 · runCli 33 · run 28 · openDb 28 · emptyReport 28 · sampleProfile 26 · gitInit 26
+speclaw · 129 files · 418 nodes
+src/ (69)  test/ (55)  scripts/ (4)  eslint.config.js/ (1)
+hubs: tmpRepo 173 · write 75 · has 73 · parse 50 · commit 38 · read 38 · runCli 33 · run 30 · openDb 29 · text 29 · emptyReport 29 · scaffold 28
 entry: src/server.ts (mcp) · src/cli/index.ts (bin)
 <!-- speclaw:map:end -->
 
