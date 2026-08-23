@@ -39,6 +39,7 @@ Other
   doctor                   Verify the installation (--json, --offline, --strict)
   budget                   Measure always-on context cost (tools, skills, instructions)
   coverage                 Requirement → impl → test coverage (--json, --tap, --adopt, --write)
+  drift                    Spec↔code drift (--json, --reseal, --reverse, --fail-on)
   telemetry status         Confirm speclaw ships no telemetry
   check                    Evaluate an action against the laws (hooks call this; --dry-run to preview)
   laws verify              Verify the deterministic dependency/graph laws against the index
@@ -64,6 +65,7 @@ const HEADER_COMMANDS = new Set<string | undefined>([
   "doctor",
   "budget",
   "coverage",
+  "drift",
   "telemetry",
   "index",
   "watch",
@@ -85,6 +87,7 @@ function maybeHeader(cmd: string | undefined, flags: ReturnType<typeof parseFlag
   if (cmd === "budget" && flags.json) return;
   if (cmd === "doctor" && flags.json) return;
   if (cmd === "coverage" && (flags.json || flags.tap)) return;
+  if (cmd === "drift" && flags.json) return;
   header();
 }
 
@@ -135,6 +138,8 @@ async function dispatch(
       return (await import("./commands/budget.js")).runBudget(flags);
     case "coverage":
       return (await import("./commands/coverage.js")).runCoverage(flags);
+    case "drift":
+      return (await import("./commands/drift.js")).runDrift(flags);
     case "telemetry":
       return (await import("./commands/telemetry.js")).runTelemetry(flags);
     case "check":

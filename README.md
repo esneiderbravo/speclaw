@@ -131,6 +131,8 @@ speclaw budget          # human table
 speclaw budget --json   # machine-readable; used by the suite gate
 speclaw coverage        # requirement → impl → test coverage (TAP / table)
 speclaw coverage --json # machine-readable coverage report
+speclaw drift           # sealed spec ↔ code drift (default --fail-on semantic)
+speclaw drift --reseal  # photograph current bodies into lawbook/anchors/
 speclaw init --minimal  # omit setup/lifecycle MCP tools from registration
 ```
 

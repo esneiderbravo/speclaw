@@ -3,6 +3,24 @@
 All notable changes to this project are documented here. Speclaw follows
 [Semantic Versioning](https://semver.org/) for the published npm package.
 
+## [0.3.9] — 2026-08-23
+
+### Added
+
+- Spec↔code drift: dual `body_hash` / `norm_hash` on Compass nodes, committed
+  anchors at `lawbook/anchors/<capability>.json`, `speclaw drift` (table /
+  `--json` / `--reseal` / `--reverse` / `--fail-on`), MCP `lawbook_drift`,
+  archive-time sealing, doctor check, and `verify --ci` SARIF findings for
+  semantic/deleted drift.
+- Compass schema **6** (forced reindex); SQLite `spec_anchors` is a projection
+  rehydrated from the committed JSON.
+
+### Changed
+
+- Default interactive drift threshold is `--fail-on semantic` (exit 0/1/2).
+- Minimal exposure keeps `lawbook_drift` (agents can check drift before declaring done).
+  Tool count in minimal profile is now 9.
+
 ## [0.3.8] — 2026-08-23
 
 ### Added
@@ -17,7 +35,7 @@ All notable changes to this project are documented here. Speclaw follows
 ### Changed
 
 - Minimal exposure keeps `lawbook_coverage` (agents can check coverage before
-  declaring done). Tool count in minimal profile is now 8.
+  declaring done). Tool count in minimal profile is now 9 (`lawbook_drift` stays available like coverage).
 
 ## [0.3.7] — 2026-08-22
 

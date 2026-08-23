@@ -7,6 +7,7 @@ import { readManifest } from "../../shared/manifest.js";
 import { pkgName, pkgVersion } from "../../shared/version.js";
 import { indexExists, openDb } from "../compass/db.js";
 import { specList } from "../lawbook/engine.js";
+import { doctorDriftCheck } from "../lawbook/drift.js";
 import { globError, hasBackend, hasBatchBackend, readLawManifest } from "./laws.js";
 import { redactValue } from "../../shared/redact.js";
 
@@ -640,6 +641,16 @@ export async function doctor(projectPath: string, opts: DoctorOptions = {}): Pro
     configuration.push(await budgetCheck(projectPath));
     configuration.push(freshnessCheck(projectPath));
     configuration.push(specsOrphansCheck(projectPath));
+    {
+      const d = doctorDriftCheck(projectPath);
+      addCheck(configuration, {
+        id: d.id,
+        title: d.title,
+        status: d.status,
+        detail: d.detail,
+        remedy: d.remedy,
+      });
+    }
 
     const configured = detectConfiguredAgents(projectPath);
     const mcpAgents = AGENTS.filter((a) => a.mcpFile && configured.includes(a.id));

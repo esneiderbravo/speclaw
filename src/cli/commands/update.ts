@@ -130,6 +130,15 @@ const MIGRATIONS: Migration[] = [
       "`speclaw index`. Optionally add coverage.gateArchive / defaultNeeds under lawbook/config.yaml.\n" +
       "- Preserve all project-specific wording; only apply these speclaw-authored changes.",
   },
+  {
+    version: "0.3.9",
+    describe: "Spec drift: speclaw drift + lawbook_drift + schema 6 dual hashes",
+    agentPrompt:
+      "- Mention `speclaw drift` / `lawbook_drift` for sealed spec↔code drift " +
+      "(committed `lawbook/anchors/*.json`, dual body/norm hashes). Compass schema is now 6 — " +
+      "reindex with `speclaw index`, then `speclaw drift --reseal` once to photograph current bodies.\n" +
+      "- Preserve all project-specific wording; only apply these speclaw-authored changes.",
+  },
 ];
 
 /**

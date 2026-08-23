@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { coverageArchiveBlockers } from "./coverage.js";
+import { sealCapability, type SealSummary } from "./anchors.js";
 
 // speclaw's own spec-driven workflow engine. Inspired by OpenSpec's model
 // (proposals, delta specs, changes, archive) but implemented from scratch and
@@ -320,6 +321,8 @@ export interface ArchiveResult {
   updated: string[];
   /** Project-relative path the change was moved to. */
   archivedTo: string;
+  /** Structural anchors sealed into lawbook/anchors/ during archive. */
+  seals: SealSummary[];
 }
 
 /**
@@ -400,11 +403,53 @@ export function specArchive(projectPath: string, change: string, date: string): 
     );
   }
   const { promoted, created, updated } = specSync(projectPath, change);
+  const seals = sealPromotedCapabilities(projectPath, change, [
+    ...promoted,
+    ...created,
+    ...updated,
+  ]);
   const archiveDir = path.join(root, "changes", "archive", `${date}-${change}`);
   fs.mkdirSync(path.dirname(archiveDir), { recursive: true });
   if (fs.existsSync(archiveDir)) throw new Error(`archive target already exists: ${archiveDir}`);
   fs.renameSync(changeDir, archiveDir);
-  return { change, promoted, created, updated, archivedTo: path.relative(projectPath, archiveDir) };
+  return {
+    change,
+    promoted,
+    created,
+    updated,
+    archivedTo: path.relative(projectPath, archiveDir),
+    seals,
+  };
+}
+
+/**
+ * Seal structural anchors for every capability whose canonical spec was
+ * promoted during archive. Missing specs are skipped; zero anchors warn via
+ * {@link SealSummary.warned} but never block archive.
+ */
+function sealPromotedCapabilities(
+  projectPath: string,
+  change: string,
+  promotedPaths: string[],
+): SealSummary[] {
+  const caps = new Set<string>();
+  for (const p of promotedPaths) {
+    // lawbook/specs/<capability>/spec.md → capability
+    const parts = p.replace(/\\/g, "/").split("/");
+    const specsIdx = parts.indexOf("specs");
+    if (specsIdx >= 0 && parts[specsIdx + 1]) caps.add(parts[specsIdx + 1]!);
+  }
+  const out: SealSummary[] = [];
+  for (const capability of [...caps].sort()) {
+    const specPath = path.join(specRoot(projectPath), "specs", capability, "spec.md");
+    if (!fs.existsSync(specPath)) continue;
+    out.push(
+      sealCapability(projectPath, capability, fs.readFileSync(specPath, "utf8"), {
+        specId: `${capability}#${change}`,
+      }),
+    );
+  }
+  return out;
 }
 
 /** Snapshot of the spec workspace contents. */
