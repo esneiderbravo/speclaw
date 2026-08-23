@@ -5,6 +5,7 @@ import { openDb, clearNeedsReindex } from "./db.js";
 import { langForPath } from "./languages.js";
 import { extract } from "./extract.js";
 import { getEmbedder, toBlob } from "./embedder.js";
+import { loadAffectedConfig, isTestPath, inferModule } from "./affected-config.js";
 
 const SKIP_DIRS = new Set([
   ".git",
@@ -42,6 +43,113 @@ export interface IndexStats {
 
 function hashOf(content: string): string {
   return createHash("sha256").update(content).digest("hex");
+}
+
+/**
+ * Point import edges at a representative node in the imported file so reverse
+ * reachability can walk file-level dependencies (not just calls).
+ */
+function resolveImportEdges(db: ReturnType<typeof openDb>, projectPath: string): void {
+  const files = db.prepare("SELECT id, path FROM files").all() as Array<{
+    id: number;
+    path: string;
+  }>;
+  const byNorm = new Map<string, number>();
+  for (const f of files) {
+    byNorm.set(f.path.split("\\").join("/"), f.id);
+  }
+  const firstNode = db.prepare(
+    "SELECT id FROM nodes WHERE file_id = ? ORDER BY start_line ASC, id ASC LIMIT 1",
+  );
+  const namedNode = db.prepare(
+    "SELECT id FROM nodes WHERE file_id = ? AND name = ? ORDER BY id ASC LIMIT 1",
+  );
+  const upd = db.prepare("UPDATE edges SET dst_node_id = ? WHERE id = ?");
+
+  const imports = db
+    .prepare(
+      `SELECT e.id, e.dst_name, e.src_file_id, f.path AS src_path
+       FROM edges e JOIN files f ON f.id = e.src_file_id
+       WHERE e.kind = 'import' AND e.dst_node_id IS NULL`,
+    )
+    .all() as Array<{ id: number; dst_name: string; src_file_id: number; src_path: string }>;
+
+  for (const edge of imports) {
+    const spec = parseImportSpecifier(edge.dst_name);
+    if (!spec) continue;
+    const targetRel = resolveImportPath(projectPath, edge.src_path, spec.from);
+    if (!targetRel) continue;
+    const fileId = byNorm.get(targetRel);
+    if (fileId === undefined) continue;
+
+    let nodeId: number | undefined;
+    for (const name of spec.names) {
+      const row = namedNode.get(fileId, name) as { id: number } | undefined;
+      if (row) {
+        nodeId = row.id;
+        break;
+      }
+    }
+    if (nodeId === undefined) {
+      const row = firstNode.get(fileId) as { id: number } | undefined;
+      nodeId = row?.id;
+    }
+    if (nodeId !== undefined) upd.run(nodeId, edge.id);
+  }
+}
+
+/** Pull `from` path and optional named imports out of a raw import statement text. */
+function parseImportSpecifier(text: string): { from: string; names: string[] } | null {
+  const fromMatch =
+    text.match(/\bfrom\s+['"]([^'"]+)['"]/) ?? text.match(/require\s*\(\s*['"]([^'"]+)['"]/);
+  if (!fromMatch) return null;
+  const from = fromMatch[1]!;
+  const names: string[] = [];
+  const brace = text.match(/\{([^}]+)\}/);
+  if (brace) {
+    for (const part of brace[1]!.split(",")) {
+      const id = part
+        .trim()
+        .split(/\s+as\s+/i)[0]!
+        .trim();
+      if (id && /^[A-Za-z_$][\w$]*$/.test(id)) names.push(id);
+    }
+  }
+  const def = text.match(/\bimport\s+([A-Za-z_$][\w$]*)\s+/);
+  if (def && !text.includes("{")) names.push(def[1]!);
+  return { from, names };
+}
+
+/**
+ * Resolve a relative/absolute-ish import specifier to a project-relative indexed path.
+ */
+function resolveImportPath(projectPath: string, srcRel: string, spec: string): string | null {
+  if (!spec.startsWith(".") && !spec.startsWith("/")) return null; // bare package — skip
+  const srcDir = path.dirname(path.join(projectPath, srcRel));
+  const absBase = path.resolve(srcDir, spec);
+  const candidates = [
+    absBase,
+    absBase.replace(/\.js$/, ".ts"),
+    absBase.replace(/\.js$/, ".tsx"),
+    absBase.replace(/\.jsx$/, ".tsx"),
+    `${absBase}.ts`,
+    `${absBase}.tsx`,
+    `${absBase}.js`,
+    `${absBase}.jsx`,
+    `${absBase}.mjs`,
+    `${absBase}.cjs`,
+    path.join(absBase, "index.ts"),
+    path.join(absBase, "index.js"),
+  ];
+  for (const abs of candidates) {
+    if (!fs.existsSync(abs) || !fs.statSync(abs).isFile()) continue;
+    return path.relative(projectPath, abs).split("\\").join("/");
+  }
+  // Fall back without existence check — strip a trailing .js for TS sources.
+  let rel = path.relative(projectPath, absBase).split("\\").join("/");
+  if (rel.endsWith(".js")) rel = rel.slice(0, -3) + ".ts";
+  else if (!/\.(ts|tsx|js|jsx|mjs|cjs)$/.test(rel)) rel = `${rel}.ts`;
+  return rel.replace(/^\.\//, "");
 }
 
 /**
@@ -126,6 +234,7 @@ export async function buildIndex(
     embedder: embedder.id,
   };
 
+  const cfg = loadAffectedConfig(projectPath);
   const existing = new Map<string, { id: number; hash: string }>();
   for (const row of db.prepare("SELECT id, path, hash FROM files").all() as Array<{
     id: number;
@@ -136,8 +245,12 @@ export async function buildIndex(
   }
 
   const seen = new Set<string>();
-  const insFile = db.prepare("INSERT INTO files(path, hash, lang) VALUES (?, ?, ?)");
-  const updFile = db.prepare("UPDATE files SET hash = ?, lang = ? WHERE id = ?");
+  const insFile = db.prepare(
+    "INSERT INTO files(path, hash, lang, is_test, module) VALUES (?, ?, ?, ?, ?)",
+  );
+  const updFile = db.prepare(
+    "UPDATE files SET hash = ?, lang = ?, is_test = ?, module = ? WHERE id = ?",
+  );
   const delNodes = db.prepare("DELETE FROM nodes WHERE file_id = ?");
   const delEdges = db.prepare("DELETE FROM edges WHERE src_file_id = ?");
   const delCoverage = db.prepare("DELETE FROM coverage_links WHERE file_path = ?");
@@ -183,14 +296,16 @@ export async function buildIndex(
       }
 
       let fileId: number;
+      const isTest = isTestPath(rel, cfg.testGlobs) ? 1 : 0;
+      const mod = inferModule(rel);
       if (prior) {
-        updFile.run(hash, lang.id, prior.id);
+        updFile.run(hash, lang.id, isTest, mod, prior.id);
         delNodes.run(prior.id);
         delEdges.run(prior.id);
         delCoverage.run(rel);
         fileId = prior.id;
       } else {
-        fileId = Number(insFile.run(rel, hash, lang.id).lastInsertRowid);
+        fileId = Number(insFile.run(rel, hash, lang.id, isTest, mod).lastInsertRowid);
       }
 
       const { symbols, refs, coverage } = await extract(content, lang);
@@ -218,8 +333,11 @@ export async function buildIndex(
         insEmbed.run(id, embedder.dim, embedder.id, toBlob(vec));
         stats.embeddings++;
       }
+      // Prefer a real symbol as import owner when the AST leaves imports file-scoped.
+      const fileOwner = nodeIds[0] ?? null;
       for (const r of refs) {
-        const srcId = r.ownerIndex !== null ? nodeIds[r.ownerIndex]! : null;
+        let srcId = r.ownerIndex !== null ? nodeIds[r.ownerIndex]! : null;
+        if (srcId === null && r.kind === "import") srcId = fileOwner;
         insEdge.run(srcId, fileId, r.name, r.kind, r.line);
         stats.edges++;
       }
@@ -250,15 +368,18 @@ export async function buildIndex(
       }
     }
 
-    // resolve call edges to node definitions by name match
+    // Prefer same-file callees so colliding names across files do not share one id.
     db.exec(`
       UPDATE edges SET dst_node_id = (
         SELECT n.id FROM nodes n
         WHERE n.name = edges.dst_name
+        ORDER BY CASE WHEN n.file_id = edges.src_file_id THEN 0 ELSE 1 END, n.id
         LIMIT 1
       )
       WHERE kind = 'call' AND dst_node_id IS NULL
     `);
+
+    resolveImportEdges(db, projectPath);
 
     db.prepare(
       "INSERT INTO meta(key, value) VALUES ('indexed_at', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",

@@ -4,6 +4,7 @@ import { defineTool, text, type ToolSpec } from "../../shared/mcp.js";
 import { shouldExpose, type RegisterOpts } from "../../shared/exposure.js";
 import { buildIndex } from "./indexer.js";
 import { explore, search, recall, impact, trace } from "./query.js";
+import { affectedTests } from "./affected.js";
 import { startWatch, stopWatch, watchStatus } from "./watcher.js";
 import { visualize } from "./visualize.js";
 
@@ -57,9 +58,49 @@ export function registerCompass(server: McpServer, opts: RegisterOpts = {}): voi
 
   add(
     "compass_impact",
-    "List transitive callers of a symbol (blast radius) before editing.",
-    { projectPath: z.string(), node: z.string(), maxDepth: z.number().optional() },
-    async ({ projectPath, node, maxDepth }) => text(impact(projectPath, node, maxDepth ?? 4)),
+    "Blast radius for a symbol or files, grouped by module (not a flat dump).",
+    {
+      projectPath: z.string(),
+      /** @deprecated Prefer `symbol`. Kept for existing callers. */
+      node: z.string().optional(),
+      symbol: z.string().optional(),
+      files: z.array(z.string()).optional(),
+      nodeId: z.number().int().optional(),
+      maxDepth: z.number().int().min(1).max(12).optional(),
+      edgeKinds: z.array(z.enum(["call", "import"])).optional(),
+      target: z.enum(["build", "test", "lint", "any"]).optional(),
+      format: z.enum(["grouped", "flat"]).optional(),
+      topModules: z.number().int().min(1).max(50).optional(),
+      topPerModule: z.number().int().min(1).max(50).optional(),
+    },
+    async (args) =>
+      text(
+        impact(args.projectPath, {
+          symbol: args.symbol ?? args.node,
+          files: args.files,
+          nodeId: args.nodeId,
+          maxDepth: args.maxDepth ?? 4,
+          edgeKinds: args.edgeKinds,
+          target: args.target,
+          format: args.format ?? "grouped",
+          topModules: args.topModules,
+          topPerModule: args.topPerModule,
+        }),
+      ),
+  );
+
+  add(
+    "compass_affected_tests",
+    "Select test files affected by a change; returns a ready-to-run command.",
+    {
+      projectPath: z.string(),
+      files: z.array(z.string()).optional(),
+      symbols: z.array(z.string()).optional(),
+      fromDiff: z.string().optional(),
+      maxDepth: z.number().int().min(1).max(12).optional(),
+    },
+    async ({ projectPath, files, symbols, fromDiff, maxDepth }) =>
+      text(affectedTests(projectPath, { files, symbols, fromDiff, maxDepth })),
   );
 
   add(

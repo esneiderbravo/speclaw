@@ -67,7 +67,7 @@ test("impact walks callers transitively", async (t) => {
   const root = tmpRepo(t);
   seedSampleRepo(root);
   await buildIndex(root);
-  const names = impact(root, "gamma").map((n) => n.name);
+  const names = (impact(root, { symbol: "gamma", format: "flat" }).nodes ?? []).map((n) => n.name);
   assert.ok(names.includes("beta"));
   assert.ok(names.includes("alpha"));
 });
