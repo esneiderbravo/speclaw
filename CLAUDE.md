@@ -33,8 +33,13 @@ This repo is indexed by Compass, speclaw's local code graph (`.speclaw/`). For
 **any** question about code — what a symbol is, what it uses, who calls it,
 where it lives, how a value flows — call Compass **first**: `compass_search` /
 `compass_recall` to locate, `compass_explore` to read a symbol with its callers
-and callees, `compass_impact` / `compass_trace` for blast radius and call paths.
-Run `compass_index` first if the graph is missing.
+and callees, `compass_impact` (grouped by module; `format: flat` for the old list) /
+`compass_trace` for blast radius and call paths, `compass_affected_tests` /
+`speclaw affected-tests --from-diff` for which tests to run,
+`compass_hotspots` / `speclaw hotspots` (activity × AST health, default 90d)
+and `compass_coupling` / `speclaw coupling` (Jaccard strength, `in_graph`,
+`isTestPair`). Run `compass_index` first if the graph is missing. Schema **8**
+stores `node_metrics` — reindex with `speclaw index` after a schema bump.
 
 This includes files you already know the name of: to learn what `Foo` imports,
 uses, or depends on, run `compass_explore Foo` — do **not** `cat`/`sed`/`grep`/
@@ -55,6 +60,10 @@ verify → archive). The rules are in
 [`docs/standards/lawbook.md`](docs/standards/lawbook.md);
 the workflow skills live in `ai-specs/skills/` and the `/lawbook` commands wrap
 them. A change is not done until it is archived — archiving belongs in the PR.
+Requirement → impl → test coverage is `speclaw coverage` / `lawbook_coverage`
+(ids like `req~name~1`, `// Covers:` comments). Sealed spec↔code drift is
+`speclaw drift` / `lawbook_drift` (committed `lawbook/anchors/*.json`, dual
+body/norm hashes).
 
 ## Rule 3 — Quality gates are non-negotiable
 
@@ -88,3 +97,14 @@ schema drops), writing to a real data store (DB rows or files holding real user
 data — including to set up or tear down test data; verification runs against an
 isolated/throwaway store instead), publishing anything outward-facing (PR
 reviews, tickets, comments), or any action that contradicts a standard.
+
+## Operator notes
+
+- `speclaw budget` reports always-on context cost. `speclaw init --minimal` /
+  `SPECLAW_MINIMAL=1` omit setup MCP tools (no server-side `defer_loading`).
+- `speclaw doctor --json` is the support report (redacted by default). Stable
+  install: `npx @esneiderbravo/speclaw@latest init`.
+- Optional `.speclaw/affected.json` overrides affected-test globals/test globs.
+  After a Compass schema bump (now **8**, `node_metrics`), reindex with
+  `speclaw index`; photograph bodies once with `speclaw drift --reseal` if
+  anchors are new or stale. Hotspots/coupling default history window is 90 days.
