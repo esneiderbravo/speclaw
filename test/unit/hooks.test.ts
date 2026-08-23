@@ -32,6 +32,12 @@ test("compileHooks maps each enforcement type to its event", () => {
   assert.ok(byEvent.Stop); // gate
   assert.ok(byEvent.InstructionsLoaded); // always, for the audit
   assert.equal(byEvent.PreToolUse![0]!.hooks[0]!.server, "speclaw");
+  assert.equal(byEvent.PreToolUse![0]!.hooks[0]!.input.projectPath, "${cwd}");
+  assert.equal(byEvent.PreToolUse![0]!.hooks[0]!.input.event, "${hook_event_name}");
+  assert.equal(
+    byEvent.Stop![0]!.hooks[0]!.input.payload.tool_input.file_path,
+    "${tool_input.file_path}",
+  );
 });
 
 test("compileHooks excludes a law with a malformed glob and reports it", () => {
@@ -88,6 +94,63 @@ test("installHooks writes settings for a hook-capable agent and skips others", (
   const settings = JSON.parse(read(root, ".claude/settings.json"));
   assert.equal(settings.hooks.PreToolUse[0].hooks[0].server, "speclaw");
   assert.ok(!has(root, ".cursor/settings.json"));
+});
+
+test("installHooks upgrades legacy mcp_tool hooks that lack input", (t) => {
+  const root = tmpRepo(t);
+  write(
+    root,
+    ".claude/settings.json",
+    JSON.stringify(
+      {
+        hooks: {
+          Stop: [
+            {
+              hooks: [
+                {
+                  type: "mcp_tool",
+                  server: "speclaw",
+                  tool: "speclaw_check",
+                  timeout: 5,
+                },
+              ],
+            },
+          ],
+          PreToolUse: [
+            {
+              matcher: "Bash",
+              hooks: [{ type: "command", command: "echo keep-me" }],
+            },
+          ],
+        },
+      },
+      null,
+      2,
+    ) + "\n",
+  );
+  const report = emptyReport();
+  installHooks(
+    root,
+    ["claude"],
+    manifest([
+      lawOf({ id: "law~b~1", enforcement: "bloqueo", scope: ["**/.env"] }),
+      lawOf({ id: "law~g~1", enforcement: "gate" }),
+    ]),
+    report,
+    {},
+  );
+  const settings = JSON.parse(read(root, ".claude/settings.json")) as {
+    hooks: Record<string, Array<{ matcher?: string; hooks: Array<Record<string, unknown>> }>>;
+  };
+  const stopHook = settings.hooks.Stop![0]!.hooks[0]!;
+  assert.equal(stopHook.server, "speclaw");
+  assert.ok(stopHook.input);
+  assert.equal((stopHook.input as { projectPath: string }).projectPath, "${cwd}");
+  assert.ok(
+    settings.hooks.PreToolUse!.some((g) =>
+      g.hooks.some((h) => h.type === "command" && h.command === "echo keep-me"),
+    ),
+  );
 });
 
 test("installHooks never clobbers an unparseable settings file", (t) => {
