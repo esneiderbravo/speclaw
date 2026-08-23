@@ -29,7 +29,13 @@ Claude-specific notes: [`CLAUDE.md`](CLAUDE.md). The law: [`LAWS.md`](LAWS.md).
    — reindex with `speclaw index` after a schema bump. Cheat sheet:
    [`docs/compass.md`](docs/compass.md).
 3. **Follow the lawbook workflow** for every non-trivial change; archive
-   within the same PR. Rules:
+   within the same PR. Artifact volume follows the confirmed ceremony level in
+   `change.json` (0=quick … 3=full); missing `change.json` is level 3. Propose,
+   set, or promote with `lawbook_level` / `speclaw lawbook level`; level 0 via
+   `speclaw quick`. Bugs: `speclaw lawbook draft --bug`, `bugfix.md` (repro +
+   regression + prevention), `changeType: bug`; RCA first with
+   `lawbook_investigate` / the investigate skill. Feature ceremony unchanged;
+   security-withheld mode is not shipped. Rules:
    [`docs/standards/lawbook.md`](docs/standards/lawbook.md).
    Coverage: `speclaw coverage` / `lawbook_coverage` (ids like `req~name~1`,
    `// Covers:` comments). Drift: `speclaw drift` / `lawbook_drift` (committed
@@ -89,3 +95,6 @@ Claude-specific notes: [`CLAUDE.md`](CLAUDE.md). The law: [`LAWS.md`](LAWS.md).
 - Optional `.speclaw/affected.json` overrides affected-test globals/test globs.
   Compass schema **8** (`node_metrics`) — reindex with `speclaw index`.
   Hotspots/coupling default history window is 90 days.
+- Ceremony 0–3 in `change.json`; `speclaw quick` for level 0; `lawbook_level`
+  propose/set/promote. Optional `ceremony:` in `lawbook/config.yaml`.
+- Bugs: `speclaw lawbook draft --bug`, `bugfix.md`, `lawbook_investigate`.
