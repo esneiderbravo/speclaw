@@ -13,6 +13,7 @@ Create under `lawbook/changes/<name>/` only what the level needs:
 - **Level 2** — `proposal.md`, `tasks.md`, delta specs, `reports/`;
   `design.md` optional only with justification in `record.md`.
 - **Level 3** — `proposal.md`, `design.md`, `tasks.md`, delta specs, `reports/`.
+- **Bug (`draft --bug`)** — `bugfix.md` instead of proposal/design; see the investigate skill for RCA first.
 
 For every level that needs delta specs:
 

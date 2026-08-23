@@ -36,6 +36,8 @@ Lawbook (spec-driven workflow)
   lawbook init             Create the lawbook/ workspace
   lawbook list             Active/archived changes and capabilities
   lawbook level <mode>     Propose/set/promote/explain ceremony level (--json)
+  lawbook draft --bug <c>  Scaffold a bug change (bugfix.md + reports)
+  lawbook investigate      Rank bug suspects from graph (--symptom / --stack-trace, --json)
   lawbook validate <c>     Validate a change's artifacts
   lawbook sync <c>         Promote delta specs to canonical
   lawbook archive <c>      Finalize and archive a change
@@ -97,6 +99,8 @@ function maybeHeader(cmd: string | undefined, flags: ReturnType<typeof parseFlag
   if (cmd === "drift" && flags.json) return;
   if (cmd === "quick" && flags.json) return;
   if (cmd === "lawbook" && flags.json && flags._[0] === "level") return;
+  if (cmd === "lawbook" && flags.json && flags._[0] === "investigate") return;
+  if (cmd === "lawbook" && flags.json && flags._[0] === "draft") return;
   header();
 }
 
