@@ -3,6 +3,22 @@
 All notable changes to this project are documented here. Speclaw follows
 [Semantic Versioning](https://semver.org/) for the published npm package.
 
+## [0.3.8] — 2026-08-23
+
+### Added
+
+- Requirement coverage: stable ids (`req~name~rev`), `// Covers:` / `# Covers:` /
+  `@covers` comment links, `speclaw coverage` (TAP / table / `--json`, `--adopt`),
+  MCP `lawbook_coverage`, and an opt-in archive gate on direct defects.
+- Compass schema **5** with derived `coverage_links` rebuilt on index (spec items
+  stay on disk, never in SQLite).
+- Dogfood: `local-content` capability carries ids + real Covers links.
+
+### Changed
+
+- Minimal exposure keeps `lawbook_coverage` (agents can check coverage before
+  declaring done). Tool count in minimal profile is now 8.
+
 ## [0.3.7] — 2026-08-22
 
 ### Fixed

@@ -38,6 +38,7 @@ Lawbook (spec-driven workflow)
 Other
   doctor                   Verify the installation (--json, --offline, --strict)
   budget                   Measure always-on context cost (tools, skills, instructions)
+  coverage                 Requirement → impl → test coverage (--json, --tap, --adopt, --write)
   telemetry status         Confirm speclaw ships no telemetry
   check                    Evaluate an action against the laws (hooks call this; --dry-run to preview)
   laws verify              Verify the deterministic dependency/graph laws against the index
@@ -62,6 +63,7 @@ const HEADER_COMMANDS = new Set<string | undefined>([
   "agent",
   "doctor",
   "budget",
+  "coverage",
   "telemetry",
   "index",
   "watch",
@@ -73,14 +75,16 @@ const HEADER_COMMANDS = new Set<string | undefined>([
  * header-eligible command AND stdout is an interactive terminal (so pipes,
  * redirection, and CI stay clean — mirroring the color gate in `ui.ts`). A
  * forced-color signal counts as interactive so the header is exercisable in a
- * child process. `budget --json` and `doctor --json` are machine-consumed and
- * suppress the header.
+ * child process. `budget --json`, `doctor --json`, and `coverage` when emitting
+ * TAP/JSON (or when stdout is not a TTY) are machine-consumed and suppress the
+ * header.
  */
 function maybeHeader(cmd: string | undefined, flags: ReturnType<typeof parseFlags>): void {
   if (!process.stdout.isTTY && process.env.FORCE_COLOR !== "1") return;
   if (!HEADER_COMMANDS.has(cmd)) return;
   if (cmd === "budget" && flags.json) return;
   if (cmd === "doctor" && flags.json) return;
+  if (cmd === "coverage" && (flags.json || flags.tap)) return;
   header();
 }
 
@@ -129,6 +133,8 @@ async function dispatch(
       return (await import("./commands/doctor.js")).runDoctor(flags);
     case "budget":
       return (await import("./commands/budget.js")).runBudget(flags);
+    case "coverage":
+      return (await import("./commands/coverage.js")).runCoverage(flags);
     case "telemetry":
       return (await import("./commands/telemetry.js")).runTelemetry(flags);
     case "check":

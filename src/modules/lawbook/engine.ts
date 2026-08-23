@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import { coverageArchiveBlockers } from "./coverage.js";
 
 // speclaw's own spec-driven workflow engine. Inspired by OpenSpec's model
 // (proposals, delta specs, changes, archive) but implemented from scratch and
@@ -370,6 +371,9 @@ export function specArchivePreconditions(projectPath: string, change: string): s
       );
     }
   }
+
+  // 4. Opt-in coverage gate: only when the change's delta specs declare ids.
+  blockers.push(...coverageArchiveBlockers(projectPath, change));
 
   return blockers;
 }
