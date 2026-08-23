@@ -12,17 +12,18 @@ the **confirmed ceremony level** in `change.json` (0=quick … 3=full). Missing
 
 1. **explore** — think an idea through before committing (writes nothing).
 2. **draft** / **quick** — propose a ceremony level from graph signals
-   (`lawbook_level` / `speclaw lawbook level`), confirm it, then scaffold only
-   what that level needs:
+   (`lawbook_level` / `speclaw lawbook level` **propose**), **set** or
+   **promote** it, then scaffold only what that level needs:
    - **0** — `record.md` (inline checklist) + `reports/` (`speclaw quick`)
    - **1** — record + `tasks.md` + ≥1 delta requirement + reports
    - **2** — `proposal.md` + tasks + delta specs + reports (design optional
      with justification)
    - **3** — proposal + design + tasks + delta specs + reports
-   - **bug** — `bugfix.md` instead of proposal/design (`speclaw lawbook draft --bug`);
-     use **`investigate`** / `lawbook_investigate` for graph-backed RCA first. Requires
+   - **bug** — `bugfix.md` instead of proposal/design (`speclaw lawbook draft --bug`,
+     `changeType: bug` in `change.json`); feature ceremony is unchanged. Use
+     **`investigate`** / `lawbook_investigate` for graph-backed RCA first. Requires
      reproduction, regression test, and prevention (§7); delta spec only when prevention
-     finds a missing requirement.
+     finds a missing requirement. Security-withheld mode is not in this release.
 3. **build** — implement the tasks in order, keeping code and spec in
    agreement, and write the discipline reports under `reports/`.
 4. **sync** — reconcile the delta specs against what was actually built, then
