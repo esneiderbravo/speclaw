@@ -24,16 +24,20 @@ jobs:
 
       - uses: actions/setup-node@v5
         with:
-          node-version: 22
+          # Match CI Test: Node 24 (stable node:sqlite + coverage thresholds).
+          # See docs/standards/testing-standards.md.
+          node-version: 24
           registry-url: https://registry.npmjs.org
+          cache: npm
 
       # Trusted Publishing (OIDC) requires npm >= 11.5.1
       - run: npm install -g npm@latest
 
       - run: npm ci
       - run: npm run check
-      - run: npm test
+      # e2e drives the built CLI — build before test (same order as ci.yml).
       - run: npm run build
+      - run: npm test
 
       - name: Publish if the version is new
         run: |
