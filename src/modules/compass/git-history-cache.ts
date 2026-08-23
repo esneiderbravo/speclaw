@@ -1,16 +1,19 @@
 import {
   churn,
   coChanges,
+  fileActivity,
   headSha,
   type ChurnResult,
   type CoChange,
   type CoChangeResult,
+  type FileActivity,
+  type FileActivityResult,
 } from "../../shared/git-history.js";
 import { openDb } from "./db.js";
 
 /**
  * Read-through cache over the expensive git-history scans (`churn`,
- * `coChanges`), persisted in Compass's `.speclaw/index.db`.
+ * `coChanges`, `fileActivity`), persisted in Compass's `.speclaw/index.db`.
  *
  * The scans walk the whole history window, so their cost is worth memoizing —
  * but only until a new commit lands. Each entry is keyed by the query (function
@@ -20,14 +23,21 @@ import { openDb } from "./db.js";
  * called directly, uncached.
  *
  * This wrapper lives in the compass module because persistence belongs with the
- * database it owns; the {@link churn}/{@link coChanges} engine in
- * `src/shared/git-history.ts` stays pure and imports nothing from `modules/`.
+ * database it owns; the {@link churn}/{@link coChanges}/{@link fileActivity}
+ * engine in `src/shared/git-history.ts` stays pure and imports nothing from
+ * `modules/`.
  */
 
 /** The serialized shape stored in `git_history_cache.payload` for a churn result. */
 interface ChurnPayload {
   shallow: boolean;
   byPath: [string, number][];
+}
+
+/** Serialized {@link FileActivityResult}. */
+interface ActivityPayload {
+  shallow: boolean;
+  byPath: [string, FileActivity][];
 }
 
 /** A row of the `git_history_cache` table. */
@@ -111,6 +121,31 @@ export function cachedChurn(
 }
 
 /**
+ * {@link fileActivity}, memoized in the Compass index until `HEAD` moves.
+ */
+export function cachedFileActivity(
+  projectPath: string,
+  opts: { since?: string; pathspec?: string[] } = {},
+): FileActivityResult {
+  const key = `fileActivity:${JSON.stringify({ since: opts.since ?? null, pathspec: opts.pathspec ?? null })}`;
+  return readThrough<FileActivityResult>(
+    projectPath,
+    headSha(projectPath),
+    key,
+    () => fileActivity(projectPath, opts),
+    (value) =>
+      JSON.stringify({
+        shallow: value.shallow,
+        byPath: [...value.byPath],
+      } satisfies ActivityPayload),
+    (payload) => {
+      const parsed = JSON.parse(payload) as ActivityPayload;
+      return { shallow: parsed.shallow, byPath: new Map(parsed.byPath) };
+    },
+  );
+}
+
+/**
  * {@link coChanges}, memoized in the Compass index until `HEAD` moves.
  *
  * @param projectPath - Project root to query.
@@ -119,15 +154,19 @@ export function cachedChurn(
  */
 export function cachedCoChanges(
   projectPath: string,
-  opts: { since?: string; minSupport?: number } = {},
+  opts: { since?: string; minSupport?: number; maxFilesPerCommit?: number } = {},
 ): CoChangeResult {
-  const key = `coChanges:${JSON.stringify({ since: opts.since ?? null, minSupport: opts.minSupport ?? null })}`;
+  const key = `coChanges:${JSON.stringify({
+    since: opts.since ?? null,
+    minSupport: opts.minSupport ?? null,
+    maxFilesPerCommit: opts.maxFilesPerCommit ?? null,
+  })}`;
   return readThrough<CoChangeResult>(
     projectPath,
     headSha(projectPath),
     key,
     () => coChanges(projectPath, opts),
     (value) => JSON.stringify(value),
-    (payload) => JSON.parse(payload) as { shallow: boolean; pairs: CoChange[] },
+    (payload) => JSON.parse(payload) as { shallow: boolean; pairs: CoChange[] } & CoChangeResult,
   );
 }

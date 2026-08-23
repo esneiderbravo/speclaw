@@ -1,13 +1,14 @@
 import { explore, search, recall, impact, trace } from "../../modules/compass/query.js";
 import { affectedTests } from "../../modules/compass/affected.js";
+import { hotspots, coupling } from "../../modules/compass/hotspots.js";
 import { Flags, list } from "../lib/args.js";
 import { ui } from "../lib/ui.js";
 
 /**
  * Run a Compass query from the shell — the same surface agents call via MCP.
  *
- * @param cmd - Query verb: `explore`, `search`, `recall`, `impact`, `trace`, or
- *   `affected-tests`.
+ * @param cmd - Query verb: `explore`, `search`, `recall`, `impact`, `trace`,
+ *   `affected-tests`, `hotspots`, or `coupling`.
  * @param flags - Parsed flags supplying positional args and options in `_`.
  * @throws Exits the process with code 1 on missing arguments or query errors.
  */
@@ -126,6 +127,63 @@ export async function runQuery(cmd: string, flags: Flags): Promise<void> {
         result.tests.forEach((t) => ui.info(t.file));
         ui.heading("Command");
         console.log(result.command);
+        result.warnings.forEach((w) => ui.warn(w));
+        return;
+      }
+      case "hotspots": {
+        const sortRaw = typeof flags.sort === "string" ? flags.sort : undefined;
+        const sortBy =
+          sortRaw === "churn" || sortRaw === "complexity" || sortRaw === "combined"
+            ? sortRaw
+            : "combined";
+        const result = hotspots(cwd, {
+          days: flags.days ? Number(flags.days) : undefined,
+          since: typeof flags.since === "string" ? flags.since : undefined,
+          sortBy,
+          limit: flags.limit ? Number(flags.limit) : undefined,
+        });
+        if (asJson) {
+          console.log(JSON.stringify(result, null, 2));
+          return;
+        }
+        ui.heading(
+          `Hotspots (${result.window.label}, sort=${result.sortBy}): ${result.hotspots.length}`,
+        );
+        for (const h of result.hotspots) {
+          const health = h.health
+            ? `branches=${h.health.worstBranches} nest=${h.health.worstNesting} loc=${h.health.worstLoc}`
+            : "health=n/a";
+          ui.info(
+            `${h.file}  commits=${h.activity.commits} authors=${h.activity.authors}  ${health}`,
+          );
+        }
+        result.warnings.forEach((w) => ui.warn(w));
+        return;
+      }
+      case "coupling": {
+        const file = need(args[0], "coupling <file>");
+        const result = coupling(cwd, file, {
+          days: flags.days ? Number(flags.days) : undefined,
+          since: typeof flags.since === "string" ? flags.since : undefined,
+          minShared: flags["min-shared"] ? Number(flags["min-shared"]) : undefined,
+          maxFilesPerCommit: flags["max-files"] ? Number(flags["max-files"]) : undefined,
+          limit: flags.limit ? Number(flags.limit) : undefined,
+        });
+        if (asJson) {
+          console.log(JSON.stringify(result, null, 2));
+          return;
+        }
+        ui.heading(
+          `Coupling for ${result.file} (${result.window.label}): ${result.partners.length} partner(s)`,
+        );
+        ui.info(
+          `scanned=${result.diagnostics.commitsScanned} skippedTooLarge=${result.diagnostics.skippedTooLarge}`,
+        );
+        for (const p of result.partners) {
+          ui.info(
+            `${p.file}  both=${p.both} strength=${p.strength.toFixed(3)} in_graph=${p.inGraph} isTestPair=${p.isTestPair}`,
+          );
+        }
         result.warnings.forEach((w) => ui.warn(w));
         return;
       }

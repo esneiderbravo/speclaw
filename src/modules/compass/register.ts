@@ -5,6 +5,7 @@ import { shouldExpose, type RegisterOpts } from "../../shared/exposure.js";
 import { buildIndex } from "./indexer.js";
 import { explore, search, recall, impact, trace } from "./query.js";
 import { affectedTests } from "./affected.js";
+import { hotspots, coupling } from "./hotspots.js";
 import { startWatch, stopWatch, watchStatus } from "./watcher.js";
 import { visualize } from "./visualize.js";
 
@@ -101,6 +102,36 @@ export function registerCompass(server: McpServer, opts: RegisterOpts = {}): voi
     },
     async ({ projectPath, files, symbols, fromDiff, maxDepth }) =>
       text(affectedTests(projectPath, { files, symbols, fromDiff, maxDepth })),
+  );
+
+  add(
+    "compass_hotspots",
+    "Rank files by recent churn and AST complexity; two axes, no magic score.",
+    {
+      projectPath: z.string(),
+      days: z.number().int().min(1).max(3650).optional(),
+      since: z.string().optional(),
+      sortBy: z.enum(["churn", "complexity", "combined"]).optional(),
+      limit: z.number().int().min(1).max(200).optional(),
+    },
+    async ({ projectPath, days, since, sortBy, limit }) =>
+      text(hotspots(projectPath, { days, since, sortBy, limit })),
+  );
+
+  add(
+    "compass_coupling",
+    "Files that co-change with a target; strength, graph edge, and test-pair facts.",
+    {
+      projectPath: z.string(),
+      file: z.string(),
+      days: z.number().int().min(1).max(3650).optional(),
+      since: z.string().optional(),
+      minShared: z.number().int().min(1).optional(),
+      maxFilesPerCommit: z.number().int().min(2).optional(),
+      limit: z.number().int().min(1).max(200).optional(),
+    },
+    async ({ projectPath, file, days, since, minShared, maxFilesPerCommit, limit }) =>
+      text(coupling(projectPath, file, { days, since, minShared, maxFilesPerCommit, limit })),
   );
 
   add(

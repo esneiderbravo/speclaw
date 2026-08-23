@@ -3,6 +3,25 @@
 All notable changes to this project are documented here. Speclaw follows
 [Semantic Versioning](https://semver.org/) for the published npm package.
 
+## [0.3.11] — 2026-08-23
+
+### Added
+
+- `compass_hotspots` / `speclaw hotspots` — rank files by recent git activity
+  (default **90 days**) and AST health from `node_metrics` (LOC, nesting,
+  branches). Two raw axes; `sortBy`: `churn` | `complexity` | `combined`.
+- `compass_coupling` / `speclaw coupling <file>` — temporal co-change partners
+  with Jaccard `strength`, `in_graph`, and `isTestPair`. Giant commits
+  (`maxFilesPerCommit`, default 50) are excluded from coupling math.
+- Compass schema **8**: `node_metrics` (forced reindex). Richer
+  `fileActivity` in shared git-history (commits / lines / authors).
+
+### Notes
+
+- Descriptions stay honest: relative churn is a research signal, not a
+  guarantee; coupling reports facts, not architecture verdicts.
+- Both new MCP tools are omitted under `--minimal` exposure.
+
 ## [0.3.10] — 2026-08-23
 
 ### Added

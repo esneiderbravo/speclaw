@@ -13,6 +13,8 @@ export const MINIMAL_OMIT = new Set<string>([
   "compass_watch",
   "compass_impact",
   "compass_affected_tests",
+  "compass_hotspots",
+  "compass_coupling",
   "compass_trace",
   "compass_visualize",
   "lawbook_init",

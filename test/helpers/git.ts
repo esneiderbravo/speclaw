@@ -28,15 +28,53 @@ export function gitInit(dir: string): void {
 /**
  * Write each `{ path, content }` file under `dir`, stage it, and commit with
  * `message`. Returns the new commit's SHA.
+ *
+ * @param author - Optional override for author/committer identity on this commit.
  */
 export function commit(
   dir: string,
   message: string,
   files: { path: string; content: string }[],
+  author?: { name: string; email: string },
 ): string {
   for (const f of files) write(dir, f.path, f.content);
-  git(dir, "add", "--", ...files.map((f) => f.path));
-  git(dir, "commit", "-q", "-m", message);
+  const name = author?.name ?? "speclaw test";
+  const email = author?.email ?? "test@speclaw.dev";
+  const res = spawnSync(
+    "git",
+    [
+      "-C",
+      dir,
+      "-c",
+      `user.email=${email}`,
+      "-c",
+      `user.name=${name}`,
+      "add",
+      "--",
+      ...files.map((f) => f.path),
+    ],
+    { encoding: "utf8" },
+  );
+  if (res.status !== 0) throw new Error(`git add failed: ${res.stderr}`);
+  const commitRes = spawnSync(
+    "git",
+    [
+      "-C",
+      dir,
+      "-c",
+      `user.email=${email}`,
+      "-c",
+      `user.name=${name}`,
+      "commit",
+      "-q",
+      "-m",
+      message,
+    ],
+    { encoding: "utf8" },
+  );
+  if (commitRes.status !== 0) {
+    throw new Error(`git commit failed: ${commitRes.stderr ?? commitRes.stdout}`);
+  }
   return git(dir, "rev-parse", "HEAD");
 }
 

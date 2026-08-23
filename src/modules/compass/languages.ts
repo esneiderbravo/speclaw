@@ -32,6 +32,10 @@ export interface LangConfig {
   callField: string;
   /** node types representing an import/require statement. */
   importNodes: string[];
+  /** Block / compound types that increase nesting depth inside a definition. */
+  nestingNodes: string[];
+  /** Decision-point types counted toward `node_metrics.branches` (plus &&/||). */
+  branchNodes: string[];
 }
 
 export const LANGUAGES: LangConfig[] = [
@@ -46,6 +50,19 @@ export const LANGUAGES: LangConfig[] = [
     callNode: "call",
     callField: "function",
     importNodes: ["import_statement", "import_from_statement"],
+    nestingNodes: ["block", "suite"],
+    branchNodes: [
+      "if_statement",
+      "elif_clause",
+      "for_statement",
+      "while_statement",
+      "match_statement",
+      "case_clause",
+      "conditional_expression",
+      "except_clause",
+      "with_statement",
+      "boolean_operator",
+    ],
   },
   {
     id: "javascript",
@@ -59,6 +76,19 @@ export const LANGUAGES: LangConfig[] = [
     callNode: "call_expression",
     callField: "function",
     importNodes: ["import_statement"],
+    nestingNodes: ["statement_block", "class_body"],
+    branchNodes: [
+      "if_statement",
+      "else_clause",
+      "for_statement",
+      "for_in_statement",
+      "while_statement",
+      "do_statement",
+      "switch_case",
+      "switch_default",
+      "catch_clause",
+      "ternary_expression",
+    ],
   },
   {
     id: "typescript",
@@ -75,6 +105,19 @@ export const LANGUAGES: LangConfig[] = [
     callNode: "call_expression",
     callField: "function",
     importNodes: ["import_statement"],
+    nestingNodes: ["statement_block", "class_body"],
+    branchNodes: [
+      "if_statement",
+      "else_clause",
+      "for_statement",
+      "for_in_statement",
+      "while_statement",
+      "do_statement",
+      "switch_case",
+      "switch_default",
+      "catch_clause",
+      "ternary_expression",
+    ],
   },
 ];
 
