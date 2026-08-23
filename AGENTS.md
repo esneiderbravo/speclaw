@@ -20,11 +20,16 @@ Claude-specific notes: [`CLAUDE.md`](CLAUDE.md). The law: [`LAWS.md`](LAWS.md).
    `compass_search` / `compass_recall` **before** any grep/sed/cat/Read,
    including files you already know by name. Fall back to manual file tools only
    after Compass returns nothing useful, the graph is missing (`compass_index`
-   first), or the target isn't indexed code (stylesheets, config, logs). Cheat
-   sheet: [`docs/compass.md`](docs/compass.md).
+   first), or the target isn't indexed code (stylesheets, config, logs).
+   `compass_impact` is grouped by module (`format: flat` escape hatch);
+   prefer `compass_affected_tests` / `speclaw affected-tests --from-diff` over
+   the full suite. Cheat sheet: [`docs/compass.md`](docs/compass.md).
 3. **Follow the lawbook workflow** for every non-trivial change; archive
    within the same PR. Rules:
    [`docs/standards/lawbook.md`](docs/standards/lawbook.md).
+   Coverage: `speclaw coverage` / `lawbook_coverage` (ids like `req~name~1`,
+   `// Covers:` comments). Drift: `speclaw drift` / `lawbook_drift` (committed
+   `lawbook/anchors/*.json`, dual body/norm hashes).
 4. **Run the quality gates yourself** before declaring anything done — see
    [`docs/standards/testing-standards.md`](docs/standards/testing-standards.md):
    - Lint + format: `npm run check` (Prettier `--check` + ESLint); `npm run format` to fix
@@ -68,4 +73,13 @@ Claude-specific notes: [`CLAUDE.md`](CLAUDE.md). The law: [`LAWS.md`](LAWS.md).
 | `ai-specs/` | Canonical skills, commands, rules, agents |
 | `.claude/` `.cursor/` `.codex/` `.agents/` | IDE mirrors (symlinks into `ai-specs/`) |
 | `lawbook/` | Spec-driven workflow: specs, changes, archive |
+| `lawbook/anchors/` | Sealed spec↔code drift photographs (`speclaw drift`) |
 | `.mcp.json` | MCP wiring (speclaw) |
+
+## Operator notes
+
+- `speclaw budget` reports always-on context cost. `speclaw init --minimal` /
+  `SPECLAW_MINIMAL=1` omit setup MCP tools (no server-side `defer_loading`).
+- `speclaw doctor --json` is the support report (redacted by default). Stable
+  install: `npx @esneiderbravo/speclaw@latest init`.
+- Optional `.speclaw/affected.json` overrides affected-test globals/test globs.

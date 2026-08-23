@@ -22,11 +22,14 @@ before declaring anything done.
 CI runs both jobs on every push to `main` and every PR
 (`.github/workflows/ci.yml`): `build` (`npm ci && npm run check && npm run
 build`) and `test` (`npm ci && npm run build && npm test`), reported as two
-required status checks. `main` is protected so a change merges only through a
-pull request whose `build` and `test` checks pass on an up-to-date branch, with
-linear history and no force-pushes — codified in `.github/branch-protection.json`
-and applied by `scripts/apply-branch-protection.sh` (a maintainer with admin runs
-it; a status check must run once before it can be required).
+required status checks. PRs also run `.github/workflows/speclaw.yml` (the
+`speclaw` check); speclaw never makes that check required itself — add it in
+branch protection if you want PRs gated on law verification. `main` is
+protected so a change merges only through a pull request whose `build` and
+`test` checks pass on an up-to-date branch, with linear history and no
+force-pushes — codified in `.github/branch-protection.json` and applied by
+`scripts/apply-branch-protection.sh` (a maintainer with admin runs it; a status
+check must run once before it can be required).
 
 A red gate blocks the task. Fix it or report it — never work around it by
 suppressing the compiler (no blanket `@ts-ignore`), disabling a lint rule inline
