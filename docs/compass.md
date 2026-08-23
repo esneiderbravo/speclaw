@@ -29,11 +29,12 @@ a request, not whole files.
 
 | Tool | Use it to |
 |------|-----------|
-| `compass_index` | Build/refresh the graph (`.speclaw/index.db`). Incremental — unchanged files are skipped by hash. Run once after init and after significant edits. Schema **6** stores dual `body_hash` / `norm_hash` on definition nodes (for `speclaw drift` / `lawbook_drift`) and rebuilds derived `coverage_links` from `Covers:` / `@covers` comment directives (used by `speclaw coverage` / `lawbook_coverage`). |
+| `compass_index` | Build/refresh the graph (`.speclaw/index.db`). Incremental — unchanged files are skipped by hash. Run once after init and after significant edits. Schema **7** stores `files.is_test` / `files.module`, dual `body_hash` / `norm_hash` on definition nodes (for `speclaw drift` / `lawbook_drift`), and rebuilds derived `coverage_links` from `Covers:` / `@covers` comment directives (used by `speclaw coverage` / `lawbook_coverage`). |
 | `compass_explore` | Read a node's verbatim source plus its callers and callees. The default before editing. |
 | `compass_search` | Structural search: find nodes by name/keyword. |
 | `compass_recall` | Semantic search: describe what you want in natural language and get nodes ranked by meaning. |
-| `compass_impact` | Blast radius: every node that transitively calls a target — "what could break if I change this?" before editing. |
+| `compass_impact` | Blast radius: reverse dependency closure for a symbol or files, **grouped by module** (not a flat dump). Id-first resolution; `format: "flat"` escape hatch. Global files → `blastRadius: "repo"`. |
+| `compass_affected_tests` | Which test files to run for a change (static superset) plus a ready-to-run command. Prefer over the full suite. |
 | `compass_trace` | Trace a call path between two nodes — how an entrypoint reaches a sink. |
 | `compass_watch` | Keep the index fresh automatically (start/stop a debounced incremental re-index on file change). |
 
@@ -43,9 +44,9 @@ to Grep/Read: a Compass call returned nothing useful for your query, or the
 target isn't indexed code (stylesheets, JSON/config, markdown, logs).
 
 <!-- speclaw:map:start -->
-speclaw · 136 files · 469 nodes
-src/ (73)  test/ (58)  scripts/ (4)  eslint.config.js/ (1)
-hubs: tmpRepo 181 · write 90 · has 79 · parse 53 · openDb 40 · commit 38 · read 38 · run 34 · runCli 33 · text 31 · emptyReport 31 · buildIndex 29
+speclaw · 141 files · 503 nodes
+src/ (75)  test/ (61)  scripts/ (4)  eslint.config.js/ (1)
+hubs: tmpRepo 198 · write 129 · has 84 · parse 55 · openDb 48 · buildIndex 42 · commit 38 · read 38 · run 37 · runCli 33 · text 32 · emptyReport 29
 entry: src/server.ts (mcp) · src/cli/index.ts (bin)
 <!-- speclaw:map:end -->
 

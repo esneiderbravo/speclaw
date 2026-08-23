@@ -8,6 +8,8 @@ export interface FileRow {
   path: string;
   hash: string;
   lang: string;
+  is_test: number;
+  module: string;
 }
 
 /** A row of the `nodes` table: one definition (function, class, method, type). */
@@ -35,8 +37,11 @@ CREATE TABLE IF NOT EXISTS files (
   id INTEGER PRIMARY KEY,
   path TEXT UNIQUE NOT NULL,
   hash TEXT NOT NULL,
-  lang TEXT NOT NULL
+  lang TEXT NOT NULL,
+  is_test INTEGER NOT NULL DEFAULT 0,
+  module TEXT NOT NULL DEFAULT ''
 );
+CREATE INDEX IF NOT EXISTS idx_files_is_test ON files(is_test);
 -- nodes: the definitions in the codebase (functions, classes, methods, types).
 CREATE TABLE IF NOT EXISTS nodes (
   id INTEGER PRIMARY KEY,
@@ -127,7 +132,7 @@ CREATE INDEX IF NOT EXISTS idx_anchors_node ON spec_anchors(node_id);
 `;
 
 /** Schema version stamped into the `meta` table on first creation. */
-export const SCHEMA_VERSION = "6";
+export const SCHEMA_VERSION = "7";
 
 /** The stamped schema version, or null if the db predates versioning / has no meta table. */
 function readSchemaVersion(db: DatabaseSync): string | null {
@@ -153,10 +158,14 @@ function isStale(db: DatabaseSync): boolean {
     .get();
   if (!hasEdges) return false;
   if (readSchemaVersion(db) !== SCHEMA_VERSION) return true;
-  const cols = (db.prepare("PRAGMA table_info(edges)").all() as { name: string }[]).map(
+  const edgeCols = (db.prepare("PRAGMA table_info(edges)").all() as { name: string }[]).map(
     (c) => c.name,
   );
-  return !cols.includes("src_node_id") || !cols.includes("dst_node_id");
+  if (!edgeCols.includes("src_node_id") || !edgeCols.includes("dst_node_id")) return true;
+  const fileCols = (db.prepare("PRAGMA table_info(files)").all() as { name: string }[]).map(
+    (c) => c.name,
+  );
+  return !fileCols.includes("is_test") || !fileCols.includes("module");
 }
 
 /** Drop every table (children first) so the current schema can be recreated cleanly. */
