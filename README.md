@@ -226,7 +226,10 @@ you** — commit your own skills and commands there if you want to.
 
 **Enforcement artifacts.** For agents that support hooks, speclaw merges its law
 hooks into that agent's settings (e.g. `.claude/settings.json`) **by identity** —
-it never touches hooks you added yourself. The compiled law manifest lives in
+it never touches hooks you added yourself. Each speclaw `mcp_tool` hook includes
+an `input` map Claude Code substitutes from the hook event (`${cwd}`,
+`${hook_event_name}`, `${tool_input.file_path}`, …) so `speclaw_check` receives
+`projectPath` / `event` / `payload`. The compiled law manifest lives in
 `.speclaw/laws-manifest.json` (gitignored, regenerated on `init`/`update`), and a
 context-coverage log in `.speclaw/context-log.jsonl` feeds `speclaw doctor`.
 
