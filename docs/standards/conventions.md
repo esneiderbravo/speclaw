@@ -18,6 +18,9 @@ Naming, branching, PR, and tracking conventions. A law of the project — see
   (`CODEOWNERS` → [@esneiderbravo](https://github.com/esneiderbravo)). No direct
   pushes, force-pushes, or branch deletions.
 - CI (`npm ci && npm run build`) must be green before requesting review.
+- The `speclaw` GitHub check (`.github/workflows/speclaw.yml`) verifies laws
+  against this checkout. It is **not** a required status check unless a
+  maintainer adds it in branch protection — speclaw never enables that itself.
 - One concern per PR — scope and direction are curated on purpose
   (see [`../../CONTRIBUTING.md`](../../CONTRIBUTING.md)).
 
