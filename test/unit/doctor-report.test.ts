@@ -24,6 +24,7 @@ const FROZEN_IDS = [
   "cfg.hooks",
   "cfg.laws",
   "cfg.budget",
+  "cfg.tool-surface",
   "cfg.index.freshness",
   "cfg.specs.orphans",
   "auth.none",

@@ -1,22 +1,28 @@
 import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { defineTool, text, type ToolSpec } from "../../shared/mcp.js";
+import { defineTool, defineAliasTool, text, type ToolSpec } from "../../shared/mcp.js";
 import { shouldExpose, type RegisterOpts } from "../../shared/exposure.js";
+import { aliasesEnabled } from "../../shared/tool-catalog.js";
+import { logDeprecatedCall, prefixDeprecated } from "../../shared/deprecation.js";
 import { buildIndex } from "./indexer.js";
-import { explore, search, recall, impact, trace } from "./query.js";
+import { impact } from "./query.js";
 import { affectedTests } from "./affected.js";
 import { hotspots, coupling } from "./hotspots.js";
 import { startWatch, stopWatch, watchStatus } from "./watcher.js";
-import { visualize } from "./visualize.js";
+import {
+  exploreRich,
+  findSymbols,
+  formatExploreRich,
+  type ExploreInclude,
+} from "./explore-rich.js";
+import { diffContext, formatDiffContext } from "./diff-context.js";
+import type { OutputMode } from "../../shared/output-budget.js";
 
-// ─── Compass: speclaw's own code-intelligence engine (no external deps) ───
+const includeEnum = z.array(
+  z.enum(["source", "callers", "callees", "blast_radius", "tests", "hotspot"]),
+);
 
-/**
- * Register Compass MCP tools on the given server.
- *
- * @param server - The MCP server to register on.
- * @param opts - Exposure options (`minimal` omits setup/specialized tools).
- */
+/** Register Compass MCP tools on the given server. */
 export function registerCompass(server: McpServer, opts: RegisterOpts = {}): void {
   const minimal = Boolean(opts.minimal);
   const add = <Shape extends z.ZodRawShape>(
@@ -30,151 +36,214 @@ export function registerCompass(server: McpServer, opts: RegisterOpts = {}): voi
   };
 
   add(
-    "compass_index",
-    "Build or refresh the local code graph index. Run once per project, then on demand.",
-    { projectPath: z.string() },
-    async ({ projectPath }) => text(await buildIndex(projectPath)),
-  );
-
-  add(
     "compass_explore",
-    "Read a symbol's source plus callers and callees. Prefer this before grep or Read.",
-    { projectPath: z.string(), node: z.string() },
-    async ({ projectPath, node }) => text(explore(projectPath, node)),
-  );
-
-  add(
-    "compass_search",
-    "Find symbols by name or keyword (substring). Cheaper structural search than grep.",
-    { projectPath: z.string(), query: z.string(), limit: z.number().optional() },
-    async ({ projectPath, query, limit }) => text(search(projectPath, query, limit ?? 25)),
-  );
-
-  add(
-    "compass_recall",
-    "Find symbols by meaning via local embeddings. Use when names are unknown.",
-    { projectPath: z.string(), query: z.string(), limit: z.number().optional() },
-    async ({ projectPath, query, limit }) => text(await recall(projectPath, query, limit ?? 15)),
-  );
-
-  add(
-    "compass_impact",
-    "Blast radius for a symbol or files, grouped by module (not a flat dump).",
+    "Symbol context in one call: source, callers, callees, blast radius, tests, hotspot. Prefer before grep.",
     {
       projectPath: z.string(),
-      /** @deprecated Prefer `symbol`. Kept for existing callers. */
+      node: z.string(),
+      to: z.string().optional(),
+      include: includeEnum.optional(),
+      mode: z.enum(["brief", "full"]).optional(),
+      maxDepth: z.number().int().min(1).max(8).optional(),
+    },
+    async ({ projectPath, node, to, include, mode, maxDepth }) => {
+      const result = await exploreRich({
+        projectPath,
+        node,
+        to,
+        include: include as ExploreInclude[] | undefined,
+        mode: (mode ?? "brief") as OutputMode,
+        maxDepth,
+      });
+      return text(formatExploreRich(result, (mode ?? "brief") as OutputMode));
+    },
+  );
+
+  add(
+    "compass_find",
+    "Find symbols by exact name or by concept. Use exact for identifiers, concept for meaning.",
+    {
+      projectPath: z.string(),
+      query: z.string(),
+      mode: z.enum(["exact", "concept"]),
+      limit: z.number().optional(),
+    },
+    async ({ projectPath, query, mode, limit }) =>
+      text(await findSymbols(projectPath, query, mode, limit)),
+  );
+
+  add(
+    "compass_diff_context",
+    "Graph context of changes in one call: symbols, blast radius, tests, hotspots. Default: working tree.",
+    {
+      projectPath: z.string(),
+      rev: z.string().optional(),
+      paths: z.array(z.string()).optional(),
+      mode: z.enum(["brief", "full"]).optional(),
+      maxDepth: z.number().int().min(1).max(8).optional(),
+    },
+    async ({ projectPath, rev, paths, mode, maxDepth }) => {
+      const result = diffContext({
+        projectPath,
+        rev,
+        paths,
+        mode: (mode ?? "brief") as OutputMode,
+        maxDepth,
+      });
+      return text(formatDiffContext(result, (mode ?? "brief") as OutputMode));
+    },
+  );
+
+  add(
+    "compass_index",
+    "Build or refresh the code graph index; optional watch action for live re-index.",
+    {
+      projectPath: z.string(),
+      action: z.enum(["index", "start", "stop", "status"]).optional(),
+    },
+    async ({ projectPath, action }) => {
+      const act = action ?? "index";
+      if (act === "index") return text(await buildIndex(projectPath));
+      const result =
+        act === "start"
+          ? startWatch(projectPath)
+          : act === "stop"
+            ? stopWatch(projectPath)
+            : watchStatus(projectPath);
+      return text(result);
+    },
+  );
+
+  if (minimal || !aliasesEnabled()) return;
+
+  defineAliasTool(server, {
+    name: "compass_search",
+    description: "Deprecated alias for compass_find mode exact.",
+    inputSchema: { projectPath: z.string(), query: z.string(), limit: z.number().optional() },
+    handler: async ({ projectPath, query, limit }) => {
+      logDeprecatedCall(projectPath, "compass_search");
+      const body = JSON.stringify(await findSymbols(projectPath, query, "exact", limit), null, 2);
+      return text(prefixDeprecated("compass_search", body));
+    },
+  });
+
+  defineAliasTool(server, {
+    name: "compass_recall",
+    description: "Deprecated alias for compass_find mode concept.",
+    inputSchema: { projectPath: z.string(), query: z.string(), limit: z.number().optional() },
+    handler: async ({ projectPath, query, limit }) => {
+      logDeprecatedCall(projectPath, "compass_recall");
+      const body = JSON.stringify(await findSymbols(projectPath, query, "concept", limit), null, 2);
+      return text(prefixDeprecated("compass_recall", body));
+    },
+  });
+
+  defineAliasTool(server, {
+    name: "compass_impact",
+    description: "Deprecated alias for compass_explore blast_radius include.",
+    inputSchema: {
+      projectPath: z.string(),
       node: z.string().optional(),
       symbol: z.string().optional(),
       files: z.array(z.string()).optional(),
-      nodeId: z.number().int().optional(),
-      maxDepth: z.number().int().min(1).max(12).optional(),
-      edgeKinds: z.array(z.enum(["call", "import"])).optional(),
-      target: z.enum(["build", "test", "lint", "any"]).optional(),
-      format: z.enum(["grouped", "flat"]).optional(),
-      topModules: z.number().int().min(1).max(50).optional(),
-      topPerModule: z.number().int().min(1).max(50).optional(),
+      maxDepth: z.number().optional(),
     },
-    async (args) =>
-      text(
-        impact(args.projectPath, {
-          symbol: args.symbol ?? args.node,
-          files: args.files,
-          nodeId: args.nodeId,
-          maxDepth: args.maxDepth ?? 4,
-          edgeKinds: args.edgeKinds,
-          target: args.target,
-          format: args.format ?? "grouped",
-          topModules: args.topModules,
-          topPerModule: args.topPerModule,
-        }),
-      ),
-  );
-
-  add(
-    "compass_affected_tests",
-    "Select test files affected by a change; returns a ready-to-run command.",
-    {
-      projectPath: z.string(),
-      files: z.array(z.string()).optional(),
-      symbols: z.array(z.string()).optional(),
-      fromDiff: z.string().optional(),
-      maxDepth: z.number().int().min(1).max(12).optional(),
+    handler: async (args) => {
+      logDeprecatedCall(args.projectPath, "compass_impact");
+      const sym = args.symbol ?? args.node;
+      const body = sym
+        ? JSON.stringify(
+            await exploreRich({
+              projectPath: args.projectPath,
+              node: sym,
+              include: ["blast_radius"],
+            }),
+            null,
+            2,
+          )
+        : JSON.stringify(
+            impact(args.projectPath, { files: args.files, maxDepth: args.maxDepth ?? 4 }),
+            null,
+            2,
+          );
+      return text(prefixDeprecated("compass_impact", body));
     },
-    async ({ projectPath, files, symbols, fromDiff, maxDepth }) =>
-      text(affectedTests(projectPath, { files, symbols, fromDiff, maxDepth })),
-  );
+  });
 
-  add(
-    "compass_hotspots",
-    "Rank files by recent churn and AST complexity; two axes, no magic score.",
-    {
-      projectPath: z.string(),
-      days: z.number().int().min(1).max(3650).optional(),
-      since: z.string().optional(),
-      sortBy: z.enum(["churn", "complexity", "combined"]).optional(),
-      limit: z.number().int().min(1).max(200).optional(),
-    },
-    async ({ projectPath, days, since, sortBy, limit }) =>
-      text(hotspots(projectPath, { days, since, sortBy, limit })),
-  );
-
-  add(
-    "compass_coupling",
-    "Files that co-change with a target; strength, graph edge, and test-pair facts.",
-    {
-      projectPath: z.string(),
-      file: z.string(),
-      days: z.number().int().min(1).max(3650).optional(),
-      since: z.string().optional(),
-      minShared: z.number().int().min(1).optional(),
-      maxFilesPerCommit: z.number().int().min(2).optional(),
-      limit: z.number().int().min(1).max(200).optional(),
-    },
-    async ({ projectPath, file, days, since, minShared, maxFilesPerCommit, limit }) =>
-      text(coupling(projectPath, file, { days, since, minShared, maxFilesPerCommit, limit })),
-  );
-
-  add(
-    "compass_trace",
-    "Find a call path between two symbols within a depth limit.",
-    {
+  defineAliasTool(server, {
+    name: "compass_trace",
+    description: "Deprecated alias for compass_explore with to parameter.",
+    inputSchema: {
       projectPath: z.string(),
       from: z.string(),
       to: z.string(),
       maxDepth: z.number().optional(),
     },
-    async ({ projectPath, from, to, maxDepth }) =>
-      text(trace(projectPath, from, to, maxDepth ?? 8)),
-  );
-
-  add(
-    "compass_visualize",
-    "Write an offline HTML graph to .speclaw/graph.html for interactive exploration.",
-    {
-      projectPath: z.string(),
-      node: z.string().optional(),
-      depth: z.number().optional(),
-      limit: z.number().optional(),
+    handler: async ({ projectPath, from, to, maxDepth }) => {
+      logDeprecatedCall(projectPath, "compass_trace");
+      const body = JSON.stringify(
+        await exploreRich({ projectPath, node: from, to, maxDepth }),
+        null,
+        2,
+      );
+      return text(prefixDeprecated("compass_trace", body));
     },
-    async ({ projectPath, node, depth, limit }) =>
-      text(visualize(projectPath, { focus: node, depth, limit })),
-  );
+  });
 
-  add(
-    "compass_watch",
-    "Start, stop, or status a debounced file watcher that re-indexes on change.",
-    {
+  defineAliasTool(server, {
+    name: "compass_affected_tests",
+    description: "Deprecated alias — use compass_diff_context or explore.",
+    inputSchema: {
+      projectPath: z.string(),
+      files: z.array(z.string()).optional(),
+      symbols: z.array(z.string()).optional(),
+      fromDiff: z.string().optional(),
+    },
+    handler: async (args) => {
+      logDeprecatedCall(args.projectPath, "compass_affected_tests");
+      const body = JSON.stringify(affectedTests(args.projectPath, args), null, 2);
+      return text(prefixDeprecated("compass_affected_tests", body));
+    },
+  });
+
+  defineAliasTool(server, {
+    name: "compass_hotspots",
+    description: "Deprecated alias — use compass_explore hotspot include.",
+    inputSchema: { projectPath: z.string(), limit: z.number().optional() },
+    handler: async ({ projectPath, limit }) => {
+      logDeprecatedCall(projectPath, "compass_hotspots");
+      const body = JSON.stringify(hotspots(projectPath, { limit }), null, 2);
+      return text(prefixDeprecated("compass_hotspots", body));
+    },
+  });
+
+  defineAliasTool(server, {
+    name: "compass_coupling",
+    description: "Deprecated alias — use compass_diff_context.",
+    inputSchema: { projectPath: z.string(), file: z.string() },
+    handler: async ({ projectPath, file }) => {
+      logDeprecatedCall(projectPath, "compass_coupling");
+      const body = JSON.stringify(coupling(projectPath, file, {}), null, 2);
+      return text(prefixDeprecated("compass_coupling", body));
+    },
+  });
+
+  defineAliasTool(server, {
+    name: "compass_watch",
+    description: "Deprecated alias for compass_index watch actions.",
+    inputSchema: {
       projectPath: z.string(),
       action: z.enum(["start", "stop", "status"]),
     },
-    async ({ projectPath, action }) => {
+    handler: async ({ projectPath, action }) => {
+      logDeprecatedCall(projectPath, "compass_watch");
       const result =
         action === "start"
           ? startWatch(projectPath)
           : action === "stop"
             ? stopWatch(projectPath)
             : watchStatus(projectPath);
-      return text(result);
+      return text(prefixDeprecated("compass_watch", JSON.stringify(result, null, 2)));
     },
-  );
+  });
 }

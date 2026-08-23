@@ -26,6 +26,7 @@ Compass (code intelligence — the same surface agents use via MCP)
   recall "<query>"         Find code by meaning (semantic)
   impact <node>            Blast radius (grouped by module; --flat / --json)
   affected-tests           Tests affected by a change (--file / --from-diff / --json)
+  diff-context             Change context for a diff (--file / --rev / --worktree / --json)
   hotspots                 Rank files by recent churn × AST complexity (--json / --sort)
   coupling <file>          Temporal co-change partners for a file (--json)
   trace <from> <to>        A call path between two nodes
@@ -141,6 +142,7 @@ async function dispatch(
     case "impact":
     case "trace":
     case "affected-tests":
+    case "diff-context":
     case "hotspots":
     case "coupling":
       return (await import("./commands/query.js")).runQuery(cmd, flags);

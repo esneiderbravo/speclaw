@@ -5,29 +5,14 @@ import { readManifest } from "./manifest.js";
 
 /**
  * Tools omitted when the exposure profile is `minimal`. Kept tools are the
- * discovery + law loop: compass_explore/search/recall, lawbook_validate/sync,
- * lawbook_coverage, lawbook_drift, law_verify, speclaw_check.
+ * discovery + law loop: compass_explore/find/diff_context, lawbook_change.
+ * Deprecated aliases are never registered in minimal mode.
  */
 export const MINIMAL_OMIT = new Set<string>([
   "compass_index",
-  "compass_watch",
-  "compass_impact",
-  "compass_affected_tests",
-  "compass_hotspots",
-  "compass_coupling",
-  "compass_trace",
-  "compass_visualize",
-  "lawbook_init",
-  "lawbook_archive",
-  "lawbook_list",
-  "lawbook_level",
   "lawbook_investigate",
-  "init_project",
-  "scaffold",
-  "configure_agent",
-  "doctor",
-  "add_pack",
-  "list_packs",
+  "speclaw_setup",
+  "speclaw_check",
 ]);
 
 /** Options passed to each module's register function. */

@@ -3,7 +3,7 @@
 - **Refresh the index first.** Run `compass_index` before investigating — it is
   incremental (unchanged files skipped by hash), so it is cheap and keeps your
   reasoning on the current graph rather than a stale one.
-- **Understand the code first.** Use `compass_recall` to find relevant code by
+- **Understand the code first.** Use `compass_find` (mode: concept) to find relevant code by
   meaning and `compass_explore` to read a symbol's source plus its callers and
   callees — before grep/read.
 - **Ask sharp questions** to surface hidden assumptions, constraints, and edge

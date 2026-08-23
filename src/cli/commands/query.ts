@@ -1,6 +1,7 @@
 import { explore, search, recall, impact, trace } from "../../modules/compass/query.js";
 import { affectedTests } from "../../modules/compass/affected.js";
 import { hotspots, coupling } from "../../modules/compass/hotspots.js";
+import { diffContext, formatDiffContext } from "../../modules/compass/diff-context.js";
 import { Flags, list } from "../lib/args.js";
 import { ui } from "../lib/ui.js";
 
@@ -185,6 +186,25 @@ export async function runQuery(cmd: string, flags: Flags): Promise<void> {
           );
         }
         result.warnings.forEach((w) => ui.warn(w));
+        return;
+      }
+      case "diff-context": {
+        const files = list(flags.file);
+        const rev = typeof flags.rev === "string" ? flags.rev : undefined;
+        if (files.length === 0 && !rev && !flags.worktree) {
+          need(undefined, "diff-context [--file <path>...] [--rev <ref>] [--worktree]");
+        }
+        const result = diffContext({
+          projectPath: cwd,
+          rev: flags.worktree ? "WORKTREE" : rev,
+          paths: files.length ? files : undefined,
+          mode: flags.full ? "full" : "brief",
+        });
+        if (asJson) {
+          console.log(JSON.stringify(result, null, 2));
+          return;
+        }
+        console.log(formatDiffContext(result));
         return;
       }
       case "trace": {

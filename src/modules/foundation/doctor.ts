@@ -11,6 +11,8 @@ import { doctorDriftCheck } from "../lawbook/drift.js";
 import { loadCeremonyConfig, type CeremonyLevel } from "../lawbook/levels.js";
 import { globError, hasBackend, hasBatchBackend, readLawManifest } from "./laws.js";
 import { redactValue } from "../../shared/redact.js";
+import { readDeprecatedCallCounts, scanRetiredToolReferences } from "../../shared/deprecation.js";
+import { CANONICAL_TOOLS, ALIAS_TARGETS, isCanonicalTool } from "../../shared/tool-catalog.js";
 
 /** Pass / warn / fail / not-applicable for a single diagnostic check. */
 export type CheckStatus = "ok" | "warn" | "error" | "skip";
@@ -463,6 +465,52 @@ async function budgetCheck(projectPath: string): Promise<DoctorCheck> {
   }
 }
 
+async function toolSurfaceCheck(projectPath: string): Promise<DoctorCheck> {
+  try {
+    const { measureInstallBudget, collectRegisteredTools } = await import("./context-budget.js");
+    const full = measureInstallBudget(projectPath, false);
+    const mini = measureInstallBudget(projectPath, true);
+    const canonicalCount = collectRegisteredTools(false).filter((t) =>
+      isCanonicalTool(t.name),
+    ).length;
+    const deprecated = readDeprecatedCallCounts(projectPath);
+    const aliasDetail =
+      deprecated.size > 0
+        ? [...deprecated.entries()]
+            .map(([alias, n]) => `${alias}→${ALIAS_TARGETS[alias] ?? "?"} (${n}×)`)
+            .join("; ")
+        : "no deprecated alias calls logged";
+    const staleRefs = scanRetiredToolReferences(projectPath);
+    const staleDetail =
+      staleRefs.length > 0
+        ? `retired names in: ${[...new Set(staleRefs.map((r) => `${r.file} (${r.alias}→${r.replacement})`))].join("; ")}`
+        : undefined;
+    return {
+      id: "cfg.tool-surface",
+      title: "MCP tool surface",
+      status: staleRefs.length > 0 ? "warn" : "ok",
+      value: canonicalCount,
+      detail: [
+        `${canonicalCount}/${CANONICAL_TOOLS.length} canonical tools`,
+        `~${full.tools} tool-definition tokens (full), ~${mini.tools} (minimal)`,
+        aliasDetail,
+        staleDetail,
+      ]
+        .filter(Boolean)
+        .join(" · "),
+      remedy: staleRefs.length > 0 ? "speclaw update" : undefined,
+    };
+  } catch (err) {
+    return {
+      id: "cfg.tool-surface",
+      title: "MCP tool surface",
+      status: "skip",
+      detail: `could not measure: ${(err as Error).message}`,
+      remedy: "speclaw budget",
+    };
+  }
+}
+
 function freshnessCheck(projectPath: string): DoctorCheck {
   if (!indexExists(projectPath)) {
     return {
@@ -633,6 +681,7 @@ function configurationChecks(projectPath: string, initialised: boolean): DoctorC
       "cfg.hooks",
       "cfg.laws",
       "cfg.budget",
+      "cfg.tool-surface",
       "cfg.index.freshness",
       "cfg.specs.orphans",
     ] as const;
@@ -728,6 +777,7 @@ export async function doctor(projectPath: string, opts: DoctorOptions = {}): Pro
 
   if (initialised) {
     configuration.push(await budgetCheck(projectPath));
+    configuration.push(await toolSurfaceCheck(projectPath));
     configuration.push(freshnessCheck(projectPath));
     configuration.push(specsOrphansCheck(projectPath));
     configuration.push(...ceremonyChecks(projectPath));

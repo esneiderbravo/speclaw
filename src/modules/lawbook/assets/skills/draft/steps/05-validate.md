@@ -1,6 +1,6 @@
 # Validate
 
-Run the `lawbook_validate` tool for the change and fix every issue it reports
+Run the `lawbook_change` (action: validate) tool for the change and fix every issue it reports
 (missing artifacts, non-normative specs, missing scenarios) before handing off
 to implementation. Read its advisory **warnings** too: a near-duplicate
 capability name usually means you should reuse the existing capability's exact

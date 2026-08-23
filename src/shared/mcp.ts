@@ -3,19 +3,23 @@ import type { z } from "zod";
 import { loadDeclaredBudget, type RegisterOpts } from "./exposure.js";
 import { toolDefinitionTokens } from "./schema-tokens.js";
 import { countWords } from "./tokens.js";
+import { applyTextBudget, type OutputMode } from "./output-budget.js";
 
 /**
- * Wrap a value as an MCP text tool-result.
+ * Wrap a value as an MCP text tool-result, optionally applying an output budget.
  *
  * @param value - Payload to return; strings are emitted verbatim, other values are pretty-printed as JSON.
+ * @param mode - Output mode (`brief` default) for token budgeting.
  * @returns An MCP result object with a single text content block.
  */
-export function text(value: unknown) {
+export function text(value: unknown, mode: OutputMode = "brief") {
+  const raw = typeof value === "string" ? value : JSON.stringify(value, null, 2);
+  const budgeted = applyTextBudget(raw, mode);
   return {
     content: [
       {
         type: "text" as const,
-        text: typeof value === "string" ? value : JSON.stringify(value, null, 2),
+        text: budgeted.text,
       },
     ],
   };
@@ -82,4 +86,31 @@ export function defineTool<Shape extends ToolInputShape>(
     },
     spec.handler,
   );
+}
+
+const ALIAS_MAX_WORDS = 12;
+const ALIAS_MAX_TOKENS = 200;
+
+/**
+ * Register a deprecated alias with a terse description (not counted in the
+ * canonical eight-tool limit).
+ */
+export function defineAliasTool<Shape extends ToolInputShape>(
+  server: McpServer,
+  spec: ToolSpec<Shape>,
+): void {
+  const words = countWords(spec.description);
+  if (words > ALIAS_MAX_WORDS) {
+    throw new Error(`alias ${spec.name}: description is ${words} words (cap ${ALIAS_MAX_WORDS})`);
+  }
+  const cost = toolDefinitionTokens({
+    name: spec.name,
+    description: spec.description,
+    inputSchema: spec.inputSchema,
+  });
+  if (cost > ALIAS_MAX_TOKENS) {
+    throw new Error(`alias ${spec.name}: ${cost} tokens exceeds alias cap ${ALIAS_MAX_TOKENS}`);
+  }
+  const inputSchema = (spec.inputSchema ?? {}) as Shape;
+  server.registerTool(spec.name, { description: spec.description, inputSchema }, spec.handler);
 }
