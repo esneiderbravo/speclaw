@@ -20,7 +20,9 @@ test("each register function declares its expected tools", () => {
   ]);
   assert.deepEqual([...captureTools(registerCompass).keys()].sort(), [
     "compass_affected_tests",
+    "compass_coupling",
     "compass_explore",
+    "compass_hotspots",
     "compass_impact",
     "compass_index",
     "compass_recall",

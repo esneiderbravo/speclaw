@@ -258,6 +258,9 @@ export async function buildIndex(
     `INSERT INTO nodes(file_id, name, kind, start_line, end_line, start_byte, end_byte, parent_id, signature, body_hash, norm_hash)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   );
+  const insMetrics = db.prepare(
+    `INSERT INTO node_metrics(node_id, loc, max_nesting, branches) VALUES (?, ?, ?, ?)`,
+  );
   const insEdge = db.prepare(
     `INSERT INTO edges(src_node_id, src_file_id, dst_name, kind, line) VALUES (?, ?, ?, ?, ?)`,
   );
@@ -328,6 +331,7 @@ export async function buildIndex(
           ).lastInsertRowid,
         );
         nodeIds.push(id);
+        insMetrics.run(id, s.loc, s.maxNesting, s.branches);
         // embed the node from its name + signature (cheap, meaningful text)
         const vec = await embedder.embed(`${s.kind} ${s.name} ${s.signature ?? ""}`);
         insEmbed.run(id, embedder.dim, embedder.id, toBlob(vec));
