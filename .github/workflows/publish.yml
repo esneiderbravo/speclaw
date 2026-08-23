@@ -4,6 +4,7 @@ name: Publish to npm
 # Trusted Publishing (OIDC) — no token, nothing to rotate. Bump the version
 # in package.json, merge to main, and this publishes it. If the version is
 # already on npm, it skips. Can also be run manually.
+# Provenance attestations are produced automatically for trusted publishes.
 on:
   push:
     branches: [main]
@@ -30,6 +31,8 @@ jobs:
       - run: npm install -g npm@latest
 
       - run: npm ci
+      - run: npm run check
+      - run: npm test
       - run: npm run build
 
       - name: Publish if the version is new

@@ -68,6 +68,12 @@ export interface GraphRule {
   from?: string;
   /** Regex on the destination file path (used by `reachable`). */
   to?: string;
+  /**
+   * Edge kinds to consider when building the file graph. Prefer `["import"]`
+   * for module-boundary laws — unresolved `call` name matches create false
+   * cycles (e.g. two local helpers both named `push`).
+   */
+  edgeKinds?: string[];
 }
 
 /**
@@ -127,6 +133,7 @@ const graphRuleSchema = z.object({
   reachable: z.boolean().optional(),
   from: z.string().optional(),
   to: z.string().optional(),
+  edgeKinds: z.array(z.string()).optional(),
 });
 
 const verificationSchema = z.discriminatedUnion("kind", [

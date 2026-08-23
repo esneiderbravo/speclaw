@@ -1,0 +1,27 @@
+name: Bug report
+description: Something in speclaw does not work
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Run `speclaw doctor --json` and paste the output below.
+        It is redacted by default: no absolute paths, no usernames, no file contents.
+  - type: textarea
+    id: doctor
+    attributes:
+      label: Output of `speclaw doctor --json`
+      render: json
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected to happen
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: What happened instead
+    validations:
+      required: true

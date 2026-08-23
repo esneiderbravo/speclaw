@@ -216,6 +216,10 @@ export async function buildIndex(
       WHERE kind = 'call' AND dst_node_id IS NULL
     `);
 
+    db.prepare(
+      "INSERT INTO meta(key, value) VALUES ('indexed_at', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+    ).run(new Date().toISOString());
+
     db.exec("COMMIT");
   } catch (err) {
     db.exec("ROLLBACK");
