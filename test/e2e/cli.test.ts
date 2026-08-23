@@ -97,11 +97,25 @@ test("an unknown command exits non-zero", { skip }, () => {
   assert.match(r.stdout + r.stderr, /Unknown command/);
 });
 
-test("doctor on an unconfigured project exits non-zero and reports checks", { skip }, (t) => {
+test("doctor --json on an unconfigured project exits zero with schemaVersion", { skip }, (t) => {
   const root = tmpRepo(t);
-  const r = runCli(["doctor"], { cwd: root });
-  assert.equal(r.code, 1);
-  assert.match(r.stdout + r.stderr, /ai-specs/);
+  const r = runCli(["doctor", "--json", "--offline"], { cwd: root });
+  assert.equal(r.code, 0);
+  const report = JSON.parse(r.stdout);
+  assert.equal(report.schemaVersion, 1);
+  assert.equal(report.sections.length, 5);
+});
+
+test("doctor --strict exits non-zero when warnings exist", { skip }, (t) => {
+  const root = tmpRepo(t);
+  const r = runCli(["doctor", "--offline", "--strict"], { cwd: root });
+  // Uninitialised projects have configuration skips and often env.git warn.
+  assert.ok(r.code === 0 || r.code === 1);
+  const json = runCli(["doctor", "--json", "--offline"], { cwd: root });
+  const report = JSON.parse(json.stdout);
+  if (report.status === "warn" || report.status === "error") {
+    assert.equal(r.code, 1);
+  }
 });
 
 test("check --hook-payload denies a .env edit with exit code 2", { skip }, (t) => {
