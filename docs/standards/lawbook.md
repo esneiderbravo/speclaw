@@ -59,10 +59,25 @@ contracts, shows short insights and reconciles the delta specs.
 
 `lawbook_archive` is then **gated in the engine** — it refuses to archive (and
 reports the reason) while any task is unchecked, while `reports/` holds no
-discipline report, or while the delta specs are not yet synced into the
-canonical specs. Because the gate covers both the tool and the CLI, a change
-reaches the archive only when it is genuinely complete: reconcile, `sync`, then
-archive.
+discipline report, while the delta specs are not yet synced into the
+canonical specs, or while an identified requirement has a direct coverage
+defect (`speclaw coverage` / `lawbook_coverage`; disable with
+`coverage.gateArchive: false` in `lawbook/config.yaml`). Because the gate
+covers both the tool and the CLI, a change reaches the archive only when it is
+genuinely complete: reconcile, `sync`, then archive.
+
+## Coverage and drift
+
+- **Coverage** — identify requirements with ids (`req~name~1`) and link
+  implementations/tests with `// Covers:` (or `@covers`) comments.
+  `speclaw coverage` / `lawbook_coverage` reports requirement → impl → test.
+  Defaults live under `coverage.defaultNeeds` / `coverage.gateArchive` in
+  `lawbook/config.yaml`.
+- **Drift** — sealed spec↔code snapshots live in committed
+  `lawbook/anchors/*.json` (dual body/norm hashes). `speclaw drift` /
+  `lawbook_drift` classifies change; after a Compass schema bump, reindex with
+  `speclaw index`, then `speclaw drift --reseal` once to photograph current
+  bodies.
 
 ## Amendments to the law
 

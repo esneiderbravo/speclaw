@@ -13,3 +13,11 @@ mandatory_task_steps:
 
 # A change is required for new behavior, endpoints, schema changes, or UI flows;
 # one-line fixes need not have one.
+
+# Requirement → impl → test coverage (`speclaw coverage` / `lawbook_coverage`).
+# Identified requirements use ids like `req~name~1` and `// Covers:` comments.
+coverage:
+  # Archive refuses identified requirements with a direct coverage defect.
+  gateArchive: true
+  # Applied when a requirement omits Needs:.
+  defaultNeeds: [impl, utest]
