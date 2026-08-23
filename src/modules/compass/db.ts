@@ -60,6 +60,13 @@ CREATE TABLE IF NOT EXISTS nodes (
 CREATE INDEX IF NOT EXISTS idx_nodes_name ON nodes(name);
 CREATE INDEX IF NOT EXISTS idx_nodes_file ON nodes(file_id);
 CREATE INDEX IF NOT EXISTS idx_nodes_norm_hash ON nodes(norm_hash);
+-- node_metrics: AST health frames (LOC / nesting / branches) per definition.
+CREATE TABLE IF NOT EXISTS node_metrics (
+  node_id INTEGER PRIMARY KEY REFERENCES nodes(id) ON DELETE CASCADE,
+  loc INTEGER NOT NULL,
+  max_nesting INTEGER NOT NULL,
+  branches INTEGER NOT NULL
+);
 -- edges: a reference from one node to a named target, resolved lazily.
 CREATE TABLE IF NOT EXISTS edges (
   id INTEGER PRIMARY KEY,
@@ -132,7 +139,7 @@ CREATE INDEX IF NOT EXISTS idx_anchors_node ON spec_anchors(node_id);
 `;
 
 /** Schema version stamped into the `meta` table on first creation. */
-export const SCHEMA_VERSION = "7";
+export const SCHEMA_VERSION = "8";
 
 /** The stamped schema version, or null if the db predates versioning / has no meta table. */
 function readSchemaVersion(db: DatabaseSync): string | null {
@@ -165,7 +172,11 @@ function isStale(db: DatabaseSync): boolean {
   const fileCols = (db.prepare("PRAGMA table_info(files)").all() as { name: string }[]).map(
     (c) => c.name,
   );
-  return !fileCols.includes("is_test") || !fileCols.includes("module");
+  if (!fileCols.includes("is_test") || !fileCols.includes("module")) return true;
+  const hasMetrics = db
+    .prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'node_metrics'")
+    .get();
+  return !hasMetrics;
 }
 
 /** Drop every table (children first) so the current schema can be recreated cleanly. */
@@ -176,6 +187,7 @@ function resetSchema(db: DatabaseSync): void {
     DROP TABLE IF EXISTS git_history_cache;
     DROP TABLE IF EXISTS node_embeddings;
     DROP TABLE IF EXISTS edges;
+    DROP TABLE IF EXISTS node_metrics;
     DROP TABLE IF EXISTS nodes;
     DROP TABLE IF EXISTS files;
     DROP TABLE IF EXISTS meta;

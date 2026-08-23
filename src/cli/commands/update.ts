@@ -149,6 +149,15 @@ const MIGRATIONS: Migration[] = [
       "`.speclaw/affected.json` overrides globals/test globs.\n" +
       "- Preserve all project-specific wording; only apply these speclaw-authored changes.",
   },
+  {
+    version: "0.3.11",
+    describe: "Hotspots + coupling: schema 8 node_metrics, 90d activity window",
+    agentPrompt:
+      "- Mention `compass_hotspots` / `speclaw hotspots` and `compass_coupling` / `speclaw coupling` " +
+      "(activity × AST health; Jaccard strength + in_graph + isTestPair). Compass schema is now 8 " +
+      "(`node_metrics`) — reindex with `speclaw index`. Default history window is 90 days.\n" +
+      "- Preserve all project-specific wording; only apply these speclaw-authored changes.",
+  },
 ];
 
 /**

@@ -26,6 +26,8 @@ Compass (code intelligence — the same surface agents use via MCP)
   recall "<query>"         Find code by meaning (semantic)
   impact <node>            Blast radius (grouped by module; --flat / --json)
   affected-tests           Tests affected by a change (--file / --from-diff / --json)
+  hotspots                 Rank files by recent churn × AST complexity (--json / --sort)
+  coupling <file>          Temporal co-change partners for a file (--json)
   trace <from> <to>        A call path between two nodes
   visualize [node]         Interactive HTML graph → .speclaw/graph.html
 
@@ -53,9 +55,9 @@ Other
 // Commands that open with the one-line branded header. These are the
 // interactive, human-facing commands whose stdout is prose. Deliberately
 // excluded: `version`/`--version`/`-v` (bare scriptable value), the Compass
-// query family (`explore`/`search`/`recall`/`impact`/`trace`/`affected-tests`,
-// machine-consumed output), `mcp` (a long-running stdio server), and `init`
-// (already opens with the fuller `banner()`).
+// query family (`explore`/`search`/`recall`/`impact`/`trace`/`affected-tests`/
+// `hotspots`/`coupling`, machine-consumed output), `mcp` (a long-running stdio
+// server), and `init` (already opens with the fuller `banner()`).
 const HEADER_COMMANDS = new Set<string | undefined>([
   undefined,
   "help",
@@ -129,6 +131,8 @@ async function dispatch(
     case "impact":
     case "trace":
     case "affected-tests":
+    case "hotspots":
+    case "coupling":
       return (await import("./commands/query.js")).runQuery(cmd, flags);
     case "visualize":
       return (await import("./commands/visualize.js")).runVisualize(flags);
