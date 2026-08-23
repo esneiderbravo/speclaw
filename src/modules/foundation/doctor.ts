@@ -593,6 +593,34 @@ function ceremonyChecks(projectPath: string): DoctorCheck[] {
         ? "no archived changes"
         : `archived levels: 0=${counts["0"]}, 1=${counts["1"]}, 2=${counts["2"]}, 3=${counts["3"]} (missing change.json=${counts.missing})`,
   });
+
+  const typeCounts = { feature: 0, bug: 0, unknown: 0 };
+  if (fs.existsSync(archiveRoot)) {
+    for (const name of fs.readdirSync(archiveRoot)) {
+      const dir = path.join(archiveRoot, name);
+      if (!fs.statSync(dir).isDirectory()) continue;
+      try {
+        const p = path.join(dir, "change.json");
+        if (!fs.existsSync(p)) {
+          typeCounts.unknown += 1;
+          typeCounts.feature += 1;
+          continue;
+        }
+        const raw = JSON.parse(fs.readFileSync(p, "utf8")) as { changeType?: string };
+        if (raw.changeType === "bug") typeCounts.bug += 1;
+        else typeCounts.feature += 1;
+      } catch {
+        typeCounts.unknown += 1;
+      }
+    }
+  }
+  out.push({
+    id: "cfg.ceremony.changeTypes",
+    title: "change type distribution",
+    status: "ok",
+    value: JSON.stringify(typeCounts),
+    detail: `archived types: feature=${typeCounts.feature}, bug=${typeCounts.bug}`,
+  });
   return out;
 }
 

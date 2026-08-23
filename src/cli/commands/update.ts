@@ -169,6 +169,15 @@ const MIGRATIONS: Migration[] = [
       "docs/standards/lawbook.md wording if the project still says every change needs all four artifacts.\n" +
       "- Preserve all project-specific wording; only apply these speclaw-authored changes.",
   },
+  {
+    version: "0.3.13",
+    describe: "Bugfix specs — draft --bug, bugfix.md, lawbook_investigate",
+    agentPrompt:
+      "- Mention bug changes: `speclaw lawbook draft --bug`, `bugfix.md` (repro + regression + prevention), " +
+      "and `lawbook_investigate` / the investigate skill for graph-backed RCA. Feature ceremony unchanged; " +
+      "`changeType: bug` in `change.json`. Security-withheld mode is not in this release.\n" +
+      "- Preserve all project-specific wording; only apply these speclaw-authored changes.",
+  },
 ];
 
 /**

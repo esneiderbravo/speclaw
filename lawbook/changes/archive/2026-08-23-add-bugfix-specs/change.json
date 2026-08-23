@@ -1,0 +1,11 @@
+{
+  "confirmedLevel": 2,
+  "changeType": "feature",
+  "actor": "agent",
+  "confirmedAt": "2026-08-23T13:50:00.000Z",
+  "proposal": {
+    "level": 2,
+    "score": 14,
+    "rationale": "Multi-module lawbook feature: bugfix.ts, investigate.ts, stack-parse, engine gates, MCP+CLI, doctor, skills, tests across lawbook + cli + operational-trust."
+  }
+}
