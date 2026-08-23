@@ -3,6 +3,23 @@
 All notable changes to this project are documented here. Speclaw follows
 [Semantic Versioning](https://semver.org/) for the published npm package.
 
+## [0.3.12] — 2026-08-23
+
+### Added
+
+- Adaptive ceremony levels **0–3** from Compass signals (`impact`,
+  affected-tests, hotspots); persisted in `change.json`. Missing file ⇒ level 3.
+- `speclaw quick <name>` — level-0 scaffold (`record.md` + `reports/`).
+- `lawbook_level` MCP + `speclaw lawbook level` (propose / set / promote /
+  explain); listed in `MINIMAL_OMIT`.
+- Doctor checks for ceremony cuts validity and archived level distribution.
+- Optional `ceremony:` block in `lawbook/config.yaml` (cuts default `[3, 8, 15]`).
+
+### Changed
+
+- Validate/archive gates follow the confirmed level (level 0 skips delta sync).
+- `LAWS.md` / `docs/standards/lawbook.md` describe level-based artifact volume.
+
 ## [0.3.11] — 2026-08-23
 
 ### Added

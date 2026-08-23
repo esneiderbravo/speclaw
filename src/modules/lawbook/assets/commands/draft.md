@@ -1,12 +1,11 @@
 ---
-description: Draft a new spec-driven change (proposal, delta specs, tasks) before coding.
+description: Draft a new spec-driven change at the confirmed ceremony level before coding.
 ---
 
 Draft a new change under `lawbook/changes/<name>/` for: $ARGUMENTS
 
-Follow the `draft` skill: ensure `lawbook/` exists (`lawbook_init`), investigate the
-code with `compass_explore`/`compass_recall`, read the governing
-`docs/standards/`, then write `proposal.md`, `specs/<capability>/spec.md`
-(normative `SHALL`/`MUST` + `#### Scenario:`), `design.md`, and
-`tasks.md` (with the mandatory steps from `lawbook/config.yaml`). Finish by
-running `lawbook_validate` and fixing every issue.
+Follow the `draft` skill: ensure `lawbook/` exists (`lawbook_init`), investigate
+with Compass, propose a ceremony level (`lawbook_level` mode `propose`) and
+**confirm** it with the human (`set`), then scaffold only the artifacts that
+level requires. For true one-liners use `speclaw quick` / the `quick` skill
+instead. Finish by running `lawbook_validate` and fixing every issue.
