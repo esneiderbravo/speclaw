@@ -31,6 +31,7 @@ test("tool schema size affects definition cost", () => {
 });
 
 test("context budget is not exceeded", () => {
+  process.env.SPECLAW_NO_ALIASES = "1";
   const declared = loadDeclaredBudget(ROOT);
   const tools = collectRegisteredTools(false);
   const actual = measureBudget({
@@ -53,14 +54,16 @@ test("context budget is not exceeded", () => {
     actual.alwaysOnInstructions <= declared.surfaces.alwaysOnInstructions,
     `instructions surface over: ${actual.alwaysOnInstructions}`,
   );
+  delete process.env.SPECLAW_NO_ALIASES;
 });
 
 test("minimal profile registers fewer tools and stays under minimal ceilings", () => {
+  process.env.SPECLAW_NO_ALIASES = "1";
   const declared = loadDeclaredBudget(ROOT);
   const full = collectRegisteredTools(false);
   const mini = collectRegisteredTools(true);
   assert.ok(mini.length < full.length);
-  assert.equal(mini.length, 9);
+  assert.equal(mini.length, 4);
   const actual = measureBudget({
     projectPath: ROOT,
     packagePath: ROOT,
@@ -69,6 +72,7 @@ test("minimal profile registers fewer tools and stays under minimal ceilings", (
   });
   assert.ok(actual.tools <= declared.minimal.tools);
   assert.ok(actual.total <= declared.minimal.total);
+  delete process.env.SPECLAW_NO_ALIASES;
 });
 
 test("packageRoot finds token-budget.json", () => {

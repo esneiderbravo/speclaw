@@ -1,103 +1,71 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { tmpRepo, write } from "../helpers/env.js";
-import { seedSampleRepo, sampleProfile } from "../helpers/fixtures.js";
+import { seedSampleRepo } from "../helpers/fixtures.js";
 import { captureTools, schemaOf, isTextResult } from "../helpers/contracts.js";
 import { registerFoundation } from "../../src/modules/foundation/register.js";
 import { registerCompass } from "../../src/modules/compass/register.js";
 import { registerSpec } from "../../src/modules/lawbook/register.js";
 import { registerTools } from "../../src/modules/tools/register.js";
-import { loadPacks } from "../../src/modules/tools/packs.js";
+import { CANONICAL_TOOLS } from "../../src/shared/tool-catalog.js";
 
-test("each register function declares its expected tools", () => {
-  assert.deepEqual([...captureTools(registerFoundation).keys()].sort(), [
-    "configure_agent",
-    "doctor",
-    "init_project",
-    "law_verify",
-    "scaffold",
-    "speclaw_check",
+function captureCanonical(
+  register: (server: import("@modelcontextprotocol/sdk/server/mcp.js").McpServer) => void,
+) {
+  process.env.SPECLAW_NO_ALIASES = "1";
+  const tools = captureTools(register);
+  delete process.env.SPECLAW_NO_ALIASES;
+  return tools;
+}
+
+test("canonical MCP tools match the consolidated surface", () => {
+  const names = new Set([
+    ...captureCanonical(registerFoundation).keys(),
+    ...captureCanonical(registerCompass).keys(),
+    ...captureCanonical(registerSpec).keys(),
+    ...captureCanonical(registerTools).keys(),
   ]);
-  assert.deepEqual([...captureTools(registerCompass).keys()].sort(), [
-    "compass_affected_tests",
-    "compass_coupling",
-    "compass_explore",
-    "compass_hotspots",
-    "compass_impact",
-    "compass_index",
-    "compass_recall",
-    "compass_search",
-    "compass_trace",
-    "compass_visualize",
-    "compass_watch",
-  ]);
-  assert.deepEqual([...captureTools(registerSpec).keys()].sort(), [
-    "lawbook_archive",
-    "lawbook_coverage",
-    "lawbook_drift",
-    "lawbook_init",
-    "lawbook_investigate",
-    "lawbook_level",
-    "lawbook_list",
-    "lawbook_sync",
-    "lawbook_validate",
-  ]);
-  assert.deepEqual([...captureTools(registerTools).keys()].sort(), ["add_pack", "list_packs"]);
+  assert.deepEqual([...names].sort(), [...CANONICAL_TOOLS].sort());
 });
 
 test("tool input schemas validate required fields", () => {
-  const compass = captureTools(registerCompass);
+  const compass = captureCanonical(registerCompass);
   const explore = schemaOf(compass.get("compass_explore")!);
   assert.throws(() => explore.parse({ projectPath: "/x" }), /node/);
   assert.doesNotThrow(() => explore.parse({ projectPath: "/x", node: "alpha" }));
 
-  const spec = captureTools(registerSpec);
-  const archive = schemaOf(spec.get("lawbook_archive")!);
-  assert.throws(() => archive.parse({ projectPath: "/x", change: "c", date: "not-a-date" }));
-  assert.doesNotThrow(() => archive.parse({ projectPath: "/x", change: "c", date: "2026-08-04" }));
+  const spec = captureCanonical(registerSpec);
+  const change = schemaOf(spec.get("lawbook_change")!);
+  assert.doesNotThrow(() => change.parse({ projectPath: "/x", action: "list" }));
+  assert.throws(
+    () => change.parse({ projectPath: "/x", action: "archive", change: "c", date: "bad-date" }),
+    /date/,
+  );
 
-  const foundation = captureTools(registerFoundation);
-  const configure = schemaOf(foundation.get("configure_agent")!);
-  assert.throws(() => configure.parse({ projectPath: "/x", agent: "ghost" }));
+  const foundation = captureCanonical(registerFoundation);
+  const setup = schemaOf(foundation.get("speclaw_setup")!);
+  assert.doesNotThrow(() => setup.parse({ projectPath: "/x", action: "init" }));
+  assert.throws(
+    () => setup.parse({ projectPath: "/x", action: "not-an-action" as "init" }),
+    /action/,
+  );
 
   const check = schemaOf(foundation.get("speclaw_check")!);
   assert.throws(() => check.parse({ projectPath: "/x", event: "Nope", payload: {} }));
   assert.doesNotThrow(() =>
     check.parse({ projectPath: "/x", event: "PreToolUse", payload: { file_path: "a" } }),
   );
-
-  const verify = schemaOf(foundation.get("law_verify")!);
-  assert.throws(() => verify.parse({ projectPath: "/x", engines: ["nope"] }));
-  assert.doesNotThrow(() => verify.parse({ projectPath: "/x" }));
-  assert.doesNotThrow(() => verify.parse({ projectPath: "/x", engines: ["deps", "graph"] }));
-});
-
-test("the law_verify description stays within the word ceiling", () => {
-  const verify = captureTools(registerFoundation).get("law_verify")!;
-  const words = verify.config.description!.trim().split(/\s+/).length;
-  assert.ok(words <= 25, `law_verify description is ${words} words (must be ≤ 25)`);
 });
 
 test("foundation handlers wrap their results as MCP text", async (t) => {
   const root = tmpRepo(t);
-  const tools = captureTools(registerFoundation);
+  const tools = captureCanonical(registerFoundation);
 
-  const init = await tools.get("init_project")!.handler({ projectPath: root });
-  assert.ok(isTextResult(init));
-
-  const scaffolded = await tools
-    .get("scaffold")!
-    .handler({ projectPath: root, profile: sampleProfile(), packs: [], agents: ["claude"] });
-  assert.ok(isTextResult(scaffolded));
-
-  const configured = await tools
-    .get("configure_agent")!
-    .handler({ projectPath: root, agent: "cursor" });
-  assert.ok(isTextResult(configured));
-
-  const health = await tools.get("doctor")!.handler({ projectPath: root });
-  assert.ok(isTextResult(health));
-  assert.match((health as { content: { text: string }[] }).content[0]!.text, /"schemaVersion"/);
+  const setup = await tools.get("speclaw_setup")!.handler({
+    projectPath: root,
+    action: "init",
+  });
+  assert.ok(isTextResult(setup));
 
   const checked = await tools
     .get("speclaw_check")!
@@ -108,11 +76,12 @@ test("foundation handlers wrap their results as MCP text", async (t) => {
 
 test("lawbook handlers run the workflow end to end through the transport", async (t) => {
   const root = tmpRepo(t);
-  const tools = captureTools(registerSpec);
+  const tools = captureCanonical(registerSpec);
 
-  assert.ok(isTextResult(await tools.get("lawbook_init")!.handler({ projectPath: root })));
+  assert.ok(
+    isTextResult(await tools.get("lawbook_change")!.handler({ projectPath: root, action: "init" })),
+  );
 
-  // seed an archivable change
   const base = "lawbook/changes/demo";
   write(root, `${base}/proposal.md`, "# why");
   write(root, `${base}/tasks.md`, "- [x] done\n");
@@ -125,18 +94,26 @@ test("lawbook handlers run the workflow end to end through the transport", async
 
   assert.ok(
     isTextResult(
-      await tools.get("lawbook_validate")!.handler({ projectPath: root, change: "demo" }),
+      await tools
+        .get("lawbook_change")!
+        .handler({ projectPath: root, action: "validate", change: "demo" }),
     ),
   );
   assert.ok(
-    isTextResult(await tools.get("lawbook_sync")!.handler({ projectPath: root, change: "demo" })),
+    isTextResult(
+      await tools
+        .get("lawbook_change")!
+        .handler({ projectPath: root, action: "sync", change: "demo" }),
+    ),
   );
-  assert.ok(isTextResult(await tools.get("lawbook_list")!.handler({ projectPath: root })));
+  assert.ok(
+    isTextResult(await tools.get("lawbook_change")!.handler({ projectPath: root, action: "list" })),
+  );
   assert.ok(
     isTextResult(
       await tools
-        .get("lawbook_archive")!
-        .handler({ projectPath: root, change: "demo", date: "2026-08-04" }),
+        .get("lawbook_change")!
+        .handler({ projectPath: root, action: "archive", change: "demo", date: "2026-08-04" }),
     ),
   );
 });
@@ -144,46 +121,35 @@ test("lawbook handlers run the workflow end to end through the transport", async
 test("compass handlers wrap their results as MCP text", async (t) => {
   const root = tmpRepo(t);
   seedSampleRepo(root);
-  const tools = captureTools(registerCompass);
+  const tools = captureCanonical(registerCompass);
 
   assert.ok(isTextResult(await tools.get("compass_index")!.handler({ projectPath: root })));
   assert.ok(
-    isTextResult(await tools.get("compass_search")!.handler({ projectPath: root, query: "alpha" })),
+    isTextResult(
+      await tools.get("compass_find")!.handler({
+        projectPath: root,
+        query: "alpha",
+        mode: "exact",
+      }),
+    ),
   );
   assert.ok(
     isTextResult(await tools.get("compass_explore")!.handler({ projectPath: root, node: "alpha" })),
   );
   assert.ok(
     isTextResult(
-      await tools.get("compass_recall")!.handler({ projectPath: root, query: "render" }),
+      await tools.get("compass_diff_context")!.handler({ projectPath: root, paths: ["src/a.ts"] }),
     ),
   );
-  assert.ok(
-    isTextResult(await tools.get("compass_impact")!.handler({ projectPath: root, node: "gamma" })),
-  );
-  assert.ok(
-    isTextResult(
-      await tools.get("compass_trace")!.handler({ projectPath: root, from: "alpha", to: "gamma" }),
-    ),
-  );
-  assert.ok(isTextResult(await tools.get("compass_visualize")!.handler({ projectPath: root })));
-
-  for (const action of ["start", "status", "stop"] as const) {
-    assert.ok(
-      isTextResult(await tools.get("compass_watch")!.handler({ projectPath: root, action })),
-    );
-  }
 });
 
-test("tools handlers list and add packs through the transport", async (t) => {
+test("deprecated alias delegates to canonical surface", async (t) => {
   const root = tmpRepo(t);
-  const tools = captureTools(registerTools);
-
-  assert.ok(isTextResult(await tools.get("list_packs")!.handler({})));
-
-  const [pack] = Object.keys(loadPacks());
-  // add_pack refreshes agents; seed a configured agent so that path runs too
-  write(root, "ai-specs/skills/.keep", "");
-  const added = await tools.get("add_pack")!.handler({ projectPath: root, pack, vars: {} });
-  assert.ok(isTextResult(added));
+  seedSampleRepo(root);
+  delete process.env.SPECLAW_NO_ALIASES;
+  const tools = captureTools(registerCompass);
+  await tools.get("compass_index")!.handler({ projectPath: root });
+  const res = await tools.get("compass_search")!.handler({ projectPath: root, query: "alpha" });
+  assert.ok(isTextResult(res));
+  assert.match((res as { content: { text: string }[] }).content[0]!.text, /\[deprecated\]/);
 });

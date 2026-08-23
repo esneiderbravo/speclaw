@@ -123,7 +123,7 @@ tokenizer on this corpus — not a BPE dependency):
 
 | | Tokens |
 | :-- | --: |
-| **speclaw budget (always-on)** | **~11.7k** (budget ceiling **13.0k**) |
+| **speclaw budget (always-on)** | **~12.9k** (8 MCP tools · ceiling **13.0k**) |
 | Spec Kit commands alone | ~18.6k ([spec-kit#1401](https://github.com/github/spec-kit/issues/1401)) |
 
 ```bash
@@ -184,7 +184,7 @@ Plus a **`reports/`** folder — scaffolded at draft, filled at build with one r
 **Three ways to drive it — same engine, no external CLI:**
 
 - **In your agent** — the `/lawbook:explore`, `/lawbook:draft`, `/lawbook:build`, `/lawbook:sync`, `/lawbook:archive` commands (installed as skills).
-- **MCP tools** — `lawbook_init`, `lawbook_validate`, `lawbook_sync`, `lawbook_archive`, `lawbook_list`.
+- **MCP tools** — eight canonical tools: `compass_explore`, `compass_find`, `compass_diff_context`, `compass_index`, `lawbook_change`, `lawbook_investigate`, `speclaw_setup`, `speclaw_check`.
 - **CLI** — `speclaw lawbook init | list | validate | sync | archive`.
 
 The workspace is committed under `lawbook/`: `specs/` (canonical), `changes/`
