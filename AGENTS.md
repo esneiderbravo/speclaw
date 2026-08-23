@@ -23,7 +23,11 @@ Claude-specific notes: [`CLAUDE.md`](CLAUDE.md). The law: [`LAWS.md`](LAWS.md).
    first), or the target isn't indexed code (stylesheets, config, logs).
    `compass_impact` is grouped by module (`format: flat` escape hatch);
    prefer `compass_affected_tests` / `speclaw affected-tests --from-diff` over
-   the full suite. Cheat sheet: [`docs/compass.md`](docs/compass.md).
+   the full suite. `compass_hotspots` / `speclaw hotspots` ranks activity × AST
+   health (default 90 days); `compass_coupling` / `speclaw coupling` reports
+   Jaccard strength, `in_graph`, and `isTestPair`. Schema **8** (`node_metrics`)
+   — reindex with `speclaw index` after a schema bump. Cheat sheet:
+   [`docs/compass.md`](docs/compass.md).
 3. **Follow the lawbook workflow** for every non-trivial change; archive
    within the same PR. Rules:
    [`docs/standards/lawbook.md`](docs/standards/lawbook.md).
@@ -83,3 +87,5 @@ Claude-specific notes: [`CLAUDE.md`](CLAUDE.md). The law: [`LAWS.md`](LAWS.md).
 - `speclaw doctor --json` is the support report (redacted by default). Stable
   install: `npx @esneiderbravo/speclaw@latest init`.
 - Optional `.speclaw/affected.json` overrides affected-test globals/test globs.
+  Compass schema **8** (`node_metrics`) — reindex with `speclaw index`.
+  Hotspots/coupling default history window is 90 days.
