@@ -9,7 +9,7 @@ Update the project's canonical specifications (`lawbook/specs/`) with a change's
 delta specs, without archiving the change. Use this when the specs should
 become the source of truth but the change isn't finished (e.g. multi-PR work).
 
-`lawbook_sync` is a deterministic copy — it is blind to the code. So before
+`lawbook_change` (action: sync) is a deterministic copy — it is blind to the code. So before
 promoting, YOU reconcile the delta specs against what was actually built, so the
 specs that become canonical describe reality, not just the original draft.
 

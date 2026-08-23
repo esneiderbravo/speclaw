@@ -17,7 +17,7 @@ Claude-specific notes: [`CLAUDE.md`](CLAUDE.md). The law: [`LAWS.md`](LAWS.md).
    it. Conflicts resolve in favor of the standard; amendments go through a
    spec change, never silent deviation.
 2. **Compass first, always** — for any code question call `compass_explore` /
-   `compass_search` / `compass_recall` **before** any grep/sed/cat/Read,
+   `compass_find` / `compass_explore` **before** any grep/sed/cat/Read,
    including files you already know by name. Fall back to manual file tools only
    after Compass returns nothing useful, the graph is missing (`compass_index`
    first), or the target isn't indexed code (stylesheets, config, logs).

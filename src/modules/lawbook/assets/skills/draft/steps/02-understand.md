@@ -4,7 +4,7 @@
   code — it is incremental (unchanged files are skipped by hash), so this is
   cheap and guarantees your decisions rest on the current graph, not a stale one.
 - Clarify what the user wants (feature / fix / refactor) and confirm scope.
-- Use `compass_explore` and `compass_recall` (speclaw's code index) BEFORE
+- Use `compass_explore` and `compass_find` (mode: concept) (speclaw's code index) BEFORE
   grep/read to locate the real code the change touches and its blast radius.
 - **Propose a ceremony level** with `lawbook_level` (mode `propose`) using the
   paths/symbols you found; **confirm with the human** (mode `set`) before

@@ -1,57 +1,11 @@
 import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { defineTool, text, type ToolSpec } from "../../shared/mcp.js";
+import { defineTool, defineAliasTool, text, type ToolSpec } from "../../shared/mcp.js";
 import { shouldExpose, type RegisterOpts } from "../../shared/exposure.js";
-import { scaffold } from "./scaffold.js";
+import { aliasesEnabled } from "../../shared/tool-catalog.js";
+import { logDeprecatedCall, prefixDeprecated } from "../../shared/deprecation.js";
 import { checkAction, CheckEvent } from "./check.js";
-import { BatchEngine, verifyLaws } from "./verify.js";
-import { loadPacks } from "../tools/packs.js";
-import { AGENTS, configureAgent } from "../../shared/agents.js";
-import { emptyReport } from "../../shared/install.js";
-
-/** Human help text for init_project's questionnaire (not embedded in MCP schemas). */
-const profileFieldHelp: Record<string, string> = {
-  project_name: "Short project name, e.g. the repo name",
-  project_description: "One-line description of what the project does",
-  organization: "Company/team name",
-  stack_summary: "e.g. 'Next.js 15 + TypeScript frontend, FastAPI + PostgreSQL backend'",
-  architecture: "e.g. 'hexagonal architecture with bounded contexts'",
-  test_commands: "Real commands, e.g. 'pytest backend/tests && npm run test'",
-  lint_commands: "Real commands, e.g. 'ruff check . && npm run lint && tsc --noEmit'",
-  branch_pattern: "e.g. 'feature/<ticket-id>-<slug>'",
-  commit_style: "e.g. 'conventional commits, imperative, English'",
-  custom_laws: "Extra markdown for LAWS.md — project-specific binding rules",
-  compass_hints: "Markdown bullets with real entrypoints for docs/compass.md",
-  base_standards_extra: "Extra cross-cutting rules for base-standards.md",
-  modules_table: "Markdown table of modules/bounded contexts",
-  layering_rules: "Layers and allowed dependencies for architecture.md",
-  backend_layers: "Backend layer table for backend-standards.md",
-  frontend_layers: "Frontend layer table for frontend-standards.md",
-  versioning_rules: "Versioning/release convention for conventions.md",
-  documentation_extra: "Repo-specific docstring notes for documentation.md",
-};
-
-/** Lean Zod shape for scaffold — no .describe() text (that cost rides in every request). */
-const profileShape = {
-  project_name: z.string(),
-  project_description: z.string().optional(),
-  organization: z.string().optional(),
-  stack_summary: z.string().optional(),
-  architecture: z.string().optional(),
-  test_commands: z.string().optional(),
-  lint_commands: z.string().optional(),
-  branch_pattern: z.string().optional(),
-  commit_style: z.string().optional(),
-  custom_laws: z.string().optional(),
-  compass_hints: z.string().optional(),
-  base_standards_extra: z.string().optional(),
-  modules_table: z.string().optional(),
-  layering_rules: z.string().optional(),
-  backend_layers: z.string().optional(),
-  frontend_layers: z.string().optional(),
-  versioning_rules: z.string().optional(),
-  documentation_extra: z.string().optional(),
-};
+import { handleSpeclawSetup, speclawSetupSchema } from "./setup-tool.js";
 
 type AddFn = <Shape extends z.ZodRawShape>(
   name: string,
@@ -68,60 +22,18 @@ function makeAdd(server: McpServer, minimal: boolean): AddFn {
 }
 
 /**
- * Foundation tools except `doctor`. Lives in a separate file so budget/doctor
- * measurement can import it without forming a file-level SCC through
- * `register.ts` → `doctor.ts` → `context-budget.ts`.
+ * Foundation MCP tools (setup + hook check). `doctor` and `law_verify` are CLI-only.
+ * `scaffold` is CLI-only after tool-surface consolidation.
  */
 export function registerFoundationCore(server: McpServer, opts: RegisterOpts = {}): void {
-  const add = makeAdd(server, Boolean(opts.minimal));
+  const minimal = Boolean(opts.minimal);
+  const add = makeAdd(server, minimal);
 
   add(
-    "init_project",
-    "Start here to initialize speclaw: returns the analysis questionnaire and packs.",
-    { projectPath: z.string() },
-    async () => {
-      const packs = loadPacks();
-      return text({
-        instructions: [
-          "1. Analyze the repository at projectPath and fill in every profile field below with REAL values from the codebase (read package.json / pyproject.toml / CI configs / README — do not invent).",
-          "2. The foundation is a set of GRANULAR standards under docs/standards/ (base, architecture, backend, frontend, testing, conventions, lawbook), bound by LAWS.md and referenced from CLAUDE.md/AGENTS.md. Fill their structured fields from the real repo: modules_table and layering_rules (architecture), backend_layers, frontend_layers, versioning_rules, and any base_standards_extra. Omit a field only when that standard genuinely doesn't apply to this stack.",
-          "3. Suggest packs: add stack packs whose 'detect' hints match dependencies you found; offer the rest. Ask the user which packs to install (the lawbook workflow is always installed).",
-          "4. Infer the working language and the branch/commit/tracker conventions from the repo itself — the language already used in docstrings, commit messages, branch names, and PR/ticket bodies. Do NOT ask the user or assume English; match what the repo does, and set branch_pattern/commit_style accordingly. speclaw does not prescribe a ticket tool — leave tracker linkage to the team's own convention.",
-          "5. Draft any custom_laws (extra binding rules for LAWS.md) from conventions you observed that the standard set doesn't cover.",
-          "6. Call the 'scaffold' tool with { projectPath, profile, packs }.",
-          "7. Follow the nextSteps returned by scaffold: complete the HTML-comment sections still left in docs/standards/*, then run the lawbook_init and compass_index tools (both built into speclaw — no external installs).",
-        ],
-        profileFields: profileFieldHelp,
-        packs,
-      });
-    },
-  );
-
-  add(
-    "scaffold",
-    "Write foundation, lawbook workflow, packs, IDE symlinks, and .mcp.json. Never overwrites.",
-    {
-      projectPath: z.string(),
-      profile: z.object(profileShape),
-      packs: z.array(z.string()),
-      agents: z.array(z.string()).optional(),
-    },
-    async ({ projectPath, profile, packs, agents }) =>
-      text(scaffold(projectPath, profile, packs, agents ?? [])),
-  );
-
-  add(
-    "configure_agent",
-    "Add one agent's IDE symlinks and MCP config to an already-scaffolded project.",
-    {
-      projectPath: z.string(),
-      agent: z.enum(AGENTS.map((a) => a.id) as [string, ...string[]]),
-    },
-    async ({ projectPath, agent }) => {
-      const report = emptyReport();
-      configureAgent(projectPath, agent, report);
-      return text(report);
-    },
+    "speclaw_setup",
+    "Project setup: init questionnaire, configure agent, list or add packs.",
+    speclawSetupSchema,
+    async (args) => text(handleSpeclawSetup(args)),
   );
 
   add(
@@ -137,18 +49,67 @@ export function registerFoundationCore(server: McpServer, opts: RegisterOpts = {
       text(checkAction({ projectPath, event: event as CheckEvent, toolName, payload })),
   );
 
-  add(
-    "law_verify",
-    "Verify deterministic deps/graph laws and return violations by file.",
-    {
-      projectPath: z.string(),
-      paths: z.array(z.string()).optional(),
-      engines: z.array(z.enum(["deps", "graph"])).optional(),
-      lawIds: z.array(z.string()).optional(),
+  if (minimal || !aliasesEnabled()) return;
+
+  defineAliasTool(server, {
+    name: "init_project",
+    description: "Deprecated alias for speclaw_setup action init.",
+    inputSchema: { projectPath: z.string() },
+    handler: async ({ projectPath }) => {
+      logDeprecatedCall(projectPath, "init_project");
+      const body = JSON.stringify(handleSpeclawSetup({ projectPath, action: "init" }), null, 2);
+      return text(prefixDeprecated("init_project", body));
     },
-    async ({ projectPath, paths, engines, lawIds }) =>
-      text(
-        verifyLaws({ projectPath, paths, engines: engines as BatchEngine[] | undefined, lawIds }),
-      ),
-  );
+  });
+
+  defineAliasTool(server, {
+    name: "configure_agent",
+    description: "Deprecated alias for speclaw_setup configure-agent.",
+    inputSchema: {
+      projectPath: z.string(),
+      agent: z.string(),
+    },
+    handler: async ({ projectPath, agent }) => {
+      logDeprecatedCall(projectPath, "configure_agent");
+      const body = JSON.stringify(
+        handleSpeclawSetup({ projectPath, action: "configure-agent", agent }),
+        null,
+        2,
+      );
+      return text(prefixDeprecated("configure_agent", body));
+    },
+  });
+
+  defineAliasTool(server, {
+    name: "list_packs",
+    description: "Deprecated alias for speclaw_setup list-packs.",
+    inputSchema: {},
+    handler: async () => {
+      const body = JSON.stringify(
+        handleSpeclawSetup({ projectPath: ".", action: "list-packs" }),
+        null,
+        2,
+      );
+      return text(prefixDeprecated("list_packs", body));
+    },
+  });
+
+  defineAliasTool(server, {
+    name: "add_pack",
+    description: "Deprecated alias for speclaw_setup add-pack.",
+    inputSchema: {
+      projectPath: z.string(),
+      pack: z.string(),
+      vars: z.record(z.string()).optional(),
+    },
+    handler: async ({ projectPath, pack, vars }) => {
+      logDeprecatedCall(projectPath, "add_pack");
+      const body = JSON.stringify(
+        handleSpeclawSetup({ projectPath, action: "add-pack", pack, vars }),
+        null,
+        2,
+      );
+      return text(prefixDeprecated("add_pack", body));
+    },
+  });
 }
