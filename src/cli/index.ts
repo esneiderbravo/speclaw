@@ -32,8 +32,10 @@ Compass (code intelligence — the same surface agents use via MCP)
   visualize [node]         Interactive HTML graph → .speclaw/graph.html
 
 Lawbook (spec-driven workflow)
+  quick <name>             Scaffold a level-0 change (record.md + reports)
   lawbook init             Create the lawbook/ workspace
   lawbook list             Active/archived changes and capabilities
+  lawbook level <mode>     Propose/set/promote/explain ceremony level (--json)
   lawbook validate <c>     Validate a change's artifacts
   lawbook sync <c>         Promote delta specs to canonical
   lawbook archive <c>      Finalize and archive a change
@@ -56,7 +58,8 @@ Other
 // interactive, human-facing commands whose stdout is prose. Deliberately
 // excluded: `version`/`--version`/`-v` (bare scriptable value), the Compass
 // query family (`explore`/`search`/`recall`/`impact`/`trace`/`affected-tests`/
-// `hotspots`/`coupling`, machine-consumed output), `mcp` (a long-running stdio
+// `hotspots`/`coupling`, machine-consumed output), `quick` (often --json),
+// `mcp` (a long-running stdio
 // server), and `init` (already opens with the fuller `banner()`).
 const HEADER_COMMANDS = new Set<string | undefined>([
   undefined,
@@ -73,6 +76,7 @@ const HEADER_COMMANDS = new Set<string | undefined>([
   "index",
   "watch",
   "lawbook",
+  "quick",
 ]);
 
 /**
@@ -91,6 +95,8 @@ function maybeHeader(cmd: string | undefined, flags: ReturnType<typeof parseFlag
   if (cmd === "doctor" && flags.json) return;
   if (cmd === "coverage" && (flags.json || flags.tap)) return;
   if (cmd === "drift" && flags.json) return;
+  if (cmd === "quick" && flags.json) return;
+  if (cmd === "lawbook" && flags.json && flags._[0] === "level") return;
   header();
 }
 
@@ -136,6 +142,8 @@ async function dispatch(
       return (await import("./commands/query.js")).runQuery(cmd, flags);
     case "visualize":
       return (await import("./commands/visualize.js")).runVisualize(flags);
+    case "quick":
+      return (await import("./commands/quick.js")).runQuick(flags);
     case "lawbook":
       return (await import("./commands/lawbook.js")).runSpec(flags);
     case "doctor":

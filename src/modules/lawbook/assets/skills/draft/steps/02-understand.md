@@ -6,6 +6,9 @@
 - Clarify what the user wants (feature / fix / refactor) and confirm scope.
 - Use `compass_explore` and `compass_recall` (speclaw's code index) BEFORE
   grep/read to locate the real code the change touches and its blast radius.
+- **Propose a ceremony level** with `lawbook_level` (mode `propose`) using the
+  paths/symbols you found; **confirm with the human** (mode `set`) before
+  writing artifacts. For an obvious one-liner, offer `speclaw quick` instead.
 - Read the governing standards in `docs/standards/` (architecture, backend,
   frontend, testing) so the change complies with the project's law.
 

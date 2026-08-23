@@ -158,6 +158,17 @@ const MIGRATIONS: Migration[] = [
       "(`node_metrics`) — reindex with `speclaw index`. Default history window is 90 days.\n" +
       "- Preserve all project-specific wording; only apply these speclaw-authored changes.",
   },
+  {
+    version: "0.3.12",
+    describe: "Adaptive ceremony levels 0–3, speclaw quick, lawbook_level",
+    agentPrompt:
+      "- Mention ceremony levels 0–3 (`change.json`), `speclaw quick` for level-0 scaffolds, and " +
+      "`lawbook_level` / `speclaw lawbook level` for propose/set/promote. Artifact volume follows " +
+      "the confirmed level; missing `change.json` still means full ceremony (level 3). Optional " +
+      "`ceremony:` block in `lawbook/config.yaml` (cuts default [3, 8, 15]). Update LAWS / " +
+      "docs/standards/lawbook.md wording if the project still says every change needs all four artifacts.\n" +
+      "- Preserve all project-specific wording; only apply these speclaw-authored changes.",
+  },
 ];
 
 /**

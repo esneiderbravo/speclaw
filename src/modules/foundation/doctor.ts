@@ -8,6 +8,7 @@ import { pkgName, pkgVersion } from "../../shared/version.js";
 import { indexExists, openDb } from "../compass/db.js";
 import { specList } from "../lawbook/engine.js";
 import { doctorDriftCheck } from "../lawbook/drift.js";
+import { loadCeremonyConfig, type CeremonyLevel } from "../lawbook/levels.js";
 import { globError, hasBackend, hasBatchBackend, readLawManifest } from "./laws.js";
 import { redactValue } from "../../shared/redact.js";
 
@@ -535,6 +536,66 @@ function specsOrphansCheck(projectPath: string): DoctorCheck {
   };
 }
 
+/** Ceremony config validity + archived level histogram. */
+function ceremonyChecks(projectPath: string): DoctorCheck[] {
+  const out: DoctorCheck[] = [];
+  const { invalidCuts } = loadCeremonyConfig(projectPath);
+  if (invalidCuts) {
+    out.push({
+      id: "cfg.ceremony.cuts",
+      title: "ceremony thresholds",
+      status: "warn",
+      detail: "invalid ceremony.cuts — using built-in defaults [3, 8, 15]",
+      remedy:
+        "fix cuts in lawbook/config.yaml so they are strictly increasing, or remove the block",
+    });
+  } else {
+    out.push({
+      id: "cfg.ceremony.cuts",
+      title: "ceremony thresholds",
+      status: "ok",
+      detail: "ceremony cuts valid (or using defaults)",
+    });
+  }
+
+  const archiveRoot = path.join(projectPath, "lawbook", "changes", "archive");
+  const counts: Record<string, number> = { "0": 0, "1": 0, "2": 0, "3": 0, missing: 0 };
+  if (fs.existsSync(archiveRoot)) {
+    for (const name of fs.readdirSync(archiveRoot)) {
+      const dir = path.join(archiveRoot, name);
+      if (!fs.statSync(dir).isDirectory()) continue;
+      // archived folder is YYYY-MM-DD-name; change.json lives inside
+      const rec = (() => {
+        try {
+          const p = path.join(dir, "change.json");
+          if (!fs.existsSync(p)) return null;
+          return JSON.parse(fs.readFileSync(p, "utf8")) as { confirmedLevel?: CeremonyLevel };
+        } catch {
+          return null;
+        }
+      })();
+      if (!rec || rec.confirmedLevel === undefined) {
+        counts.missing! += 1;
+        counts["3"]! += 1;
+      } else {
+        counts[String(rec.confirmedLevel)] = (counts[String(rec.confirmedLevel)] ?? 0) + 1;
+      }
+    }
+  }
+  const total = (counts["0"] ?? 0) + (counts["1"] ?? 0) + (counts["2"] ?? 0) + (counts["3"] ?? 0);
+  out.push({
+    id: "cfg.ceremony.levels",
+    title: "ceremony level distribution",
+    status: "ok",
+    value: JSON.stringify(counts),
+    detail:
+      total === 0
+        ? "no archived changes"
+        : `archived levels: 0=${counts["0"]}, 1=${counts["1"]}, 2=${counts["2"]}, 3=${counts["3"]} (missing change.json=${counts.missing})`,
+  });
+  return out;
+}
+
 function configurationChecks(projectPath: string, initialised: boolean): DoctorCheck[] {
   if (!initialised) {
     const ids = [
@@ -641,6 +702,7 @@ export async function doctor(projectPath: string, opts: DoctorOptions = {}): Pro
     configuration.push(await budgetCheck(projectPath));
     configuration.push(freshnessCheck(projectPath));
     configuration.push(specsOrphansCheck(projectPath));
+    configuration.push(...ceremonyChecks(projectPath));
     {
       const d = doctorDriftCheck(projectPath);
       addCheck(configuration, {

@@ -28,6 +28,7 @@ The system SHALL do the thing.
 function seedChange(root: string, name: string, opts: { tasksChecked?: boolean } = {}): void {
   const base = `lawbook/changes/${name}`;
   write(root, `${base}/proposal.md`, "# Proposal\nwhy");
+  write(root, `${base}/design.md`, "# Design\napproach");
   write(
     root,
     `${base}/tasks.md`,
@@ -119,6 +120,7 @@ The system SHALL beta.
 /** Seed a minimal valid change with the delta spec at a chosen capability path. */
 function seedDelta(root: string, name: string, capabilityRel: string, content: string): void {
   write(root, `lawbook/changes/${name}/proposal.md`, "x");
+  write(root, `lawbook/changes/${name}/design.md`, "x");
   write(root, `lawbook/changes/${name}/tasks.md`, "- [ ] x");
   write(root, `lawbook/changes/${name}/specs/${capabilityRel}`, content);
 }
@@ -263,6 +265,35 @@ test("specList reports initialization, active/archived changes, and capabilities
   const list = specList(root);
   assert.equal(list.initialized, true);
   assert.deepEqual(list.activeChanges, ["active"]);
+  assert.equal(list.activeLevels.active, 3);
   assert.deepEqual(list.capabilities, ["existing"]);
   assert.deepEqual(list.archivedChanges, []);
+});
+
+test("level-0 change validates and archives without deltas", (t) => {
+  const root = tmpRepo(t);
+  specInit(root);
+  write(root, "lawbook/changes/tiny/record.md", `# tiny\n\n## Steps\n\n- [x] fix\n- [x] report\n`);
+  write(root, "lawbook/changes/tiny/reports/backend.md", "# backend\nok\n");
+  write(
+    root,
+    "lawbook/changes/tiny/change.json",
+    JSON.stringify({
+      level: 0,
+      score: 0,
+      signals: {},
+      rationale: "test",
+      degraded: [],
+      confirmedLevel: 0,
+      confirmedBy: "human",
+      confirmedAt: new Date().toISOString(),
+      promotions: [],
+    }),
+  );
+  const v = specValidate(root, "tiny");
+  assert.equal(v.valid, true, v.issues.join("; "));
+  assert.deepEqual(specArchivePreconditions(root, "tiny"), []);
+  const archived = specArchive(root, "tiny", "2026-08-22");
+  assert.equal(archived.promoted.length, 0);
+  assert.ok(has(root, "lawbook/changes/archive/2026-08-22-tiny/record.md"));
 });
