@@ -1,0 +1,42 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Write|Edit|MultiEdit|NotebookEdit",
+        "hooks": [
+          {
+            "type": "mcp_tool",
+            "server": "speclaw",
+            "tool": "speclaw_check",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit|MultiEdit|NotebookEdit",
+        "hooks": [
+          {
+            "type": "mcp_tool",
+            "server": "speclaw",
+            "tool": "speclaw_check",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "InstructionsLoaded": [
+      {
+        "hooks": [
+          {
+            "type": "mcp_tool",
+            "server": "speclaw",
+            "tool": "speclaw_check",
+            "timeout": 5
+          }
+        ]
+      }
+    ]
+  }
+}

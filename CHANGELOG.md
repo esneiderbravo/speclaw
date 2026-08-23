@@ -3,6 +3,25 @@
 All notable changes to this project are documented here. Speclaw follows
 [Semantic Versioning](https://semver.org/) for the published npm package.
 
+## [0.3.10] — 2026-08-23
+
+### Added
+
+- `compass_affected_tests` / `speclaw affected-tests` — static reverse
+  reachability into test files with a ready-to-run `command` (prefers
+  `package.json#scripts.test`, else `node --test`). Supports `--from-diff`.
+- Optional `.speclaw/affected.json` (globals, test globs, named targets).
+- Compass schema **7**: `files.is_test`, `files.module` (forced reindex).
+
+### Changed
+
+- **Breaking (MCP):** `compass_impact` returns a grouped blast-radius report by
+  default (module counts + top-N). Use `format: "flat"` for the prior list
+  shape. Resolution is id-first (`exact` | `by-name`); default edges are
+  `call` + `import`. Global config/lockfile matches report `blastRadius: "repo"`
+  instead of an empty set.
+- CLI `impact` renders the grouped summary; `--flat` / `--json` available.
+
 ## [0.3.9] — 2026-08-23
 
 ### Added

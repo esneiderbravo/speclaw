@@ -139,6 +139,16 @@ const MIGRATIONS: Migration[] = [
       "reindex with `speclaw index`, then `speclaw drift --reseal` once to photograph current bodies.\n" +
       "- Preserve all project-specific wording; only apply these speclaw-authored changes.",
   },
+  {
+    version: "0.3.10",
+    describe: "Impact v2 + affected-tests: schema 7, grouped blast radius",
+    agentPrompt:
+      "- Mention `compass_impact` (grouped by default; `format: flat` escape hatch) and " +
+      "`compass_affected_tests` / `speclaw affected-tests --from-diff`. Compass schema is now 7 " +
+      "(`files.is_test`, `files.module`) — reindex with `speclaw index`. Optional " +
+      "`.speclaw/affected.json` overrides globals/test globs.\n" +
+      "- Preserve all project-specific wording; only apply these speclaw-authored changes.",
+  },
 ];
 
 /**
