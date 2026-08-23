@@ -30,9 +30,11 @@
    the map. Agents open the standard that governs the code they're changing.
 2. **The standards are enforced, not advisory.** A violation is a blocking
    finding in review.
-3. **Amendments go through the lawbook workflow.** A standard is changed like code — via a
-   reviewed change at the appropriate ceremony level (see the lawbook law). An agent may
-   propose an amendment; it may never silently ignore a standard.
+3. **Amendments go through the lawbook workflow.** A standard is changed like
+   code — via a reviewed change at the appropriate ceremony level (0–3 in
+   `change.json`; missing file is level 3 — not every change needs all four
+   artifacts). An agent may propose an amendment; it may never silently ignore
+   a standard.
 4. **Entry points reference the law.** [`CLAUDE.md`](CLAUDE.md) and
    [`AGENTS.md`](AGENTS.md) point every agent here first.
 
@@ -63,8 +65,9 @@ These bind in addition to the standards above — they encode speclaw's identity
 5. **Keep attribution honest.** Compass reimplements ideas from CodeGraph and
    Lawbook from OpenSpec (both MIT). [`ATTRIBUTION.md`](ATTRIBUTION.md) must
    stay accurate as those modules evolve.
-6. **Bugs use `bugfix.md`, not feature ceremony.** Bug changes (`draft --bug`,
-   `changeType: bug`) replace proposal/design with `bugfix.md` and graph-backed
-   `lawbook_investigate`. Reproduction, regression test, and prevention §7 are
-   mandatory; security-withheld mode is not shipped yet.
+6. **Bugs use `bugfix.md`, not feature ceremony.** Bug changes
+   (`speclaw lawbook draft --bug`, `changeType: bug` in `change.json`) replace
+   proposal/design with `bugfix.md` (repro + regression + prevention) and
+   graph-backed `lawbook_investigate` / the investigate skill. Feature ceremony
+   is unchanged. Security-withheld mode is not in this release.
 

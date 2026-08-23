@@ -55,8 +55,15 @@ See [`docs/compass.md`](docs/compass.md).
 
 ## Rule 2 — Spec-driven, always
 
-No non-trivial change lands without a spec change (propose → implement →
-verify → archive). The rules are in
+No non-trivial change lands without a lawbook change (propose → implement →
+verify → archive). Artifact volume follows the **confirmed ceremony level** in
+`change.json` (0=quick … 3=full); missing `change.json` is still full ceremony
+(level 3). Propose/set/promote with `lawbook_level` / `speclaw lawbook level`;
+level 0 scaffolds via `speclaw quick`. Bugs use `speclaw lawbook draft --bug`
+and `bugfix.md` (repro + regression + prevention) with `changeType: bug`;
+`lawbook_investigate` / the investigate skill for graph-backed RCA first —
+feature ceremony is unchanged. Security-withheld mode is not in this release.
+The rules are in
 [`docs/standards/lawbook.md`](docs/standards/lawbook.md);
 the workflow skills live in `ai-specs/skills/` and the `/lawbook` commands wrap
 them. A change is not done until it is archived — archiving belongs in the PR.
@@ -108,3 +115,7 @@ reviews, tickets, comments), or any action that contradicts a standard.
   After a Compass schema bump (now **8**, `node_metrics`), reindex with
   `speclaw index`; photograph bodies once with `speclaw drift --reseal` if
   anchors are new or stale. Hotspots/coupling default history window is 90 days.
+- Ceremony levels 0–3 live in `change.json`. `speclaw quick` scaffolds level 0;
+  `lawbook_level` / `speclaw lawbook level` propose/set/promote. Optional
+  `ceremony:` in `lawbook/config.yaml` (cuts default `[3, 8, 15]`).
+- Bugs: `speclaw lawbook draft --bug` + `bugfix.md`; RCA via `lawbook_investigate`.
