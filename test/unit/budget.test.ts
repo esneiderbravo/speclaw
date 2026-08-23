@@ -60,7 +60,7 @@ test("minimal profile registers fewer tools and stays under minimal ceilings", (
   const full = collectRegisteredTools(false);
   const mini = collectRegisteredTools(true);
   assert.ok(mini.length < full.length);
-  assert.equal(mini.length, 7);
+  assert.equal(mini.length, 8);
   const actual = measureBudget({
     projectPath: ROOT,
     packagePath: ROOT,

@@ -13,6 +13,7 @@ import { listTrackedPaths } from "../../shared/git.js";
  *
  * @param projectPath - Project root to inspect and address.
  */
+// Covers: req~agent-ide-committable~1, req~ai-specs-untrack-hint~1
 export function reportTrackedLocalContent(projectPath: string): void {
   const tracked = listTrackedPaths(projectPath, ["ai-specs"]);
   if (!tracked.length) return;

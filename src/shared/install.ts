@@ -143,6 +143,7 @@ export function copyRendered(
  * @param comment - Comment line written above the entry when it is added.
  * @param report - Report mutated in place; the appended entry is recorded under `written`.
  */
+// Covers: req~ai-specs-gitignore~1
 export function ensureGitignore(
   projectPath: string,
   entry: string,

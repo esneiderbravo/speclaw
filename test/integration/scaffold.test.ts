@@ -7,6 +7,7 @@ import { readLawManifest, writeLawManifest } from "../../src/modules/foundation/
 import { loadPacks } from "../../src/modules/tools/packs.js";
 import { readManifest } from "../../src/shared/manifest.js";
 
+// Covers: req~ai-specs-gitignore~1, req~agent-ide-committable~1
 test("scaffold writes the foundation, the workflow, gitignore, manifest, and agent wiring", (t) => {
   const root = tmpRepo(t);
   const report = scaffold(root, sampleProfile(), [], ["claude"]);

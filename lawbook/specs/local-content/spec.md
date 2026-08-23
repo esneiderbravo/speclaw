@@ -14,13 +14,15 @@ speclaw does not decide whether the agent IDE directories are committed: those
 may hold a user's own skills/commands, so their git-tracking is left to the
 user.
 
-### Requirement: speclaw's regenerable content is gitignored
+### Requirement: speclaw's regenerable content is gitignored `req~ai-specs-gitignore~1`
 
 `speclaw init` and `speclaw update` SHALL ensure the project's `.gitignore`
 ignores `ai-specs/`. Because `ai-specs/` holds only content regenerable from the
 package (skills, commands, rules, agent packs) plus the local `.speclaw.json`
 manifest, that content is local and MUST NOT be committed. The `.gitignore` edit
 SHALL be idempotent — re-running init or update MUST NOT add a duplicate entry.
+
+Needs: impl, itest
 
 #### Scenario: init ignores ai-specs
 - Given a project being set up with `speclaw init`
@@ -38,13 +40,15 @@ SHALL be idempotent — re-running init or update MUST NOT add a duplicate entry
 - When the user runs `speclaw init` or `speclaw update` again
 - Then no duplicate `ai-specs/` entry is added
 
-### Requirement: The agent IDE directories are left committable
+### Requirement: The agent IDE directories are left committable `req~agent-ide-committable~1`
 
 speclaw SHALL NOT add the agent IDE directories or their symlinked
 subdirectories (e.g. `.claude/`, `.claude/skills`, `.cursor/commands`) to
 `.gitignore`. Those directories may hold a user's own skills, commands, or
 config, so whether they are committed is the user's decision — speclaw only
 creates the symlinks into `ai-specs/` and leaves their git-tracking untouched.
+
+Needs: impl, itest
 
 #### Scenario: configuring an agent does not gitignore its IDE content
 - Given a project where an agent (e.g. `claude`) is configured
@@ -58,13 +62,15 @@ creates the symlinks into `ai-specs/` and leaves their git-tracking untouched.
 - When init or update runs
 - Then that content is not ignored by speclaw's `.gitignore` entries
 
-### Requirement: A still-tracked ai-specs is surfaced for the user to untrack
+### Requirement: A still-tracked ai-specs is surfaced for the user to untrack `req~ai-specs-untrack-hint~1`
 
 Adding an entry to `.gitignore` does not untrack a directory git already tracks.
 When `speclaw init` or `speclaw update` runs inside a git repository and
 `ai-specs/` is still tracked by git, speclaw SHALL print the exact
 `git rm -r --cached ai-specs` command for the user to run. speclaw MUST NOT
 modify the git index itself.
+
+Needs: impl, utest
 
 #### Scenario: tracked ai-specs prints untrack instructions
 - Given a git repository where `ai-specs/` is still tracked by git

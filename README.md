@@ -129,6 +129,8 @@ tokenizer on this corpus — not a BPE dependency):
 ```bash
 speclaw budget          # human table
 speclaw budget --json   # machine-readable; used by the suite gate
+speclaw coverage        # requirement → impl → test coverage (TAP / table)
+speclaw coverage --json # machine-readable coverage report
 speclaw init --minimal  # omit setup/lifecycle MCP tools from registration
 ```
 

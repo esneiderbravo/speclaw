@@ -44,6 +44,26 @@ function hashOf(content: string): string {
   return createHash("sha256").update(content).digest("hex");
 }
 
+/**
+ * Infer a covering artifact's type from its project-relative path.
+ * Full glob config lives in lawbook; this is the indexer default so links are
+ * typed even before a coverage report runs.
+ */
+function inferSourceType(relPath: string): string {
+  const p = relPath.split("\\").join("/");
+  if (/(^|\/)test\/integration\//.test(p) || /(^|\/)tests\/integration\//.test(p)) return "itest";
+  if (
+    /(^|\/)test\/unit\//.test(p) ||
+    /(^|\/)tests\/unit\//.test(p) ||
+    /\.test\.[cm]?[jt]sx?$/.test(p) ||
+    /\.spec\.[cm]?[jt]sx?$/.test(p) ||
+    /(^|\/)test\//.test(p)
+  ) {
+    return "utest";
+  }
+  return "impl";
+}
+
 function* walkFiles(root: string): Generator<string> {
   const stack: string[] = [root];
   while (stack.length) {
@@ -120,12 +140,18 @@ export async function buildIndex(
   const updFile = db.prepare("UPDATE files SET hash = ?, lang = ? WHERE id = ?");
   const delNodes = db.prepare("DELETE FROM nodes WHERE file_id = ?");
   const delEdges = db.prepare("DELETE FROM edges WHERE src_file_id = ?");
+  const delCoverage = db.prepare("DELETE FROM coverage_links WHERE file_path = ?");
   const insNode = db.prepare(
     `INSERT INTO nodes(file_id, name, kind, start_line, end_line, start_byte, end_byte, parent_id, signature)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   );
   const insEdge = db.prepare(
     `INSERT INTO edges(src_node_id, src_file_id, dst_name, kind, line) VALUES (?, ?, ?, ?, ?)`,
+  );
+  const insCoverage = db.prepare(
+    `INSERT OR REPLACE INTO coverage_links(
+       artifact_type, name, revision, kind, file_path, line, node_id, source_type, origin
+     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   );
   const insEmbed = db.prepare(
     `INSERT OR REPLACE INTO node_embeddings(node_id, dim, model, vec) VALUES (?, ?, ?, ?)`,
@@ -161,12 +187,13 @@ export async function buildIndex(
         updFile.run(hash, lang.id, prior.id);
         delNodes.run(prior.id);
         delEdges.run(prior.id);
+        delCoverage.run(rel);
         fileId = prior.id;
       } else {
         fileId = Number(insFile.run(rel, hash, lang.id).lastInsertRowid);
       }
 
-      const { symbols, refs } = await extract(content, lang);
+      const { symbols, refs, coverage } = await extract(content, lang);
       const nodeIds: number[] = [];
       for (const s of symbols) {
         const parentId = s.parentIndex !== null ? nodeIds[s.parentIndex]! : null;
@@ -193,6 +220,21 @@ export async function buildIndex(
         const srcId = r.ownerIndex !== null ? nodeIds[r.ownerIndex]! : null;
         insEdge.run(srcId, fileId, r.name, r.kind, r.line);
         stats.edges++;
+      }
+      const sourceType = inferSourceType(rel);
+      for (const c of coverage) {
+        const nodeId = c.ownerIndex !== null ? nodeIds[c.ownerIndex]! : null;
+        insCoverage.run(
+          c.artifactType,
+          c.name,
+          c.revision,
+          c.kind,
+          rel,
+          c.line,
+          nodeId,
+          sourceType,
+          "comment",
+        );
       }
       stats.files++;
       stats.nodes += symbols.length;

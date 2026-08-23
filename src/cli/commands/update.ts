@@ -120,6 +120,16 @@ const MIGRATIONS: Migration[] = [
     // scaffold → installHooks already rewrites .claude/settings.json when the
     // compiled hook shape changes; no extra run() step.
   },
+
+  {
+    version: "0.3.8",
+    describe: "Requirement coverage: speclaw coverage + lawbook_coverage + schema 5",
+    agentPrompt:
+      "- Mention `speclaw coverage` / `lawbook_coverage` for requirement → impl → test coverage " +
+      "(ids like `req~name~1`, `// Covers:` comments). Compass schema is now 5 — reindex with " +
+      "`speclaw index`. Optionally add coverage.gateArchive / defaultNeeds under lawbook/config.yaml.\n" +
+      "- Preserve all project-specific wording; only apply these speclaw-authored changes.",
+  },
 ];
 
 /**
