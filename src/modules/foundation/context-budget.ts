@@ -3,7 +3,7 @@ import { z } from "zod";
 import { registerCompass } from "../compass/register.js";
 import { registerSpec } from "../lawbook/register.js";
 import { registerTools } from "../tools/register.js";
-import { registerFoundationCore } from "./register.js";
+import { registerFoundationCore } from "./register-core.js";
 import { measureBudget, type BudgetMeasurement } from "../../shared/budget.js";
 import { isMinimalMode, packageRoot, shouldExpose } from "../../shared/exposure.js";
 import type { ToolDefForBudget } from "../../shared/schema-tokens.js";
