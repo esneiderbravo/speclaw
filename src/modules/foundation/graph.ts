@@ -15,7 +15,11 @@ import { underPaths } from "./verify-model.js";
 type Adj = Map<string, string[]>;
 
 /** Build the cross-file dependency graph, restricted to `paths` when given. */
-function buildGraph(db: DatabaseSync, paths: string[] | undefined): Adj {
+function buildGraph(db: DatabaseSync, paths: string[] | undefined, edgeKinds?: string[]): Adj {
+  const kindFilter =
+    edgeKinds && edgeKinds.length > 0
+      ? ` AND e.kind IN (${edgeKinds.map(() => "?").join(", ")})`
+      : "";
   const rows = db
     .prepare(
       `SELECT DISTINCT sf.path AS src, df.path AS dst
@@ -23,9 +27,12 @@ function buildGraph(db: DatabaseSync, paths: string[] | undefined): Adj {
        JOIN files sf ON sf.id = e.src_file_id
        JOIN nodes dn ON dn.id = e.dst_node_id
        JOIN files df ON df.id = dn.file_id
-       WHERE e.dst_node_id IS NOT NULL AND sf.path <> df.path`,
+       WHERE e.dst_node_id IS NOT NULL AND sf.path <> df.path${kindFilter}`,
     )
-    .all() as unknown as Array<{ src: string; dst: string }>;
+    .all(...(edgeKinds && edgeKinds.length > 0 ? edgeKinds : [])) as unknown as Array<{
+    src: string;
+    dst: string;
+  }>;
   const adj: Adj = new Map();
   for (const { src, dst } of rows) {
     if (!underPaths(src, paths) || !underPaths(dst, paths)) continue;
@@ -217,7 +224,7 @@ function reachableFindings(law: Law, rule: GraphRule, adj: Adj): Finding[] {
  */
 export function runGraphLaw(db: DatabaseSync, law: Law, paths?: string[]): EngineResult {
   const rule = (law.verification as { kind: "graph"; rule: GraphRule }).rule;
-  const adj = buildGraph(db, paths);
+  const adj = buildGraph(db, paths, rule.edgeKinds);
   const findings: Finding[] = [];
 
   const wantReachable = rule.reachable === true && rule.from != null && rule.to != null;

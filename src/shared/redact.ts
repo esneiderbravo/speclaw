@@ -43,16 +43,16 @@ export function redactText(text: string, projectPath: string): string {
   const user = os.userInfo().username;
 
   const replacements: Array<[string, string]> = [];
-  const push = (from: string, to: string) => {
+  const queueReplacement = (from: string, to: string) => {
     if (from && from.length > 1) replacements.push([from, to]);
   };
 
-  push(path.resolve(projectPath), "<project>");
-  push(projectPath.replace(/\//g, "\\"), "<project>");
-  push(home, "~");
-  push(home.replace(/\//g, "\\"), "~");
-  push(`C:\\Users\\${user}`, "~");
-  push(`c:\\Users\\${user}`, "~");
+  queueReplacement(path.resolve(projectPath), "<project>");
+  queueReplacement(projectPath.replace(/\//g, "\\"), "<project>");
+  queueReplacement(home, "~");
+  queueReplacement(home.replace(/\//g, "\\"), "~");
+  queueReplacement(`C:\\Users\\${user}`, "~");
+  queueReplacement(`c:\\Users\\${user}`, "~");
 
   replacements.sort((a, b) => b[0].length - a[0].length);
   for (const [from, to] of replacements) {

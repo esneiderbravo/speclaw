@@ -127,7 +127,7 @@ function libcLabel(): string {
   return "libc unknown";
 }
 
-function push(
+function addCheck(
   checks: DoctorCheck[],
   partial: Omit<DoctorCheck, "status"> & { status: CheckStatus },
 ): void {
@@ -198,7 +198,7 @@ function environmentChecks(): DoctorCheck[] {
   const checks: DoctorCheck[] = [];
   const required = enginesRequirement();
   const okNode = nodeSatisfies(required, process.version);
-  push(checks, {
+  addCheck(checks, {
     id: "env.node",
     title: "node",
     status: okNode ? "ok" : "error",
@@ -208,7 +208,7 @@ function environmentChecks(): DoctorCheck[] {
   });
 
   const libc = libcLabel();
-  push(checks, {
+  addCheck(checks, {
     id: "env.platform",
     title: "platform",
     status: "ok",
@@ -223,7 +223,7 @@ function environmentChecks(): DoctorCheck[] {
 function buildEnvironment(projectPath: string): DoctorCheck[] {
   const checks = environmentChecks();
   const git = isGitRepo(projectPath);
-  push(checks, {
+  addCheck(checks, {
     id: "env.git",
     title: "git",
     status: git ? "ok" : "warn",
@@ -232,7 +232,7 @@ function buildEnvironment(projectPath: string): DoctorCheck[] {
     remedy: git ? undefined : "git init",
   });
 
-  push(checks, {
+  addCheck(checks, {
     id: "env.ast-engine",
     title: "ast engine",
     status: "skip",
@@ -557,7 +557,7 @@ function configurationChecks(projectPath: string, initialised: boolean): DoctorC
 
   const checks: DoctorCheck[] = [];
   const manifest = readManifest(projectPath);
-  push(checks, {
+  addCheck(checks, {
     id: "cfg.manifest",
     title: "manifest",
     status: manifest ? "ok" : "warn",
@@ -565,7 +565,7 @@ function configurationChecks(projectPath: string, initialised: boolean): DoctorC
     remedy: manifest ? undefined : "speclaw init",
   });
 
-  push(checks, {
+  addCheck(checks, {
     id: "cfg.ownership",
     title: "managed files",
     status: "skip",
@@ -575,7 +575,7 @@ function configurationChecks(projectPath: string, initialised: boolean): DoctorC
 
   checks.push(symlinkChecks(projectPath));
 
-  push(checks, {
+  addCheck(checks, {
     id: "cfg.hooks",
     title: "hooks",
     status: "skip",
@@ -595,7 +595,7 @@ function notesSection(projectPath: string): DoctorCheck[] {
   const declared = manifest?.laws.map((l) => l.id) ?? [];
   const missing = declared.filter((id) => !loaded.has(id));
 
-  push(checks, {
+  addCheck(checks, {
     id: "notes.compact",
     title: "post-compact rules",
     status: "ok",
@@ -611,7 +611,7 @@ function notesSection(projectPath: string): DoctorCheck[] {
     const on = configured.includes(a.id);
     return `${a.id}: hooks=${a.hooks ? "yes" : "no"} mcp=${a.mcpFile ? "yes" : "no"}${on ? " (configured)" : ""}`;
   });
-  push(checks, {
+  addCheck(checks, {
     id: "notes.capabilities",
     title: "agent capabilities",
     status: "ok",
