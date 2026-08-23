@@ -12,6 +12,7 @@ const SRC_MODULES = "src/modules";
 const DEST_MODULES = "dist-test/src/modules";
 
 copyFileSync("package.json", "dist-test/package.json");
+copyFileSync("token-budget.json", "dist-test/token-budget.json");
 
 let copied = 0;
 for (const mod of readdirSync(SRC_MODULES)) {

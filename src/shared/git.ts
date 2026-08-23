@@ -89,3 +89,31 @@ export function changedFiles(projectPath: string, base: string): string[] {
     .map((l) => l.trim())
     .filter(Boolean);
 }
+
+/**
+ * Project-relative paths with uncommitted changes vs `HEAD` (staged and unstaged).
+ *
+ * @param projectPath - Directory inside the work tree.
+ */
+export function worktreeChangedFiles(projectPath: string): string[] {
+  if (!isGitRepo(projectPath)) return [];
+  const res = spawnSync(
+    "git",
+    [
+      "-C",
+      projectPath,
+      "-c",
+      "core.quotePath=false",
+      "diff",
+      "--name-only",
+      "--diff-filter=ACMR",
+      "HEAD",
+    ],
+    { encoding: "utf8" },
+  );
+  if (res.status !== 0 || typeof res.stdout !== "string") return [];
+  return res.stdout
+    .split("\n")
+    .map((l) => l.trim())
+    .filter(Boolean);
+}

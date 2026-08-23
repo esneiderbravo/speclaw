@@ -1,6 +1,6 @@
 # Promote
 
-Run the `lawbook_sync` tool for the change. It copies each
+Run the `lawbook_change` (action: sync) tool for the change. It copies each
 `lawbook/changes/<name>/specs/<capability>/spec.md` over the canonical
 `lawbook/specs/<capability>/spec.md` and reports what it promoted, flagging
 each as **created** (new capability) or **updated** (overwrote an existing

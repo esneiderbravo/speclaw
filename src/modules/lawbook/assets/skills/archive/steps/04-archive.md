@@ -1,6 +1,6 @@
 # Archive
 
-Run the `lawbook_archive` tool with the change name and today's date
+Run the `lawbook_change` (action: archive) tool with the change name and today's date
 (`YYYY-MM-DD`). It re-checks the gate deterministically and, if it passes,
 moves `lawbook/changes/<name>/` to `lawbook/changes/archive/<date>-<name>/`.
 If it refuses, resolve the reported blockers (unchecked tasks, missing

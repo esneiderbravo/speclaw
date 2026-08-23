@@ -170,12 +170,14 @@ const MIGRATIONS: Migration[] = [
       "- Preserve all project-specific wording; only apply these speclaw-authored changes.",
   },
   {
-    version: "0.3.13",
-    describe: "Bugfix specs — draft --bug, bugfix.md, lawbook_investigate",
+    version: "0.4.0",
+    describe: "Tool surface — eight canonical MCP tools, aliases deprecated",
     agentPrompt:
-      "- Mention bug changes: `speclaw lawbook draft --bug`, `bugfix.md` (repro + regression + prevention), " +
-      "and `lawbook_investigate` / the investigate skill for graph-backed RCA. Feature ceremony unchanged; " +
-      "`changeType: bug` in `change.json`. Security-withheld mode is not in this release.\n" +
+      "- MCP exposes eight canonical tools: `compass_explore`, `compass_find`, `compass_diff_context`, " +
+      "`compass_index`, `lawbook_change`, `lawbook_investigate`, `speclaw_setup`, `speclaw_check`. " +
+      "Retired names (e.g. `compass_search`, `lawbook_validate`, `init_project`) are aliases with " +
+      "`[deprecated]` responses — prefer the canonical names. `scaffold`, `doctor`, `compass_visualize`, " +
+      "and `law_verify` are CLI-only. Minimal profile omits setup/check/investigate/index.\n" +
       "- Preserve all project-specific wording; only apply these speclaw-authored changes.",
   },
 ];

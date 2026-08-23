@@ -17,28 +17,32 @@ is nothing extra to install.
 
 | Without Compass | With Compass |
 |-----------------|--------------|
-| Many `Grep` + `Read` round-trips (tokens spent scanning) | One `compass_explore` call returns just the relevant node |
-| Guess which file matters | `compass_recall` finds code by meaning |
-| Edit without knowing the blast radius | callers/callees returned with the node |
+| Many `Grep` + `Read` round-trips (tokens spent scanning) | One `compass_explore` call returns source, callers, callees, blast radius, tests, hotspot |
+| Guess which file matters | `compass_find` (mode: concept) finds code by meaning |
+| Edit without knowing the blast radius | `include: ["blast_radius"]` on explore, or `compass_diff_context` for a diff |
 | Whole files dumped into context | verbatim source of the node + its neighbors only |
 
 The point is token economy: the agent gets exactly the code it needs to answer
 a request, not whole files.
 
-## The tools
+## The tools (eight canonical MCP tools)
 
 | Tool | Use it to |
 |------|-----------|
-| `compass_index` | Build/refresh the graph (`.speclaw/index.db`). Incremental — unchanged files are skipped by hash. Run once after init and after significant edits. Schema **8** stores `node_metrics` (LOC / nesting / branches), `files.is_test` / `files.module`, dual `body_hash` / `norm_hash` on definition nodes (for `speclaw drift` / `lawbook_drift`), and rebuilds derived `coverage_links` from `Covers:` / `@covers` comment directives (used by `speclaw coverage` / `lawbook_coverage`). |
-| `compass_explore` | Read a node's verbatim source plus its callers and callees. The default before editing. |
-| `compass_search` | Structural search: find nodes by name/keyword. |
-| `compass_recall` | Semantic search: describe what you want in natural language and get nodes ranked by meaning. |
-| `compass_impact` | Blast radius: reverse dependency closure for a symbol or files, **grouped by module** (not a flat dump). Id-first resolution; `format: "flat"` escape hatch. Global files → `blastRadius: "repo"`. |
-| `compass_affected_tests` | Which test files to run for a change (static superset) plus a ready-to-run command (`speclaw affected-tests --from-diff`). Prefer over the full suite. Optional `.speclaw/affected.json` overrides globals/test globs. |
-| `compass_hotspots` | Rank files by recent git activity (default 90d) × AST health from `node_metrics` (`speclaw hotspots`). Two raw axes; not a magic defect score. |
-| `compass_coupling` | Temporal co-change partners for a file (`speclaw coupling`): Jaccard strength, whether a call/import edge exists (`in_graph`), and source↔test pairs (`isTestPair`). |
-| `compass_trace` | Trace a call path between two nodes — how an entrypoint reaches a sink. |
-| `compass_watch` | Keep the index fresh automatically (start/stop a debounced incremental re-index on file change). |
+| `compass_index` | Build/refresh the graph (`.speclaw/index.db`); optional watch actions (`start`/`stop`/`status`). Schema **8** stores `node_metrics`, test/module flags, drift hashes, and coverage links. |
+| `compass_explore` | Read a node's source plus callers, callees, blast radius, affected tests, and hotspot — in one call. Use `to:` for trace-style paths. |
+| `compass_find` | Find symbols: `mode: exact` for name/keyword search, `mode: concept` for semantic recall. |
+| `compass_diff_context` | Graph context for a change set (working tree, git rev, or explicit paths): symbols touched, blast radius, tests, hotspots. |
+| `lawbook_change` | Lawbook lifecycle: init, list, validate, sync, archive, level, coverage, drift. |
+| `lawbook_investigate` | Graph-backed bug RCA (stack trace or symptom). |
+| `speclaw_setup` | Project setup: init, configure-agent, add-pack, list-packs. |
+| `speclaw_check` | Evaluate an action against the laws (hook surface). |
+
+Retired names (`compass_search`, `compass_recall`, `compass_impact`, …) remain
+as deprecated aliases for one release cycle. Prefer the canonical tools above.
+CLI-only: `speclaw index`, `explore`, `search`, `recall`, `impact`, `trace`,
+`affected-tests`, `hotspots`, `coupling`, `diff-context`, `visualize`, `scaffold`,
+`doctor`, `laws verify`.
 
 If the graph is missing (no `.speclaw/index.db`), run `compass_index` first —
 a missing graph is not license to skip Compass. The only legitimate fallbacks
@@ -46,9 +50,9 @@ to Grep/Read: a Compass call returned nothing useful for your query, or the
 target isn't indexed code (stylesheets, JSON/config, markdown, logs).
 
 <!-- speclaw:map:start -->
-speclaw · 150 files · 558 nodes
-src/ (79)  test/ (66)  scripts/ (4)  eslint.config.js/ (1)
-hubs: tmpRepo 210 · write 144 · has 89 · parse 61 · openDb 54 · commit 51 · buildIndex 48 · run 39 · read 38 · text 35 · runCli 33 · gitInit 32
+speclaw · 170 files · 633 nodes
+src/ (90)  test/ (75)  scripts/ (4)  eslint.config.js/ (1)
+hubs: tmpRepo 220 · write 145 · has 93 · parse 62 · openDb 56 · commit 52 · buildIndex 50 · run 39 · read 38 · runCli 33 · gitInit 33 · specInit 29
 entry: src/server.ts (mcp) · src/cli/index.ts (bin)
 <!-- speclaw:map:end -->
 
@@ -76,13 +80,13 @@ logic sits beside it:
 
 - CLI → core: `runInit` (`src/cli/commands/init.ts`) → `scaffold` →
   `shared/install` + `shared/render` + `shared/agents`. Try
-  `compass_trace runInit scaffold`.
+  `compass_explore runInit` with `to: scaffold`.
 - Index build: `runIndex` (`src/cli/commands/index-build.ts`) →
   `compass/indexer.ts` → `parser.ts`/`extract.ts` → `db.ts`.
-- MCP tool → work: any `*_*` tool is registered in a module's `register.ts`,
-  which validates with Zod and delegates to the logic file next to it.
+- MCP tool → work: canonical tools register in each module's `register.ts`,
+  validate with Zod, and delegate to the logic file next to it.
 
 **Shared core** (`src/shared/`): `install.ts`, `paths.ts`, `render.ts`,
 `agents.ts`, `manifest.ts`, `version.ts`, `mcp.ts` — the innermost layer; use
-`compass_impact` on any of these before changing it (wide blast radius).
-
+`compass_explore` with `include: ["blast_radius"]` on any of these before changing
+it (wide blast radius).

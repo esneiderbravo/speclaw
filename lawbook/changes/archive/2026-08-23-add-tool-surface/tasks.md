@@ -1,0 +1,25 @@
+# Tasks — add-tool-surface
+
+- [x] Step 0: Create the feature branch `feat/tool-surface` (must be first).
+- [x] Shared: add `tool-catalog.ts` (canonical 8, alias map, omit-set) and `deprecation.ts` (JSONL log, response prefix).
+- [x] Shared: extend `mcp.ts` with output budget, truncation, `estimateTokens`; wire through all tool handlers.
+- [x] Shared: ensure `token-budget.json` copied to dist-test in build; fix budget test to use committed ceilings.
+- [x] Compass: implement `exploreRich()` + shared grouped blast renderer; enrich `compass_explore`.
+- [x] Compass: add `compass_find` (search + recall); add `compass_diff_context` in `diff-context.ts`.
+- [x] Compass: merge `compass_index` + watch; remove `compass_visualize` from MCP (CLI unchanged).
+- [x] Compass: register deprecation aliases for retired compass tool names.
+- [x] Lawbook: add `lawbook_change` with action dispatch; register aliases for retired lawbook tools.
+- [x] Foundation/tools: add `speclaw_setup`; remove `scaffold` and `doctor` from MCP registration.
+- [x] Foundation: keep `speclaw_check` with ≤12-word description; update `MINIMAL_OMIT`.
+- [x] CLI: add `speclaw query diff-context` (or equivalent) mirroring MCP; ensure `scaffold`/`visualize`/`doctor`/`law_verify` documented as CLI-only.
+- [x] Doctor: report tool-surface token cost (full vs minimal), deprecated alias invocations, personalized files citing retired names.
+- [x] Assets: update managed skills/commands/rules to new tool names; JIT steps unchanged structurally.
+- [x] Tests: `mcp-surface.test.ts`, `output-budget.test.ts`, `diff-context.test.ts`, `deprecation.test.ts`, `tool-surface-benchmark.test.ts`; extend doctor/budget tests.
+- [x] Docs: README tool count + token headline; `docs/compass.md` map; `LAWS.md` if needed; version **0.4.0** + update migration.
+- [x] Measure post-change `speclaw budget --json`; lower `token-budget.json` ceilings; verify gates pass.
+- [x] Review and update the affected tests.
+- [x] Run the quality gates and verify they pass (`npm run check`, `npm run build`, `npm test`).
+- [x] Perform manual verification: MCP tool list ≤8, alias delegation, explore one-call context, diff_context on working tree, minimal profile omit-set.
+- [x] Produce discipline reports under `reports/` (`backend.md`, `api.md`).
+- [x] Archive the change within the same PR (`lawbook:archive`).
+- Commit and open PR when ready (operator step — not an archive gate).

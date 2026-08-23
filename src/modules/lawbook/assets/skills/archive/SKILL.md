@@ -9,7 +9,7 @@ Close out a completed change: its delta specs become canonical and the change
 folder moves to `lawbook/changes/archive/`. This is part of the PR that
 implements the change, not a post-merge chore.
 
-`lawbook_archive` is **gated** — the engine refuses to archive (and reports the
+`lawbook_change` (action: archive) is **gated** — the engine refuses to archive (and reports the
 reason) while any task is unchecked, while `reports/` holds no discipline report,
 or while the delta specs are not yet synced into the canonical specs. So archive
 is the last step of a completed change: reconcile, sync, then archive.

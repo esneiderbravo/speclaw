@@ -1,0 +1,11 @@
+{
+  "confirmedLevel": 2,
+  "changeType": "feature",
+  "actor": "agent",
+  "confirmedAt": "2026-08-23T15:25:00.000Z",
+  "proposal": {
+    "level": 2,
+    "score": 16,
+    "rationale": "Cross-module breaking MCP refactor: consolidate 28→8 tools, output budgets, diff_context, lawbook_change, speclaw_setup, scaffold MCP removal, hard CI gates, alias deprecation, assets sweep."
+  }
+}
