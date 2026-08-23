@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { createHash } from "node:crypto";
-import { openDb } from "./db.js";
+import { openDb, clearNeedsReindex } from "./db.js";
 import { langForPath } from "./languages.js";
 import { extract } from "./extract.js";
 import { getEmbedder, toBlob } from "./embedder.js";
@@ -142,8 +142,8 @@ export async function buildIndex(
   const delEdges = db.prepare("DELETE FROM edges WHERE src_file_id = ?");
   const delCoverage = db.prepare("DELETE FROM coverage_links WHERE file_path = ?");
   const insNode = db.prepare(
-    `INSERT INTO nodes(file_id, name, kind, start_line, end_line, start_byte, end_byte, parent_id, signature)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO nodes(file_id, name, kind, start_line, end_line, start_byte, end_byte, parent_id, signature, body_hash, norm_hash)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   );
   const insEdge = db.prepare(
     `INSERT INTO edges(src_node_id, src_file_id, dst_name, kind, line) VALUES (?, ?, ?, ?, ?)`,
@@ -208,6 +208,8 @@ export async function buildIndex(
             s.endByte,
             parentId,
             s.signature,
+            s.bodyHash,
+            s.normHash,
           ).lastInsertRowid,
         );
         nodeIds.push(id);
@@ -261,6 +263,7 @@ export async function buildIndex(
     db.prepare(
       "INSERT INTO meta(key, value) VALUES ('indexed_at', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
     ).run(new Date().toISOString());
+    clearNeedsReindex(db);
 
     db.exec("COMMIT");
   } catch (err) {

@@ -22,6 +22,8 @@ export interface NodeRow {
   end_byte: number;
   parent_id: number | null;
   signature: string | null;
+  body_hash: string | null;
+  norm_hash: string | null;
 }
 
 const SCHEMA = `
@@ -46,10 +48,13 @@ CREATE TABLE IF NOT EXISTS nodes (
   start_byte INTEGER NOT NULL,
   end_byte INTEGER NOT NULL,
   parent_id INTEGER,
-  signature TEXT
+  signature TEXT,
+  body_hash TEXT,
+  norm_hash TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_nodes_name ON nodes(name);
 CREATE INDEX IF NOT EXISTS idx_nodes_file ON nodes(file_id);
+CREATE INDEX IF NOT EXISTS idx_nodes_norm_hash ON nodes(norm_hash);
 -- edges: a reference from one node to a named target, resolved lazily.
 CREATE TABLE IF NOT EXISTS edges (
   id INTEGER PRIMARY KEY,
@@ -96,10 +101,33 @@ CREATE TABLE IF NOT EXISTS coverage_links (
 CREATE INDEX IF NOT EXISTS idx_cov_target ON coverage_links(artifact_type, name, revision);
 CREATE INDEX IF NOT EXISTS idx_cov_file ON coverage_links(file_path);
 CREATE INDEX IF NOT EXISTS idx_cov_node ON coverage_links(node_id);
+-- spec_anchors: projection of committed lawbook/anchors/*.json (source of truth on disk).
+CREATE TABLE IF NOT EXISTS spec_anchors (
+  id INTEGER PRIMARY KEY,
+  spec_id TEXT NOT NULL,
+  capability TEXT NOT NULL,
+  requirement_id TEXT NOT NULL,
+  scenario_id TEXT NOT NULL DEFAULT '',
+  anchor_kind TEXT NOT NULL,
+  symbol_name TEXT NOT NULL,
+  file_path TEXT,
+  node_id INTEGER REFERENCES nodes(id) ON DELETE SET NULL,
+  resolution TEXT NOT NULL,
+  content_hash TEXT,
+  raw_hash TEXT,
+  archived_at TEXT NOT NULL,
+  commit_sha TEXT,
+  source TEXT NOT NULL,
+  normalizer_version INTEGER NOT NULL DEFAULT 1,
+  UNIQUE (spec_id, requirement_id, scenario_id, anchor_kind, symbol_name)
+);
+CREATE INDEX IF NOT EXISTS idx_anchors_capability ON spec_anchors(capability);
+CREATE INDEX IF NOT EXISTS idx_anchors_symbol ON spec_anchors(symbol_name);
+CREATE INDEX IF NOT EXISTS idx_anchors_node ON spec_anchors(node_id);
 `;
 
 /** Schema version stamped into the `meta` table on first creation. */
-export const SCHEMA_VERSION = "5";
+export const SCHEMA_VERSION = "6";
 
 /** The stamped schema version, or null if the db predates versioning / has no meta table. */
 function readSchemaVersion(db: DatabaseSync): string | null {
@@ -134,6 +162,7 @@ function isStale(db: DatabaseSync): boolean {
 /** Drop every table (children first) so the current schema can be recreated cleanly. */
 function resetSchema(db: DatabaseSync): void {
   db.exec(`
+    DROP TABLE IF EXISTS spec_anchors;
     DROP TABLE IF EXISTS coverage_links;
     DROP TABLE IF EXISTS git_history_cache;
     DROP TABLE IF EXISTS node_embeddings;
@@ -162,7 +191,8 @@ export function openDb(projectPath: string): DatabaseSync {
   const db = new DatabaseSync(path.join(dir, "index.db"));
   db.exec("PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON;");
 
-  if (isStale(db)) resetSchema(db);
+  const wiped = isStale(db);
+  if (wiped) resetSchema(db);
 
   db.exec(SCHEMA);
   const row = db.prepare("SELECT value FROM meta WHERE key = 'schema_version'").get() as
@@ -170,7 +200,76 @@ export function openDb(projectPath: string): DatabaseSync {
   if (!row) {
     db.prepare("INSERT INTO meta(key, value) VALUES ('schema_version', ?)").run(SCHEMA_VERSION);
   }
+  if (wiped) {
+    db.prepare(
+      "INSERT INTO meta(key, value) VALUES ('needs_reindex', '1') ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+    ).run();
+  }
+  // Projection from committed JSON — safe even when nodes are empty (node_id null).
+  rehydrateAnchors(db, projectPath);
   return db;
+}
+
+/**
+ * Rebuild `spec_anchors` from `lawbook/anchors/*.json`. Idempotent; called on
+ * every open so a wiped `.speclaw/` still sees committed seals.
+ */
+export function rehydrateAnchors(db: DatabaseSync, projectPath: string): void {
+  const dir = path.join(projectPath, "lawbook", "anchors");
+  db.exec("DELETE FROM spec_anchors");
+  if (!fs.existsSync(dir)) return;
+  const ins = db.prepare(
+    `INSERT OR REPLACE INTO spec_anchors(
+       spec_id, capability, requirement_id, scenario_id, anchor_kind, symbol_name,
+       file_path, node_id, resolution, content_hash, raw_hash, archived_at, commit_sha,
+       source, normalizer_version
+     ) VALUES (?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, ?, ?, ?, ?)`,
+  );
+  for (const name of fs.readdirSync(dir)) {
+    if (!name.endsWith(".json")) continue;
+    let parsed: {
+      capability?: string;
+      normalizerVersion?: number;
+      anchors?: Array<Record<string, unknown>>;
+    };
+    try {
+      parsed = JSON.parse(fs.readFileSync(path.join(dir, name), "utf8")) as typeof parsed;
+    } catch {
+      continue;
+    }
+    const capability = parsed.capability ?? name.replace(/\.json$/, "");
+    const nv = Number(parsed.normalizerVersion ?? 1);
+    for (const a of parsed.anchors ?? []) {
+      ins.run(
+        String(a.specId ?? capability),
+        capability,
+        String(a.requirementId ?? ""),
+        String(a.scenarioId ?? ""),
+        String(a.anchorKind ?? "symbol"),
+        String(a.symbolName ?? ""),
+        a.filePath == null ? null : String(a.filePath),
+        String(a.resolution ?? "unresolved"),
+        a.contentHash == null ? null : String(a.contentHash),
+        a.rawHash == null ? null : String(a.rawHash),
+        String(a.archivedAt ?? new Date().toISOString()),
+        a.commitSha == null ? null : String(a.commitSha),
+        String(a.source ?? "backtick"),
+        Number(a.normalizerVersion ?? nv),
+      );
+    }
+  }
+}
+
+/** Whether the index was wiped and must be rebuilt before hash comparisons. */
+export function needsReindex(db: DatabaseSync): boolean {
+  const row = db.prepare("SELECT value FROM meta WHERE key = 'needs_reindex'").get() as
+    { value: string } | undefined;
+  return row?.value === "1";
+}
+
+/** Clear the needs-reindex marker after a successful index run. */
+export function clearNeedsReindex(db: DatabaseSync): void {
+  db.prepare("DELETE FROM meta WHERE key = 'needs_reindex'").run();
 }
 
 /** Absolute path to the index database file for a project. */

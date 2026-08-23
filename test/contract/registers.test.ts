@@ -31,6 +31,7 @@ test("each register function declares its expected tools", () => {
   assert.deepEqual([...captureTools(registerSpec).keys()].sort(), [
     "lawbook_archive",
     "lawbook_coverage",
+    "lawbook_drift",
     "lawbook_init",
     "lawbook_list",
     "lawbook_sync",

@@ -1,6 +1,7 @@
 import type { Node } from "web-tree-sitter";
 import { LangConfig } from "./languages.js";
 import { parse } from "./parser.js";
+import { rawHash, structuralHash } from "./hash.js";
 
 /** A definition (function, class, method, type) found in a source file. */
 export interface ExtractedSymbol {
@@ -12,6 +13,10 @@ export interface ExtractedSymbol {
   endByte: number;
   parentIndex: number | null; // index into the symbols array
   signature: string | null;
+  /** sha256-128 of exact source bytes for the definition span. */
+  bodyHash: string;
+  /** sha256-128 of the structural normalizer walk (comment/format invariant). */
+  normHash: string;
 }
 
 /** A call or import reference found within a source file. */
@@ -173,6 +178,8 @@ export async function extract(source: string, lang: LangConfig): Promise<Extract
           endByte: node.endIndex,
           parentIndex: ownerIndex,
           signature: signatureOf(node),
+          bodyHash: rawHash(source, node.startIndex, node.endIndex),
+          normHash: structuralHash(node),
         });
         nextOwner = index;
       }

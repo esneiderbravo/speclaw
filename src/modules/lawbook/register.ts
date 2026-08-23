@@ -7,6 +7,7 @@ import { assetsDir } from "../../shared/paths.js";
 import { copyRendered, CopyOpts, InstallReport } from "../../shared/install.js";
 import { specInit, specValidate, specSync, specArchive, specList } from "./engine.js";
 import { buildCoverageReport, loadCoverageConfig, renderCoverageAgent } from "./coverage.js";
+import { buildDriftReport, renderDriftAgent } from "./drift.js";
 
 const ASSETS = assetsDir(import.meta.url);
 
@@ -99,6 +100,27 @@ export function registerSpec(server: McpServer, opts: RegisterOpts = {}): void {
       const report = buildCoverageReport(projectPath, { change, cfg });
       if (json) return text(JSON.stringify(report));
       return text(renderCoverageAgent(report, onlyDefects !== false));
+    },
+  );
+
+  add(
+    "lawbook_drift",
+    "Report deterministic drift between sealed spec anchors and the code graph. Call before claiming a task is done.",
+    {
+      projectPath: z.string(),
+      capability: z.string().optional(),
+      includeReverse: z.boolean().optional(),
+      maxItems: z.number().int().min(1).max(50).optional(),
+      json: z.boolean().optional(),
+    },
+    async ({ projectPath, capability, includeReverse, maxItems, json }) => {
+      const report = buildDriftReport(projectPath, {
+        capability,
+        reverse: includeReverse === true,
+        failOn: "semantic",
+      });
+      if (json) return text(JSON.stringify(report));
+      return text(renderDriftAgent(report, maxItems ?? 10));
     },
   );
 }
