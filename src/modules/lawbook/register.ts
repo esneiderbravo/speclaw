@@ -7,6 +7,7 @@ import { assetsDir } from "../../shared/paths.js";
 import { copyRendered, CopyOpts, InstallReport } from "../../shared/install.js";
 import { specInit, specValidate, specSync, specArchive, specList } from "./engine.js";
 import { handleLevel } from "./quick.js";
+import { investigate, formatInvestigateResult } from "./investigate.js";
 import { buildCoverageReport, loadCoverageConfig, renderCoverageAgent } from "./coverage.js";
 import { buildDriftReport, renderDriftAgent } from "./drift.js";
 
@@ -75,6 +76,19 @@ export function registerSpec(server: McpServer, opts: RegisterOpts = {}): void {
       reason: z.string().optional(),
     },
     async (args) => text(handleLevel(args)),
+  );
+
+  add(
+    "lawbook_investigate",
+    "Rank bug origins from the graph. Pass stackTrace or symptom. Returns suspects with reasons — evidence, not a verdict.",
+    {
+      projectPath: z.string(),
+      stackTrace: z.string().optional(),
+      symptom: z.string().optional(),
+      hintPaths: z.array(z.string()).optional(),
+      maxSuspects: z.number().int().min(1).max(25).optional(),
+    },
+    async (args) => text(formatInvestigateResult(await investigate(args))),
   );
 
   add(

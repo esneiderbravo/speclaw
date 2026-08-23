@@ -76,3 +76,11 @@ touched — and therefore which reports are owed, including `api.md` for any
 API-touching change — is the agent's responsibility to judge and satisfy before
 archiving; the engine gate counts files but cannot infer the set of concerns a
 change exercised.
+
+## 5. Bug changes must show the regression test failing first
+
+When `changeType` is **bug**, the discipline report MUST include the output of
+the regression test **failing before the fix** (or document why instrumentation
+substitutes for a red-green cycle when reproduction is `unreproducible:`). A test
+that only passes after the fix — with no evidence it ever failed — does not
+satisfy the bug gate.

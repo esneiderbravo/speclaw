@@ -15,6 +15,9 @@ import {
 /** Confirmed / proposed ceremony level. */
 export type CeremonyLevel = 0 | 1 | 2 | 3;
 
+/** Feature-shaped vs bug-shaped change artifacts. */
+export type ChangeType = "feature" | "bug";
+
 export type CeremonyDegraded = "no-index" | "no-git" | "unresolved-symbols" | "no-hotspots";
 
 /** Explicit targets for a level proposal. */
@@ -64,6 +67,8 @@ export interface CeremonyRecord extends CeremonyProposal {
   confirmedLevel: CeremonyLevel;
   confirmedBy: "human" | "config-default" | "agent-forced";
   confirmedAt: string;
+  changeType?: ChangeType;
+  resolution?: "fixed" | "mitigated" | "not-a-bug";
   overrideReason?: string;
   promotions: Array<{
     from: CeremonyLevel;
@@ -114,9 +119,52 @@ export interface ArtifactNeeds {
   reports: boolean;
   /** At level 2, design may be omitted only with justification in record. */
   designOptionalWithJustification: boolean;
+  /** Bug-shaped changes use bugfix.md instead of proposal/design. */
+  bugfix: boolean;
 }
 
-export function artifactNeeds(level: CeremonyLevel): ArtifactNeeds {
+export function artifactNeeds(
+  level: CeremonyLevel,
+  changeType: ChangeType = "feature",
+): ArtifactNeeds {
+  if (changeType === "bug") {
+    switch (level) {
+      case 0:
+        return {
+          record: false,
+          proposal: false,
+          design: false,
+          tasksFile: false,
+          deltaSpecs: false,
+          reports: true,
+          designOptionalWithJustification: false,
+          bugfix: true,
+        };
+      case 1:
+        return {
+          record: false,
+          proposal: false,
+          design: false,
+          tasksFile: true,
+          deltaSpecs: false,
+          reports: true,
+          designOptionalWithJustification: false,
+          bugfix: true,
+        };
+      case 2:
+      case 3:
+        return {
+          record: false,
+          proposal: false,
+          design: true,
+          tasksFile: true,
+          deltaSpecs: false,
+          reports: true,
+          designOptionalWithJustification: false,
+          bugfix: true,
+        };
+    }
+  }
   switch (level) {
     case 0:
       return {
@@ -127,6 +175,7 @@ export function artifactNeeds(level: CeremonyLevel): ArtifactNeeds {
         deltaSpecs: false,
         reports: true,
         designOptionalWithJustification: false,
+        bugfix: false,
       };
     case 1:
       return {
@@ -137,6 +186,7 @@ export function artifactNeeds(level: CeremonyLevel): ArtifactNeeds {
         deltaSpecs: true,
         reports: true,
         designOptionalWithJustification: false,
+        bugfix: false,
       };
     case 2:
       return {
@@ -147,6 +197,7 @@ export function artifactNeeds(level: CeremonyLevel): ArtifactNeeds {
         deltaSpecs: true,
         reports: true,
         designOptionalWithJustification: true,
+        bugfix: false,
       };
     case 3:
       return {
@@ -157,8 +208,15 @@ export function artifactNeeds(level: CeremonyLevel): ArtifactNeeds {
         deltaSpecs: true,
         reports: true,
         designOptionalWithJustification: false,
+        bugfix: false,
       };
   }
+}
+
+/** Read change type from change.json; missing ⇒ feature. */
+export function readChangeType(projectPath: string, change: string): ChangeType {
+  const rec = readCeremonyRecord(projectPath, change);
+  return rec?.changeType === "bug" ? "bug" : "feature";
 }
 
 function bucketPoints(
@@ -496,7 +554,7 @@ export function scaffoldArtifactsForLevel(
 ): void {
   const changeDir = path.join(projectPath, "lawbook", "changes", change);
   if (!fs.existsSync(changeDir)) return;
-  const needs = artifactNeeds(level);
+  const needs = artifactNeeds(level, readChangeType(projectPath, change));
   const recordPath = path.join(changeDir, "record.md");
   const recordText = fs.existsSync(recordPath) ? fs.readFileSync(recordPath, "utf8") : "";
   const ensure = (rel: string, content: string) => {

@@ -63,4 +63,8 @@ These bind in addition to the standards above — they encode speclaw's identity
 5. **Keep attribution honest.** Compass reimplements ideas from CodeGraph and
    Lawbook from OpenSpec (both MIT). [`ATTRIBUTION.md`](ATTRIBUTION.md) must
    stay accurate as those modules evolve.
+6. **Bugs use `bugfix.md`, not feature ceremony.** Bug changes (`draft --bug`,
+   `changeType: bug`) replace proposal/design with `bugfix.md` and graph-backed
+   `lawbook_investigate`. Reproduction, regression test, and prevention §7 are
+   mandatory; security-withheld mode is not shipped yet.
 
