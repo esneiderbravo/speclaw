@@ -35,8 +35,11 @@ where it lives, how a value flows — call Compass **first**: `compass_search` /
 `compass_recall` to locate, `compass_explore` to read a symbol with its callers
 and callees, `compass_impact` (grouped by module; `format: flat` for the old list) /
 `compass_trace` for blast radius and call paths, `compass_affected_tests` /
-`speclaw affected-tests --from-diff` for which tests to run. Run
-`compass_index` first if the graph is missing.
+`speclaw affected-tests --from-diff` for which tests to run,
+`compass_hotspots` / `speclaw hotspots` (activity × AST health, default 90d)
+and `compass_coupling` / `speclaw coupling` (Jaccard strength, `in_graph`,
+`isTestPair`). Run `compass_index` first if the graph is missing. Schema **8**
+stores `node_metrics` — reindex with `speclaw index` after a schema bump.
 
 This includes files you already know the name of: to learn what `Foo` imports,
 uses, or depends on, run `compass_explore Foo` — do **not** `cat`/`sed`/`grep`/
@@ -102,5 +105,6 @@ reviews, tickets, comments), or any action that contradicts a standard.
 - `speclaw doctor --json` is the support report (redacted by default). Stable
   install: `npx @esneiderbravo/speclaw@latest init`.
 - Optional `.speclaw/affected.json` overrides affected-test globals/test globs.
-  After a Compass schema bump, reindex with `speclaw index`; photograph bodies
-  once with `speclaw drift --reseal` if anchors are new or stale.
+  After a Compass schema bump (now **8**, `node_metrics`), reindex with
+  `speclaw index`; photograph bodies once with `speclaw drift --reseal` if
+  anchors are new or stale. Hotspots/coupling default history window is 90 days.
