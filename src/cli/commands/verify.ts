@@ -8,6 +8,7 @@ import { toMarkdown } from "../../modules/foundation/report-md.js";
 import { toSarif } from "../../modules/foundation/sarif.js";
 import { loadManifestForVerify } from "../../modules/foundation/laws.js";
 import { BatchEngine, verifyLaws, type VerifyReport } from "../../modules/foundation/verify.js";
+import { driftFindingsForVerify } from "../../modules/lawbook/drift.js";
 
 const FORMATS = new Set(["text", "json", "sarif", "markdown"]);
 
@@ -49,6 +50,20 @@ export async function runVerify(flags: Flags): Promise<void> {
     engines: engines.length ? engines : undefined,
     lawIds: list(flags.law).length ? list(flags.law) : undefined,
   });
+
+  // Structural spec↔code drift (when anchors exist) contributes semantic/deleted
+  // findings into the same report stream used by SARIF / exit codes.
+  for (const f of driftFindingsForVerify(cwd)) {
+    report.findings.push({
+      lawId: f.ruleId,
+      severity: "error",
+      engine: "graph",
+      file: f.file,
+      line: f.line,
+      message: f.message,
+    });
+    report.summary.failed += 1;
+  }
 
   const sarifPath = typeof flags.sarif === "string" ? flags.sarif : undefined;
   const jsonPath = typeof flags.json === "string" ? flags.json : undefined;
