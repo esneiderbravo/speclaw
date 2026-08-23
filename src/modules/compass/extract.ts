@@ -17,6 +17,12 @@ export interface ExtractedSymbol {
   bodyHash: string;
   /** sha256-128 of the structural normalizer walk (comment/format invariant). */
   normHash: string;
+  /** Lines spanned by the definition (`endLine - startLine + 1`). */
+  loc: number;
+  /** Deepest nesting of configured block types inside the definition. */
+  maxNesting: number;
+  /** Decision-point count (control-flow nodes + boolean &&/|| / and/or). */
+  branches: number;
 }
 
 /** A call or import reference found within a source file. */
@@ -90,6 +96,55 @@ function calleeName(node: Node, lang: LangConfig): string | null {
 /** First line of the node's text, trimmed — a lightweight signature. */
 function signatureOf(node: Node): string {
   return node.text.split("\n")[0]!.trim().slice(0, 200);
+}
+
+const BOOL_OPS = new Set(["&&", "||", "and", "or"]);
+
+/**
+ * Compute LOC / max nesting / branch counts for a definition subtree.
+ * Nesting depth is relative to the definition body (starts at 0).
+ */
+export function metricsOf(
+  defNode: Node,
+  lang: LangConfig,
+): {
+  loc: number;
+  maxNesting: number;
+  branches: number;
+} {
+  const nesting = new Set(lang.nestingNodes);
+  const branchesSet = new Set(lang.branchNodes);
+  let maxNesting = 0;
+  let branches = 0;
+
+  const walk = (node: Node, depth: number): void => {
+    const nestHere = nesting.has(node.type);
+    const nextDepth = nestHere ? depth + 1 : depth;
+    if (nestHere) maxNesting = Math.max(maxNesting, nextDepth);
+
+    if (branchesSet.has(node.type)) {
+      branches++;
+    } else if (node.type === "binary_expression") {
+      const op = node.childForFieldName("operator")?.text ?? "";
+      if (BOOL_OPS.has(op)) branches++;
+    }
+
+    for (let i = 0; i < node.childCount; i++) {
+      const child = node.child(i);
+      if (child) walk(child, nextDepth);
+    }
+  };
+
+  for (let i = 0; i < defNode.childCount; i++) {
+    const child = defNode.child(i);
+    if (child) walk(child, 0);
+  }
+
+  return {
+    loc: defNode.endPosition.row - defNode.startPosition.row + 1,
+    maxNesting,
+    branches,
+  };
 }
 
 /** Parse Covers:/Needs: directives from a comment node's text. */
@@ -169,6 +224,7 @@ export async function extract(source: string, lang: LangConfig): Promise<Extract
       const name = defName(node);
       if (name) {
         const index = symbols.length;
+        const health = metricsOf(node, lang);
         symbols.push({
           name,
           kind: kinds.get(node.type)!,
@@ -180,6 +236,9 @@ export async function extract(source: string, lang: LangConfig): Promise<Extract
           signature: signatureOf(node),
           bodyHash: rawHash(source, node.startIndex, node.endIndex),
           normHash: structuralHash(node),
+          loc: health.loc,
+          maxNesting: health.maxNesting,
+          branches: health.branches,
         });
         nextOwner = index;
       }
