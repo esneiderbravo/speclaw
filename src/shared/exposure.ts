@@ -6,7 +6,7 @@ import { readManifest } from "./manifest.js";
 /**
  * Tools omitted when the exposure profile is `minimal`. Kept tools are the
  * discovery + law loop: compass_explore/search/recall, lawbook_validate/sync,
- * lawbook_coverage, law_verify, speclaw_check.
+ * lawbook_coverage, lawbook_drift, law_verify, speclaw_check.
  */
 export const MINIMAL_OMIT = new Set<string>([
   "compass_index",

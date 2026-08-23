@@ -69,6 +69,11 @@ export async function runSpec(flags: Flags): Promise<void> {
         r.promoted.forEach((p) =>
           ui.info(`${r.created.includes(p) ? "created" : "updated"}: ${p}`),
         );
+        for (const s of r.seals) {
+          const msg = `sealed ${s.capability}: ${s.unique} unique / ${s.ambiguous} ambiguous / ${s.unresolved} unresolved → ${s.path}`;
+          if (s.warned) ui.warn(msg + " (no resolvable anchors)");
+          else ui.info(msg);
+        }
         return;
       }
       default:
