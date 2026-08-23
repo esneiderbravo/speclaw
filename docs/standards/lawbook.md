@@ -19,6 +19,10 @@ the **confirmed ceremony level** in `change.json` (0=quick … 3=full). Missing
    - **2** — `proposal.md` + tasks + delta specs + reports (design optional
      with justification)
    - **3** — proposal + design + tasks + delta specs + reports
+   - **bug** — `bugfix.md` instead of proposal/design (`speclaw lawbook draft --bug`);
+     use **`investigate`** / `lawbook_investigate` for graph-backed RCA first. Requires
+     reproduction, regression test, and prevention (§7); delta spec only when prevention
+     finds a missing requirement.
 3. **build** — implement the tasks in order, keeping code and spec in
    agreement, and write the discipline reports under `reports/`.
 4. **sync** — reconcile the delta specs against what was actually built, then

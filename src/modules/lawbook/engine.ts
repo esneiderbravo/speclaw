@@ -10,9 +10,12 @@ import {
   hasDisciplineReport,
   loadCeremonyConfig,
   proposeLevel,
+  readChangeType,
+  readCeremonyRecord,
   type CeremonyLevel,
   type CeremonyTargets,
 } from "./levels.js";
+import { inferBugResolution, preventionRequiresDelta, validateBugfixContent } from "./bugfix.js";
 
 export type { CeremonyLevel, CeremonyTargets };
 
@@ -223,7 +226,20 @@ export function specValidate(
   }
 
   const level = confirmedLevel(projectPath, change);
-  const needs = artifactNeeds(level);
+  const changeType = readChangeType(projectPath, change);
+  const needs = artifactNeeds(level, changeType);
+
+  if (needs.bugfix) {
+    const bugPath = path.join(changeDir, "bugfix.md");
+    if (!fs.existsSync(bugPath)) {
+      issues.push(`missing bugfix.md (required for bug changes at level ${level})`);
+    } else {
+      issues.push(...validateBugfixContent(level, fs.readFileSync(bugPath, "utf8")));
+    }
+    if (fs.existsSync(path.join(changeDir, "proposal.md"))) {
+      issues.push("bug changes must not include proposal.md — use bugfix.md");
+    }
+  }
 
   if (needs.record && !fs.existsSync(path.join(changeDir, "record.md"))) {
     issues.push(`missing record.md (required at ceremony level ${level})`);
@@ -248,6 +264,16 @@ export function specValidate(
   const deltas = deltaSpecFiles(changeDir);
   if (needs.deltaSpecs && deltas.length === 0) {
     issues.push(`no delta specs under specs/ (required at ceremony level ${level})`);
+  }
+  if (needs.bugfix) {
+    const bugPath = path.join(changeDir, "bugfix.md");
+    if (fs.existsSync(bugPath) && preventionRequiresDelta(fs.readFileSync(bugPath, "utf8"))) {
+      if (deltas.length === 0) {
+        issues.push(
+          "prevention §7 indicates a missing canonical requirement — add a delta spec under specs/",
+        );
+      }
+    }
   }
 
   // Scope-growth: when remeasure targets provided (or change.json has prior signals
@@ -398,9 +424,10 @@ export function specArchivePreconditions(projectPath: string, change: string): s
   if (!fs.existsSync(changeDir)) return [`change "${change}" not found under lawbook/changes/`];
   const blockers: string[] = [];
   const level = confirmedLevel(projectPath, change);
-  const needs = artifactNeeds(level);
+  const changeType = readChangeType(projectPath, change);
+  const needs = artifactNeeds(level, changeType);
 
-  // 1. Every task must be checked (tasks.md, or checklist in record.md at level 0).
+  // 1. Every task must be checked (tasks.md, record.md, or bugfix checklist at level 0).
   if (needs.tasksFile) {
     const tasksPath = path.join(changeDir, "tasks.md");
     if (!fs.existsSync(tasksPath)) {
@@ -417,6 +444,21 @@ export function specArchivePreconditions(projectPath: string, change: string): s
       const unchecked = countUncheckedTasks(fs.readFileSync(recordPath, "utf8"));
       if (unchecked > 0) blockers.push(`${unchecked} unchecked task(s) in record.md`);
     }
+  } else if (needs.bugfix && level === 0) {
+    const bugPath = path.join(changeDir, "bugfix.md");
+    if (fs.existsSync(bugPath)) {
+      const unchecked = countUncheckedTasks(fs.readFileSync(bugPath, "utf8"));
+      if (unchecked > 0) blockers.push(`${unchecked} unchecked item(s) in bugfix.md checklist`);
+    }
+  }
+
+  if (needs.bugfix) {
+    const bugPath = path.join(changeDir, "bugfix.md");
+    if (fs.existsSync(bugPath)) {
+      const content = fs.readFileSync(bugPath, "utf8");
+      const bugIssues = validateBugfixContent(level, content);
+      blockers.push(...bugIssues.filter((i) => i.includes("Regression test") || i.includes("§6")));
+    }
   }
 
   // 2. At least one discipline report must exist (README.md scaffold aside).
@@ -424,8 +466,13 @@ export function specArchivePreconditions(projectPath: string, change: string): s
     blockers.push("no discipline report under reports/ (build must record what was tested)");
   }
 
-  // 3. Delta specs must already be synced — only when the level requires them.
-  if (needs.deltaSpecs) {
+  // 3. Delta specs must already be synced — when required or when bug prevention demands it.
+  const bugPath = path.join(changeDir, "bugfix.md");
+  const bugNeedsDelta =
+    needs.bugfix &&
+    fs.existsSync(bugPath) &&
+    preventionRequiresDelta(fs.readFileSync(bugPath, "utf8"));
+  if (needs.deltaSpecs || bugNeedsDelta) {
     for (const file of deltaSpecFiles(changeDir)) {
       const rel = path.relative(path.join(changeDir, "specs"), file);
       const canonical = path.join(root, "specs", rel);
@@ -467,7 +514,30 @@ export function specArchive(projectPath: string, change: string, date: string): 
     );
   }
   const level = confirmedLevel(projectPath, change);
-  const sync = artifactNeeds(level).deltaSpecs
+  const changeType = readChangeType(projectPath, change);
+  const needs = artifactNeeds(level, changeType);
+
+  // Record bug resolution before move.
+  if (changeType === "bug") {
+    const bugPath = path.join(changeDir, "bugfix.md");
+    if (fs.existsSync(bugPath)) {
+      const rec = readCeremonyRecord(projectPath, change);
+      if (rec) {
+        rec.changeType = "bug";
+        rec.resolution = inferBugResolution(fs.readFileSync(bugPath, "utf8"));
+        const cj = path.join(changeDir, "change.json");
+        fs.writeFileSync(cj, JSON.stringify(rec, null, 2) + "\n");
+      }
+    }
+  }
+
+  const bugPath = path.join(changeDir, "bugfix.md");
+  const shouldSync =
+    needs.deltaSpecs ||
+    (changeType === "bug" &&
+      fs.existsSync(bugPath) &&
+      preventionRequiresDelta(fs.readFileSync(bugPath, "utf8")));
+  const sync = shouldSync
     ? specSync(projectPath, change)
     : { change, promoted: [] as string[], created: [] as string[], updated: [] as string[] };
   const { promoted, created, updated } = sync;

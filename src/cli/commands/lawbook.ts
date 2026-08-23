@@ -6,6 +6,8 @@ import {
   specList,
 } from "../../modules/lawbook/engine.js";
 import { handleLevel } from "../../modules/lawbook/quick.js";
+import { scaffoldBugfix } from "../../modules/lawbook/bugfix.js";
+import { investigate, formatInvestigateResult } from "../../modules/lawbook/investigate.js";
 import { Flags, list } from "../lib/args.js";
 import { ui } from "../lib/ui.js";
 
@@ -101,6 +103,49 @@ export async function runSpec(flags: Flags): Promise<void> {
         );
         return;
       }
+      case "investigate": {
+        const stackTrace =
+          typeof flags["stack-trace"] === "string"
+            ? flags["stack-trace"]
+            : typeof flags.stackTrace === "string"
+              ? flags.stackTrace
+              : undefined;
+        const symptom = typeof flags.symptom === "string" ? flags.symptom : undefined;
+        const result = await investigate({
+          projectPath: cwd,
+          stackTrace,
+          symptom,
+          hintPaths: list(flags.path),
+          maxSuspects:
+            flags.max !== undefined && flags.max !== true ? Number(flags.max) : undefined,
+        });
+        if (flags.json) {
+          console.log(formatInvestigateResult(result));
+          return;
+        }
+        console.log(formatInvestigateResult(result));
+        return;
+      }
+      case "draft": {
+        if (!flags.bug) {
+          ui.err("Usage: speclaw lawbook draft --bug <name> [--level N] [--json]");
+          process.exit(1);
+        }
+        const name =
+          typeof flags.bug === "string" ? flags.bug : req(change, "lawbook draft --bug <name>");
+        const levelFlag = flags.level;
+        const level =
+          levelFlag === undefined || levelFlag === true
+            ? undefined
+            : (Number(levelFlag) as 0 | 1 | 2 | 3);
+        const result = scaffoldBugfix(cwd, name, { level });
+        if (flags.json) {
+          console.log(JSON.stringify(result, null, 2));
+          return;
+        }
+        ui.ok(`bug change "${name}" scaffolded at ${result.dir}`);
+        return;
+      }
       case "archive": {
         const r = specArchive(cwd, req(change, "lawbook archive <change>"), today());
         ui.ok(`archived to ${r.archivedTo} (${r.promoted.length} spec(s) promoted)`);
@@ -115,7 +160,9 @@ export async function runSpec(flags: Flags): Promise<void> {
         return;
       }
       default:
-        ui.err("Usage: speclaw lawbook <init|list|validate|sync|archive|level> [change]");
+        ui.err(
+          "Usage: speclaw lawbook <init|list|validate|sync|archive|level|draft|investigate> [change]",
+        );
         process.exit(1);
     }
   } catch (err) {

@@ -21,6 +21,7 @@ export const MINIMAL_OMIT = new Set<string>([
   "lawbook_archive",
   "lawbook_list",
   "lawbook_level",
+  "lawbook_investigate",
   "init_project",
   "scaffold",
   "configure_agent",

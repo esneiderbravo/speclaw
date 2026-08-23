@@ -36,6 +36,7 @@ test("each register function declares its expected tools", () => {
     "lawbook_coverage",
     "lawbook_drift",
     "lawbook_init",
+    "lawbook_investigate",
     "lawbook_level",
     "lawbook_list",
     "lawbook_sync",
