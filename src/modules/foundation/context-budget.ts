@@ -1,15 +1,25 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import type { z } from "zod";
+import { z } from "zod";
 import { registerCompass } from "../compass/register.js";
 import { registerSpec } from "../lawbook/register.js";
 import { registerTools } from "../tools/register.js";
-import { registerFoundation } from "./register.js";
+import { registerFoundationCore } from "./register.js";
 import { measureBudget, type BudgetMeasurement } from "../../shared/budget.js";
-import { isMinimalMode, packageRoot } from "../../shared/exposure.js";
+import { isMinimalMode, packageRoot, shouldExpose } from "../../shared/exposure.js";
 import type { ToolDefForBudget } from "../../shared/schema-tokens.js";
+
+/** Mirrors the `doctor` tool surface without importing `doctor.ts` (avoids a cycle). */
+const DOCTOR_TOOL_FOR_BUDGET: ToolDefForBudget = {
+  name: "doctor",
+  description: "Verify the speclaw install; returns a versioned DoctorReport (schemaVersion 1).",
+  inputSchema: { projectPath: z.string() },
+};
 
 /**
  * Collect tool definitions as the MCP server would register them for a profile.
+ *
+ * Uses `registerFoundationCore` plus a static `doctor` stub so budget/doctor
+ * measurement never imports the live `doctor` implementation (module cycle).
  *
  * @param minimal - Exposure profile.
  */
@@ -29,7 +39,10 @@ export function collectRegisteredTools(minimal: boolean): ToolDefForBudget[] {
   };
   const opts = { minimal };
   const stub = server as unknown as McpServer;
-  registerFoundation(stub, opts);
+  registerFoundationCore(stub, opts);
+  if (shouldExpose("doctor", minimal)) {
+    tools.push(DOCTOR_TOOL_FOR_BUDGET);
+  }
   registerSpec(stub, opts);
   registerCompass(stub, opts);
   registerTools(stub, opts);

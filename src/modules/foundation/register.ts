@@ -3,7 +3,6 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { defineTool, text, type ToolSpec } from "../../shared/mcp.js";
 import { shouldExpose, type RegisterOpts } from "../../shared/exposure.js";
 import { scaffold } from "./scaffold.js";
-import { doctor } from "./doctor.js";
 import { checkAction, CheckEvent } from "./check.js";
 import { BatchEngine, verifyLaws } from "./verify.js";
 import { loadPacks } from "../tools/packs.js";
@@ -54,18 +53,26 @@ const profileShape = {
   documentation_extra: z.string().optional(),
 };
 
-/** Register foundation MCP tools. */
-export function registerFoundation(server: McpServer, opts: RegisterOpts = {}): void {
-  const minimal = Boolean(opts.minimal);
-  const add = <Shape extends z.ZodRawShape>(
-    name: string,
-    description: string,
-    inputSchema: Shape,
-    handler: ToolSpec<Shape>["handler"],
-  ) => {
+type AddFn = <Shape extends z.ZodRawShape>(
+  name: string,
+  description: string,
+  inputSchema: Shape,
+  handler: ToolSpec<Shape>["handler"],
+) => void;
+
+function makeAdd(server: McpServer, minimal: boolean): AddFn {
+  return (name, description, inputSchema, handler) => {
     if (!shouldExpose(name, minimal)) return;
     defineTool(server, { name, description, inputSchema, handler });
   };
+}
+
+/**
+ * Foundation tools except `doctor`. Used by budget collection so measuring
+ * context cost does not create a module cycle through `doctor.ts`.
+ */
+export function registerFoundationCore(server: McpServer, opts: RegisterOpts = {}): void {
+  const add = makeAdd(server, Boolean(opts.minimal));
 
   add(
     "init_project",
@@ -143,14 +150,19 @@ export function registerFoundation(server: McpServer, opts: RegisterOpts = {}): 
         verifyLaws({ projectPath, paths, engines: engines as BatchEngine[] | undefined, lawIds }),
       ),
   );
+}
 
-  add(
-    "doctor",
-    "Verify the speclaw install; returns a versioned DoctorReport (schemaVersion 1).",
-    { projectPath: z.string() },
-    async ({ projectPath }) => {
-      const report = await doctor(projectPath, { redact: true });
-      return text(report);
-    },
-  );
+const DOCTOR_DESCRIPTION =
+  "Verify the speclaw install; returns a versioned DoctorReport (schemaVersion 1).";
+
+/** Register foundation MCP tools (core + doctor). */
+export function registerFoundation(server: McpServer, opts: RegisterOpts = {}): void {
+  registerFoundationCore(server, opts);
+  const add = makeAdd(server, Boolean(opts.minimal));
+  add("doctor", DOCTOR_DESCRIPTION, { projectPath: z.string() }, async ({ projectPath }) => {
+    // Lazy: keeps register loadable from context-budget without cycling through doctor.
+    const { doctor } = await import("./doctor.js");
+    const report = await doctor(projectPath, { redact: true });
+    return text(report);
+  });
 }
