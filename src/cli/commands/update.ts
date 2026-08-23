@@ -114,6 +114,12 @@ const MIGRATIONS: Migration[] = [
       "and that the stable install command is `npx @esneiderbravo/speclaw@latest init`.\n" +
       "- Preserve all project-specific wording; only apply these speclaw-authored changes.",
   },
+  {
+    version: "0.3.7",
+    describe: "Claude Code mcp_tool hooks pass speclaw_check input via ${…} templates",
+    // scaffold → installHooks already rewrites .claude/settings.json when the
+    // compiled hook shape changes; no extra run() step.
+  },
 ];
 
 /**
