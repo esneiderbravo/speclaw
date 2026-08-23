@@ -5,8 +5,12 @@ import { explore } from "../compass/query.js";
 import { impact } from "../compass/query.js";
 import { affectedTests } from "../compass/affected.js";
 import { hotspots } from "../compass/hotspots.js";
-import { loadAffectedConfig, matchGlob } from "../compass/affected-config.js";
-import { inferModule } from "../compass/affected-config.js";
+import {
+  loadAffectedConfig,
+  matchGlob,
+  matchesAny,
+  inferModule,
+} from "../compass/affected-config.js";
 
 /** Confirmed / proposed ceremony level. */
 export type CeremonyLevel = 0 | 1 | 2 | 3;
@@ -246,11 +250,6 @@ export function proposeLevel(
     rationale: explain(s, t, score, level),
     degraded: s.degraded,
   };
-}
-
-function matchesAny(rel: string, globs: string[]): boolean {
-  const norm = rel.split("\\").join("/");
-  return globs.some((g) => matchGlob(norm, g));
 }
 
 function isSpecPath(rel: string): boolean {
