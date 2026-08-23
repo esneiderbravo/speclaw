@@ -22,6 +22,12 @@ test("scaffold seeds the law manifest and installs Claude hooks", (t) => {
   const settings = JSON.parse(read(root, ".claude/settings.json"));
   assert.equal(settings.hooks.PreToolUse[0].hooks[0].server, "speclaw");
   assert.equal(settings.hooks.PreToolUse[0].hooks[0].tool, "speclaw_check");
+  assert.equal(settings.hooks.PreToolUse[0].hooks[0].input.projectPath, "${cwd}");
+  assert.equal(settings.hooks.PreToolUse[0].hooks[0].input.event, "${hook_event_name}");
+  assert.equal(
+    settings.hooks.PreToolUse[0].hooks[0].input.payload.tool_input.file_path,
+    "${tool_input.file_path}",
+  );
 
   // the settings baseline is recorded so update/--backup can detect divergence
   const baselines = readManifest(root)!.baselines;

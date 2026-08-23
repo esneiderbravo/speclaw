@@ -10,12 +10,29 @@ import { LawManifest, Law, globError, hasBackend } from "./laws.js";
 // format lives here — nothing else in the codebase knows what a hook looks like,
 // so a change in Claude Code's (young) hook surface is contained to this file.
 
-/** The single hook object every speclaw hook is; the triple below is its merge identity. */
+/**
+ * Arguments Claude Code substitutes into `speclaw_check` via `${…}` from the
+ * hook event JSON. Required: Claude Code does **not** auto-inject tool args for
+ * `mcp_tool` hooks — omitting `input` yields MCP -32602 validation errors.
+ */
+export interface SpeclawHookInput {
+  projectPath: string;
+  event: string;
+  toolName: string;
+  payload: {
+    hook_event_name: string;
+    tool_name: string;
+    tool_input: { file_path: string };
+  };
+}
+
+/** The single hook object every speclaw hook is; the `{type, server}` pair is its merge identity. */
 export interface SpeclawHook {
   type: "mcp_tool";
   server: "speclaw";
   tool: "speclaw_check";
   timeout: number;
+  input: SpeclawHookInput;
 }
 
 /** One matcher group in an agent's settings: a tool-name matcher and its hooks. */
@@ -24,12 +41,25 @@ export interface HookGroup {
   hooks: SpeclawHook[];
 }
 
+/** Claude Code `${path}` templates — see https://code.claude.com/docs/en/hooks */
+const SPECLAW_HOOK_INPUT: SpeclawHookInput = {
+  projectPath: "${cwd}",
+  event: "${hook_event_name}",
+  toolName: "${tool_name}",
+  payload: {
+    hook_event_name: "${hook_event_name}",
+    tool_name: "${tool_name}",
+    tool_input: { file_path: "${tool_input.file_path}" },
+  },
+};
+
 /** The speclaw hook object — its `{type, server}` pair is the merge identity. */
 const SPECLAW_HOOK: SpeclawHook = {
   type: "mcp_tool",
   server: "speclaw",
   tool: "speclaw_check",
   timeout: 5,
+  input: SPECLAW_HOOK_INPUT,
 };
 
 /** Tool-name matcher for the file-mutating tools the `path` backend can evaluate. */
