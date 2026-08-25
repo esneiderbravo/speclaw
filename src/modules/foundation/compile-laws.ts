@@ -21,6 +21,7 @@ import {
   type Dialect,
 } from "./dialects/index.js";
 import { detectConfiguredAgents } from "../../shared/agents.js";
+import { digestText, provenanceBlock, refreshLockfile } from "./lock.js";
 
 export interface CompileReport {
   schemaVersion: 1;
@@ -97,6 +98,17 @@ function writeIfChanged(
   report.written.push(rel);
 }
 
+/** Append a data-only provenance block when missing; body digest stays stable. */
+function withProvenance(contents: string, lawIds: string[]): string {
+  const body = contents.replace(
+    /<!-- speclaw:begin-provenance[\s\S]*?speclaw:end-provenance -->\n?/g,
+    "",
+  );
+  const dig = digestText(body);
+  const base = body.endsWith("\n") ? body : body + "\n";
+  return base + provenanceBlock({ lawIds, digest: dig, source: "compile" });
+}
+
 function mergeCoderabbit(
   projectPath: string,
   abs: string,
@@ -159,7 +171,11 @@ function applyArtifact(projectPath: string, art: CompiledArtifact, report: Compi
         const dir = path.dirname(abs);
         if (!fs.existsSync(path.join(dir, "package.json"))) return;
       }
-      writeIfChanged(projectPath, abs, art.contents, report);
+      const body =
+        art.path.endsWith(".md") || art.path.endsWith(".mdc")
+          ? withProvenance(art.contents, art.lawIds)
+          : art.contents;
+      writeIfChanged(projectPath, abs, body, report);
       return;
     }
     if (art.mode === "patch-delimited") {
@@ -223,6 +239,13 @@ export function compileLaws(opts: CompileLawsOptions): CompileReport {
   }
 
   if (agents.includes("claude")) ensureClaudeRulesSymlink(projectPath, report);
+
+  // Covers: req~lock-refresh-update~1
+  try {
+    refreshLockfile(projectPath);
+  } catch {
+    // Lock refresh must not fail compile; `speclaw laws lock` surfaces errors.
+  }
 
   return report;
 }

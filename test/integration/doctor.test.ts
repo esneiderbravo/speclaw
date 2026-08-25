@@ -12,8 +12,10 @@ test("doctor reports an empty project with skip configuration and remediation", 
   const root = tmpRepo(t);
   const report = await doctor(root, { offline: true });
   const cfg = report.sections.find((s) => s.id === "configuration")!;
-  assert.ok(cfg.checks.every((c) => c.status === "skip"));
-  assert.ok(cfg.checks.every((c) => c.remedy?.includes("speclaw init")));
+  const nonIntegrity = cfg.checks.filter((c) => !c.id.startsWith("cfg.integrity."));
+  assert.ok(nonIntegrity.every((c) => c.status === "skip"));
+  assert.ok(nonIntegrity.every((c) => c.remedy?.includes("speclaw init")));
+  assert.ok(cfg.checks.some((c) => c.id === "cfg.integrity.lock"));
   assert.equal(report.schemaVersion, 1);
 });
 

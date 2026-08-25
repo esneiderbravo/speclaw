@@ -7,12 +7,15 @@ import type { Severity } from "./laws.js";
 /** The batch backends this verifier can run. */
 export type BatchEngine = "deps" | "graph";
 
+/** Engine tag on a finding — batch backends plus rule-file integrity. */
+export type FindingEngine = BatchEngine | "integrity";
+
 /** One law violation located in the code, with provenance back to the law. */
 export interface Finding {
   lawId: string;
   severity: Severity;
   /** The backend that produced it. */
-  engine: BatchEngine;
+  engine: FindingEngine;
   /** Project-relative POSIX path of the offending file. */
   file: string;
   /** 1-based line of the offending edge, when the finding is edge-level. */
