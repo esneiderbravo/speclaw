@@ -83,6 +83,7 @@ export async function runSpec(flags: Flags): Promise<void> {
         return;
       }
       case "validate": {
+        // Covers: req~ears-cli-surface~1
         const r = specValidate(cwd, req(change, "lawbook validate <change>"));
         if (r.valid) ui.ok(`${r.change} is valid (${r.deltaSpecs.length} delta spec(s))`);
         else {
