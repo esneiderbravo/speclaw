@@ -93,6 +93,9 @@ export type Verification =
   | { kind: "semantic" }
   | { kind: "none" };
 
+/** Lifecycle of a law in the manifest. Draft imports do not gate verify/check. */
+export type LawStatus = "active" | "draft";
+
 /** A single declared law in the manifest. */
 export interface Law {
   /** OFT-style stable id, e.g. `law~protect-templates~1`. */
@@ -109,6 +112,8 @@ export interface Law {
   enforcement: Enforcement;
   /** Provenance, so a block can point back at the source. */
   source: { file: string; line?: number };
+  /** Omit or `active` = enforced; `draft` = pending (import), never gates. */
+  status?: LawStatus;
 }
 
 /** The compiled law manifest persisted to `.speclaw/laws-manifest.json`. */
@@ -157,7 +162,13 @@ const lawSchema = z.object({
   verification: verificationSchema,
   enforcement: z.enum(["bloqueo", "feedback", "gate"]),
   source: z.object({ file: z.string(), line: z.number().optional() }),
+  status: z.enum(["active", "draft"]).optional(),
 });
+
+/** True when a law participates in enforcement (default active). */
+export function isActiveLaw(law: Law): boolean {
+  return (law.status ?? "active") !== "draft";
+}
 
 // Reject a malformed `from`/`to` regex when the manifest is validated — naming
 // the law id, not a bare array index — rather than letting it explode at verify

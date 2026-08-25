@@ -10,6 +10,7 @@ import { specList } from "../lawbook/engine.js";
 import { doctorDriftCheck } from "../lawbook/drift.js";
 import { loadCeremonyConfig, type CeremonyLevel } from "../lawbook/levels.js";
 import { globError, hasBackend, hasBatchBackend, readLawManifest } from "./laws.js";
+import { estimateAlwaysOnTokens } from "./compile-laws.js";
 import { redactValue } from "../../shared/redact.js";
 import { readDeprecatedCallCounts, scanRetiredToolReferences } from "../../shared/deprecation.js";
 import { CANONICAL_TOOLS, ALIAS_TARGETS, isCanonicalTool } from "../../shared/tool-catalog.js";
@@ -434,12 +435,24 @@ function lawsCheck(projectPath: string): DoctorCheck {
 
   const withPath = manifest.laws.filter(hasBackend).length;
   const withBatch = manifest.laws.filter(hasBatchBackend).length;
+  const budget = estimateAlwaysOnTokens(manifest.laws);
+  if (budget.total > 2000) {
+    const top = budget.top.map((t) => `${t.id}(~${t.tokens})`).join(", ");
+    return {
+      id: "cfg.laws",
+      title: "laws",
+      status: "warn",
+      detail: `always-on laws ~${budget.total} tokens (budget 2000); top: ${top || "n/a"}`,
+      remedy: "Add scope globs to the largest always-on laws, then speclaw laws compile",
+    };
+  }
+
   return {
     id: "cfg.laws",
     title: "laws",
     status: "ok",
     value: manifest.laws.length,
-    detail: `${manifest.laws.length} declared · ${withPath} path · ${withBatch} deps/graph · 0 invalid`,
+    detail: `${manifest.laws.length} declared · ${withPath} path · ${withBatch} deps/graph · always-on ~${budget.total} tokens`,
   };
 }
 
