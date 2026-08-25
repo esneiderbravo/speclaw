@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { EMBED_INPUT_VERSION } from "./embed-input.js";
 
 /**
  * A pluggable text-to-vector embedding backend used by Compass for semantic
@@ -37,7 +38,8 @@ export function tokenize(text: string): string[] {
  * download. The default; swap in a model-backed Embedder for true semantics.
  */
 export class LexicalEmbedder implements Embedder {
-  readonly id = "lexical-hash-v1";
+  /** Identity includes embed-input recipe version so cache invalidates on bump. */
+  readonly id = `lexical-hash-v1+${EMBED_INPUT_VERSION}`;
   constructor(readonly dim = 256) {}
 
   /**

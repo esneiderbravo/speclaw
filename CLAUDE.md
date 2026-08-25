@@ -38,8 +38,9 @@ and callees, `compass_impact` (grouped by module; `format: flat` for the old lis
 `speclaw affected-tests --from-diff` for which tests to run,
 `compass_hotspots` / `speclaw hotspots` (activity × AST health, default 90d)
 and `compass_coupling` / `speclaw coupling` (Jaccard strength, `in_graph`,
-`isTestPair`). Run `compass_index` first if the graph is missing. Schema **8**
-stores `node_metrics` — reindex with `speclaw index` after a schema bump.
+`isTestPair`). Run `compass_index` first if the graph is missing. Schema **9**
+stores `embedding_cache`, Merkle `dir_hashes`, and `node_metrics` — reindex with
+`speclaw index` after a schema bump (8→9 migrates embeddings).
 
 This includes files you already know the name of: to learn what `Foo` imports,
 uses, or depends on, run `compass_explore Foo` — do **not** `cat`/`sed`/`grep`/
@@ -112,9 +113,10 @@ reviews, tickets, comments), or any action that contradicts a standard.
 - `speclaw doctor --json` is the support report (redacted by default). Stable
   install: `npx @esneiderbravo/speclaw@latest init`.
 - Optional `.speclaw/affected.json` overrides affected-test globals/test globs.
-  After a Compass schema bump (now **8**, `node_metrics`), reindex with
-  `speclaw index`; photograph bodies once with `speclaw drift --reseal` if
-  anchors are new or stale. Hotspots/coupling default history window is 90 days.
+  After a Compass schema bump (now **9**, embedding cache + Merkle), reindex
+ with `speclaw index` (8→9 preserves embeddings); photograph bodies once with
+ `speclaw drift --reseal` if anchors are new or stale. Hotspots/coupling
+ default history window is 90 days.
 - Ceremony levels 0–3 live in `change.json`. `speclaw quick` scaffolds level 0;
   `lawbook_level` / `speclaw lawbook level` propose/set/promote. Optional
   `ceremony:` in `lawbook/config.yaml` (cuts default `[3, 8, 15]`).

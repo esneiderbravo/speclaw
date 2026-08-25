@@ -5,7 +5,11 @@ import { openDb, clearNeedsReindex } from "./db.js";
 import { langForPath } from "./languages.js";
 import { extract } from "./extract.js";
 import { getEmbedder, toBlob } from "./embedder.js";
+import { contentHashFor, defaultEmbedText } from "./embed-input.js";
+import { buildDirHashMap } from "./merkle.js";
 import { loadAffectedConfig, isTestPath, inferModule } from "./affected-config.js";
+import type { DatabaseSync } from "node:sqlite";
+import type { Embedder } from "./embedder.js";
 
 const SKIP_DIRS = new Set([
   ".git",
@@ -35,15 +39,32 @@ export interface IndexStats {
   files: number;
   nodes: number;
   edges: number;
+  /** @deprecated Prefer computed + fromCache */
   embeddings: number;
+  computed: number;
+  fromCache: number;
   unchanged: number;
+  skippedByStat: number;
   removed: number;
+  rootUnchanged: boolean;
   embedder: string;
+}
+
+/** Options for {@link buildIndex}. */
+export interface BuildIndexOptions {
+  force?: boolean;
+  prune?: boolean;
+  maxCacheMB?: number;
+  retentionDays?: number;
+  onProgress?: ProgressFn;
 }
 
 function hashOf(content: string): string {
   return createHash("sha256").update(content).digest("hex");
 }
+
+const DEFAULT_MAX_CACHE_MB = 256;
+const DEFAULT_RETENTION_DAYS = 30;
 
 /**
  * Point import edges at a representative node in the imported file so reverse
@@ -206,22 +227,27 @@ export type ProgressFn = (e: ProgressEvent) => void;
 /**
  * Build or incrementally refresh the index for a project.
  *
- * Walks the project's source files (skipping vendored/build directories and
- * oversized files), and for each file whose content hash changed, re-parses it,
- * replacing its nodes and edges and re-embedding each node. Files whose hash is
- * unchanged are skipped; files that disappeared are pruned. Finally resolves
- * call edges to their target node definitions by name. The whole run executes
- * in a single transaction, rolled back on any error.
+ * Uses a stat prefilter and directory Merkle tree to avoid unnecessary reads,
+ * and an embedding cache keyed by embedder-input hash so renames/moves do not
+ * recompute vectors. The whole run executes in a single transaction.
  *
  * @param projectPath - Absolute path to the project root.
- * @param onProgress - Optional callback invoked once per scanned file.
- * @returns Counts of files, nodes, edges, embeddings, and pruned/unchanged files.
- * @throws Re-throws any error encountered mid-run after rolling back the transaction.
+ * @param onProgressOrOpts - Progress callback (legacy) or {@link BuildIndexOptions}.
  */
 export async function buildIndex(
   projectPath: string,
-  onProgress?: ProgressFn,
+  onProgressOrOpts?: ProgressFn | BuildIndexOptions,
 ): Promise<IndexStats> {
+  const opts: BuildIndexOptions =
+    typeof onProgressOrOpts === "function"
+      ? { onProgress: onProgressOrOpts }
+      : (onProgressOrOpts ?? {});
+  const onProgress = opts.onProgress;
+  const force = Boolean(opts.force);
+  const prune = Boolean(opts.prune);
+  const maxCacheMB = opts.maxCacheMB ?? DEFAULT_MAX_CACHE_MB;
+  const retentionDays = opts.retentionDays ?? DEFAULT_RETENTION_DAYS;
+
   const db = openDb(projectPath);
   const embedder = getEmbedder();
   const stats: IndexStats = {
@@ -229,34 +255,52 @@ export async function buildIndex(
     nodes: 0,
     edges: 0,
     embeddings: 0,
+    computed: 0,
+    fromCache: 0,
     unchanged: 0,
+    skippedByStat: 0,
     removed: 0,
+    rootUnchanged: false,
     embedder: embedder.id,
   };
 
   const cfg = loadAffectedConfig(projectPath);
-  const existing = new Map<string, { id: number; hash: string }>();
-  for (const row of db.prepare("SELECT id, path, hash FROM files").all() as Array<{
+  const existing = new Map<
+    string,
+    { id: number; hash: string; mtime_ms: number | null; size: number | null }
+  >();
+  for (const row of db.prepare("SELECT id, path, hash, mtime_ms, size FROM files").all() as Array<{
     id: number;
     path: string;
     hash: string;
+    mtime_ms: number | null;
+    size: number | null;
   }>) {
-    existing.set(row.path, { id: row.id, hash: row.hash });
+    existing.set(row.path, {
+      id: row.id,
+      hash: row.hash,
+      mtime_ms: row.mtime_ms,
+      size: row.size,
+    });
   }
 
+  const prevRoot = db.prepare("SELECT hash FROM dir_hashes WHERE path = ''").get() as
+    { hash: string } | undefined;
+
   const seen = new Set<string>();
+  const fileHashes = new Map<string, string>();
   const insFile = db.prepare(
-    "INSERT INTO files(path, hash, lang, is_test, module) VALUES (?, ?, ?, ?, ?)",
+    "INSERT INTO files(path, hash, lang, is_test, module, mtime_ms, size) VALUES (?, ?, ?, ?, ?, ?, ?)",
   );
   const updFile = db.prepare(
-    "UPDATE files SET hash = ?, lang = ?, is_test = ?, module = ? WHERE id = ?",
+    "UPDATE files SET hash = ?, lang = ?, is_test = ?, module = ?, mtime_ms = ?, size = ? WHERE id = ?",
   );
   const delNodes = db.prepare("DELETE FROM nodes WHERE file_id = ?");
   const delEdges = db.prepare("DELETE FROM edges WHERE src_file_id = ?");
   const delCoverage = db.prepare("DELETE FROM coverage_links WHERE file_path = ?");
   const insNode = db.prepare(
-    `INSERT INTO nodes(file_id, name, kind, start_line, end_line, start_byte, end_byte, parent_id, signature, body_hash, norm_hash)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO nodes(file_id, name, kind, start_line, end_line, start_byte, end_byte, parent_id, signature, body_hash, norm_hash, content_hash)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   );
   const insMetrics = db.prepare(
     `INSERT INTO node_metrics(node_id, loc, max_nesting, branches) VALUES (?, ?, ?, ?)`,
@@ -269,8 +313,13 @@ export async function buildIndex(
        artifact_type, name, revision, kind, file_path, line, node_id, source_type, origin
      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   );
-  const insEmbed = db.prepare(
-    `INSERT OR REPLACE INTO node_embeddings(node_id, dim, model, vec) VALUES (?, ?, ?, ?)`,
+  const insCache = db.prepare(
+    `INSERT INTO embedding_cache(content_hash, model, dim, vec, created_at, last_seen_at)
+     VALUES (?, ?, ?, ?, ?, ?)
+     ON CONFLICT(content_hash, model) DO UPDATE SET last_seen_at = excluded.last_seen_at`,
+  );
+  const hasCache = db.prepare(
+    `SELECT 1 AS ok FROM embedding_cache WHERE content_hash = ? AND model = ? LIMIT 1`,
   );
 
   const allFiles = [...walkFiles(projectPath)];
@@ -278,22 +327,56 @@ export async function buildIndex(
   try {
     let done = 0;
     for (const filePath of allFiles) {
-      const rel = path.relative(projectPath, filePath);
+      const rel = path.relative(projectPath, filePath).split(path.sep).join("/");
       done++;
       if (onProgress) onProgress({ file: rel, done, total: allFiles.length });
       seen.add(rel);
       const lang = langForPath(filePath)!;
+      let stat: fs.Stats;
+      try {
+        stat = fs.statSync(filePath);
+        if (stat.size > MAX_FILE_BYTES) continue;
+      } catch {
+        continue;
+      }
+
+      const prior = existing.get(rel);
+      const mtimeMs = Math.trunc(stat.mtimeMs);
+      const size = stat.size;
+
+      if (
+        !force &&
+        prior &&
+        prior.mtime_ms != null &&
+        prior.size != null &&
+        prior.mtime_ms === mtimeMs &&
+        prior.size === size
+      ) {
+        fileHashes.set(rel, prior.hash);
+        stats.skippedByStat++;
+        stats.unchanged++;
+        continue;
+      }
+
       let content: string;
       try {
-        const stat = fs.statSync(filePath);
-        if (stat.size > MAX_FILE_BYTES) continue;
         content = fs.readFileSync(filePath, "utf8");
       } catch {
         continue;
       }
       const hash = hashOf(content);
-      const prior = existing.get(rel);
-      if (prior && prior.hash === hash) {
+      fileHashes.set(rel, hash);
+
+      if (!force && prior && prior.hash === hash) {
+        updFile.run(
+          hash,
+          lang.id,
+          isTestPath(rel, cfg.testGlobs) ? 1 : 0,
+          inferModule(rel),
+          mtimeMs,
+          size,
+          prior.id,
+        );
         stats.unchanged++;
         continue;
       }
@@ -302,19 +385,33 @@ export async function buildIndex(
       const isTest = isTestPath(rel, cfg.testGlobs) ? 1 : 0;
       const mod = inferModule(rel);
       if (prior) {
-        updFile.run(hash, lang.id, isTest, mod, prior.id);
+        updFile.run(hash, lang.id, isTest, mod, mtimeMs, size, prior.id);
         delNodes.run(prior.id);
         delEdges.run(prior.id);
         delCoverage.run(rel);
         fileId = prior.id;
       } else {
-        fileId = Number(insFile.run(rel, hash, lang.id, isTest, mod).lastInsertRowid);
+        fileId = Number(
+          insFile.run(rel, hash, lang.id, isTest, mod, mtimeMs, size).lastInsertRowid,
+        );
       }
 
       const { symbols, refs, coverage } = await extract(content, lang);
       const nodeIds: number[] = [];
+      const now = Date.now();
+      const touchCache = db.prepare(
+        `UPDATE embedding_cache SET last_seen_at = ? WHERE content_hash = ? AND model = ?`,
+      );
       for (const s of symbols) {
         const parentId = s.parentIndex !== null ? nodeIds[s.parentIndex]! : null;
+        const embedText = defaultEmbedText(s.kind, s.name, s.signature);
+        const ch = contentHashFor({
+          lang: lang.id,
+          kind: s.kind,
+          name: s.name,
+          signature: s.signature,
+          embedText,
+        });
         const id = Number(
           insNode.run(
             fileId,
@@ -328,16 +425,24 @@ export async function buildIndex(
             s.signature,
             s.bodyHash,
             s.normHash,
+            ch,
           ).lastInsertRowid,
         );
         nodeIds.push(id);
         insMetrics.run(id, s.loc, s.maxNesting, s.branches);
-        // embed the node from its name + signature (cheap, meaningful text)
-        const vec = await embedder.embed(`${s.kind} ${s.name} ${s.signature ?? ""}`);
-        insEmbed.run(id, embedder.dim, embedder.id, toBlob(vec));
+
+        const hit = hasCache.get(ch, embedder.id) as { ok: number } | undefined;
+        if (hit) {
+          touchCache.run(now, ch, embedder.id);
+          stats.fromCache++;
+        } else {
+          const vec = await embedder.embed(embedText);
+          insCache.run(ch, embedder.id, embedder.dim, toBlob(vec), now, now);
+          stats.computed++;
+        }
         stats.embeddings++;
       }
-      // Prefer a real symbol as import owner when the AST leaves imports file-scoped.
+
       const fileOwner = nodeIds[0] ?? null;
       for (const r of refs) {
         let srcId = r.ownerIndex !== null ? nodeIds[r.ownerIndex]! : null;
@@ -364,15 +469,33 @@ export async function buildIndex(
       stats.nodes += symbols.length;
     }
 
-    // prune files that no longer exist
     for (const [rel, row] of existing) {
       if (!seen.has(rel)) {
         db.prepare("DELETE FROM files WHERE id = ?").run(row.id);
         stats.removed++;
+      } else if (!fileHashes.has(rel)) {
+        fileHashes.set(rel, row.hash);
       }
     }
 
-    // Prefer same-file callees so colliding names across files do not share one id.
+    const dirMap = buildDirHashMap(fileHashes);
+    const rootHash = dirMap.get("") ?? "";
+    stats.rootUnchanged = Boolean(
+      prevRoot && prevRoot.hash === rootHash && !force && stats.files === 0,
+    );
+
+    const now = Date.now();
+    db.prepare("DELETE FROM dir_hashes").run();
+    const insDir = db.prepare(
+      "INSERT INTO dir_hashes(path, hash, n_files, updated_at) VALUES (?, ?, ?, ?)",
+    );
+    for (const [dir, hash] of dirMap) {
+      const nFiles = [...fileHashes.keys()].filter((f) =>
+        dir === "" ? true : f === dir || f.startsWith(dir + "/"),
+      ).length;
+      insDir.run(dir, hash, nFiles, now);
+    }
+
     db.exec(`
       UPDATE edges SET dst_node_id = (
         SELECT n.id FROM nodes n
@@ -384,6 +507,24 @@ export async function buildIndex(
     `);
 
     resolveImportEdges(db, projectPath);
+
+    // Touch last_seen for all live content hashes under active model
+    db.prepare(
+      `UPDATE embedding_cache SET last_seen_at = ?
+       WHERE model = ?
+         AND content_hash IN (SELECT content_hash FROM nodes WHERE content_hash IS NOT NULL)`,
+    ).run(now, embedder.id);
+
+    if (prune) {
+      const cutoff = now - retentionDays * 24 * 60 * 60 * 1000;
+      db.prepare(
+        `DELETE FROM embedding_cache
+         WHERE last_seen_at < ?
+           AND content_hash NOT IN (SELECT content_hash FROM nodes WHERE content_hash IS NOT NULL)`,
+      ).run(cutoff);
+    }
+
+    evictCacheBySize(db, maxCacheMB);
 
     db.prepare(
       "INSERT INTO meta(key, value) VALUES ('indexed_at', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
@@ -398,7 +539,6 @@ export async function buildIndex(
     db.close();
   }
 
-  // Compact map in committed docs/compass.md (between markers) — zero tool-call cost.
   try {
     const { writeCompactMap } = await import("./map.js");
     writeCompactMap(projectPath);
@@ -407,4 +547,41 @@ export async function buildIndex(
   }
 
   return stats;
+}
+
+function evictCacheBySize(db: DatabaseSync, maxCacheMB: number): void {
+  const limitBytes = maxCacheMB * 1024 * 1024;
+  const row = db
+    .prepare("SELECT COALESCE(SUM(LENGTH(vec)), 0) AS bytes FROM embedding_cache")
+    .get() as {
+    bytes: number;
+  };
+  if (row.bytes <= limitBytes) return;
+  const target = Math.floor(limitBytes * 0.8);
+  let bytes = row.bytes;
+  const oldest = db
+    .prepare(
+      "SELECT content_hash, model, LENGTH(vec) AS len FROM embedding_cache ORDER BY last_seen_at ASC",
+    )
+    .all() as Array<{ content_hash: string; model: string; len: number }>;
+  const del = db.prepare("DELETE FROM embedding_cache WHERE content_hash = ? AND model = ?");
+  for (const e of oldest) {
+    if (bytes <= target) break;
+    del.run(e.content_hash, e.model);
+    bytes -= e.len;
+  }
+}
+
+/** @internal exported for tests */
+export async function embedSymbol(
+  embedder: Embedder,
+  lang: string,
+  kind: string,
+  name: string,
+  signature: string | null | undefined,
+): Promise<{ contentHash: string; vec: Float32Array }> {
+  const embedText = defaultEmbedText(kind, name, signature);
+  const contentHash = contentHashFor({ lang, kind, name, signature, embedText });
+  const vec = await embedder.embed(embedText);
+  return { contentHash, vec };
 }
