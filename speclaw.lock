@@ -2,7 +2,7 @@
   "lockfileVersion": 1,
   "generator": "@esneiderbravo/speclaw@0.4.0",
   "algorithm": "sha256",
-  "root": "sha256:23f0fdc0b53ae291e7a6901add46f9da0fffff81ac1562bd7df20c0c7774e18e",
+  "root": "sha256:a3da5a9c35f059233f3bf5a66d36c8fe770ebfe82b53d050e059a0d33bc3c267",
   "files": {
     "AGENTS.md": {
       "digest": "sha256:dc3a58a9fe9b2939969892ae5b51636606db33d884d77ef0fc7eb2cca6e13a84",
@@ -17,7 +17,7 @@
       "ownership": "advisory"
     },
     "docs/compass.md": {
-      "digest": "sha256:b309751e990a049b10e59540dad254502df1f95bd0e6826fadd298fb8d5414e3",
+      "digest": "sha256:e57689190ea0202825de285d2188329f6c814234a8871837b0d6e42a70f1bb59",
       "ownership": "advisory"
     },
     "docs/standards/architecture.md": {

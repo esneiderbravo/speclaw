@@ -14,6 +14,8 @@ import {
   readLockfile,
   rootDigest,
   stripProvenanceBlock,
+  stripCompassMapBlock,
+  prepareIntegrityText,
   LOCKFILE_NAME,
 } from "../../src/modules/foundation/lock.js";
 
@@ -31,6 +33,19 @@ test("provenance block is excluded from digests", () => {
   assert.equal(digestText(withProv), dig);
   assert.match(withProv, /speclaw:begin-provenance/);
   assert.equal(stripProvenanceBlock(withProv), body);
+});
+
+test("stripCompassMapBlock ignores regenerable map body", () => {
+  const stable =
+    "# Compass\n\n<!-- speclaw:map:start -->\nOLD MAP\n<!-- speclaw:map:end -->\n\n## Start\n";
+  const changed =
+    "# Compass\n\n<!-- speclaw:map:start -->\nNEW MAP COUNTS\n<!-- speclaw:map:end -->\n\n## Start\n";
+  assert.equal(digestText(stripCompassMapBlock(stable)), digestText(stripCompassMapBlock(changed)));
+  assert.equal(stripCompassMapBlock("no markers\n"), "no markers\n");
+  assert.equal(
+    digestText(prepareIntegrityText("docs/compass.md", stable)),
+    digestText(prepareIntegrityText("docs/compass.md", changed)),
+  );
 });
 
 test("refreshLockfile writes speclaw.lock at repo root", (t) => {
