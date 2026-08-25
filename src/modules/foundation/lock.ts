@@ -156,10 +156,11 @@ export function buildLock(opts: {
 /** Integrity severity policy for a project-relative path. */
 export function integrityPolicy(relPath: string): LockOwnership {
   const n = relPath.split("\\").join("/");
+  // `.cursor/rules/` mirrors regenerable `ai-specs/` (gitignored) — lock/CI must
+  // not treat them as strict committed files; scan when present, never pin.
   if (
     n === "AGENTS.md" ||
     n === "CLAUDE.md" ||
-    n.startsWith(".cursor/rules/") ||
     n.startsWith(".github/instructions/") ||
     n === ".coderabbit.yaml" ||
     n === ".claude/rules/speclaw"
@@ -170,6 +171,19 @@ export function integrityPolicy(relPath: string): LockOwnership {
     return "advisory";
   }
   return "scan-only";
+}
+
+/** True when a path is an IDE mirror of regenerable (typically gitignored) content. */
+export function isRegenerableIdeMirror(relPath: string): boolean {
+  const n = relPath.split("\\").join("/");
+  return (
+    n.startsWith(".cursor/rules/") ||
+    n.startsWith(".cursor/skills/") ||
+    n.startsWith(".cursor/commands/") ||
+    n.startsWith(".claude/skills/") ||
+    n.startsWith(".claude/commands/") ||
+    n.startsWith("ai-specs/")
+  );
 }
 
 /** Discover candidate paths under the project for locking / scanning. */
