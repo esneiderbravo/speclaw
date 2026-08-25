@@ -2,3 +2,14 @@
 # Combined with branch protection, no change to `main` can be merged
 # without an approving review from the owner.
 * @esneiderbravo
+
+# >>> speclaw:owners (generated — do not edit by hand; `speclaw owners --write`)
+lawbook/specs/cli/ @esneiderbravo
+lawbook/changes/*/specs/cli/ @esneiderbravo
+lawbook/specs/lawbook-workflow/ @esneiderbravo
+lawbook/changes/*/specs/lawbook-workflow/ @esneiderbravo
+lawbook/specs/quality-gates/ @esneiderbravo
+lawbook/changes/*/specs/quality-gates/ @esneiderbravo
+lawbook/config.yaml @esneiderbravo
+docs/standards/ @esneiderbravo
+# <<< speclaw:owners

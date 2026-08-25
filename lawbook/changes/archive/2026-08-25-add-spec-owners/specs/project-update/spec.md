@@ -176,28 +176,6 @@ SHALL be refreshed to use canonical tool names.
 - Then they SHALL reference canonical names such as `compass_explore` and
   `lawbook_change` rather than retired names like `compass_impact`
 
-### Requirement: Init and update refresh speclaw.lock `req~lock-refresh-update~1`
-
-WHEN `speclaw init` or `speclaw update` writes or regenerates tracked rule
-artifacts, the system SHALL create or refresh `speclaw.lock` so digests match
-the files just written. WHEN updating across the law-integrity release, update
-SHALL surface a migration note about `speclaw.lock` and `laws accept`.
-
-Needs: impl, utest
-Status: approved
-
-#### Scenario: Init creates a lockfile
-- Given a new project scaffold
-- When init completes after writing rule files
-- Then `speclaw.lock` SHALL exist at the repository root
-
-#### Scenario: Update notes the integrity release
-- Given a project whose recorded speclaw version is older than the
-  law-integrity release
-- When the user runs `speclaw update`
-- Then the personalized agent prompt SHALL mention `speclaw.lock` or
-  `laws accept`
-
 ### Requirement: Init and update refresh the CODEOWNERS owners block `req~owners-refresh-update~1`
 
 WHEN `speclaw init` or `speclaw update` runs on a project that declares
