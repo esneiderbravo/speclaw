@@ -1,0 +1,13 @@
+{
+  "changeType": "feature",
+  "actor": "agent",
+  "confirmedLevel": 3,
+  "confirmedBy": "human",
+  "confirmedAt": "2026-08-25T18:29:30.074Z",
+  "proposal": {
+    "level": 2,
+    "score": 8,
+    "rationale": "2 file(s), 1 module(s), 4 affected test(s), 54 blast node(s), no public API, no global file, hotspot=0.04 → score 8 → level 2 (cuts 3/8/15); graph under-scored relative to full EARS+ptest gate + strict dogfood."
+  },
+  "overrideReason": "Human confirmed full EARS+ptest gate, Needs: ptest as SoT, no new MCP tool, strict dogfood of speclaw specs, ceremony level 3 (explore 2026-08-25)."
+}
