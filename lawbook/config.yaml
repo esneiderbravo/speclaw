@@ -27,6 +27,16 @@ ceremony:
   cuts: [3, 8, 15]
   hotspotFloor: 0.7
 
+# Spec ownership → managed CODEOWNERS block (`speclaw owners --write`).
+# The speclaw block is always written at the end of `.github/CODEOWNERS`
+# (GitHub: last matching pattern wins).
+team:
+  owners:
+    cli: ["@esneiderbravo"]
+    lawbook-workflow: ["@esneiderbravo"]
+    quality-gates: ["@esneiderbravo"]
+    "*": ["@esneiderbravo"]
+
 # EARS requirement linter — strict for speclaw dogfood.
 ears:
   severity: strict

@@ -1,22 +1,25 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 440" width="800" height="440" role="img" aria-label="what speclaw writes into your project">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 500" width="800" height="500" role="img" aria-label="what speclaw writes into your project">
   <defs>
     <linearGradient id="win" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0C1113"/><stop offset="1" stop-color="#0A0E0F"/></linearGradient>
-    <style>text{font-family:'SF Mono','JetBrains Mono','Fira Code',Menlo,Consolas,monospace;font-size:17px;}.cy{fill:#17C1C1;}.cr{fill:#F4F1EA;}.mu{fill:#6E7B80;}.tr{fill:#3B454A;}</style>
+    <style>text{font-family:'SF Mono','JetBrains Mono','Fira Code',Menlo,Consolas,monospace;font-size:16px;}.cy{fill:#17C1C1;}.cr{fill:#F4F1EA;}.mu{fill:#6E7B80;}.tr{fill:#3B454A;}</style>
   </defs>
-  <rect x="1" y="1" width="798" height="438" rx="16" fill="url(#win)" stroke="#232A2D" stroke-width="1.5"/>
+  <rect x="1" y="1" width="798" height="498" rx="16" fill="url(#win)" stroke="#232A2D" stroke-width="1.5"/>
   <line x1="1" y1="50" x2="799" y2="50" stroke="#1B2225"/>
   <circle cx="32" cy="26" r="7" fill="#EB5A5A"/><circle cx="56" cy="26" r="7" fill="#E3B341"/><circle cx="80" cy="26" r="7" fill="#3FB950"/>
   <text x="400" y="31" text-anchor="middle" class="mu" font-size="14">your-repo/ — after speclaw init</text>
 
-  <text x="34" y="94"><tspan class="cr">your-repo/</tspan></text>
-  <text x="34" y="124"><tspan class="tr">├── </tspan><tspan class="cr">LAWS.md               </tspan><tspan class="mu">the constitution</tspan></text>
-  <text x="34" y="154"><tspan class="tr">├── </tspan><tspan class="cr">CLAUDE.md · AGENTS.md </tspan><tspan class="mu">agent operating contracts</tspan></text>
-  <text x="34" y="184"><tspan class="tr">├── </tspan><tspan class="cr">docs/</tspan></text>
-  <text x="34" y="214"><tspan class="tr">│   ├── </tspan><tspan class="cr">compass.md        </tspan><tspan class="mu">Compass cheat sheet</tspan></text>
-  <text x="34" y="244"><tspan class="tr">│   └── </tspan><tspan class="cr">standards/*.md    </tspan><tspan class="mu">the granular laws</tspan></text>
-  <text x="34" y="274"><tspan class="tr">├── </tspan><tspan class="cr">ai-specs/             </tspan><tspan class="mu">skills, commands, agents</tspan></text>
-  <text x="34" y="304"><tspan class="tr">├── </tspan><tspan class="cr">lawbook/              </tspan><tspan class="mu">specs · changes · archive</tspan></text>
-  <text x="34" y="334"><tspan class="tr">├── </tspan><tspan class="cr">.claude/ .cursor/ …   </tspan><tspan class="mu">symlinks + law hooks (chosen agents)</tspan></text>
-  <text x="34" y="364"><tspan class="tr">├── </tspan><tspan class="cr">.mcp.json             </tspan><tspan class="mu">MCP server registration</tspan></text>
-  <text x="34" y="394"><tspan class="tr">└── </tspan><tspan class="cy">.speclaw/             </tspan><tspan class="mu">Compass index + law manifest (gitignored)</tspan></text>
+  <text x="34" y="90"><tspan class="cr">your-repo/</tspan></text>
+  <text x="34" y="118"><tspan class="tr">├── </tspan><tspan class="cr">LAWS.md · CLAUDE.md · AGENTS.md</tspan><tspan class="mu">  constitution</tspan></text>
+  <text x="34" y="146"><tspan class="tr">├── </tspan><tspan class="cy">speclaw.lock          </tspan><tspan class="mu">rule digests (committed)</tspan></text>
+  <text x="34" y="174"><tspan class="tr">├── </tspan><tspan class="cr">docs/standards · compass.md</tspan><tspan class="mu">  the laws</tspan></text>
+  <text x="34" y="202"><tspan class="tr">├── </tspan><tspan class="cr">lawbook/              </tspan><tspan class="mu">specs · changes · anchors · config</tspan></text>
+  <text x="34" y="230"><tspan class="tr">├── </tspan><tspan class="cr">.github/CODEOWNERS    </tspan><tspan class="mu">+ managed speclaw:owners block</tspan></text>
+  <text x="34" y="258"><tspan class="tr">├── </tspan><tspan class="cr">.github/workflows/    </tspan><tspan class="mu">speclaw.yml (verify CI)</tspan></text>
+  <text x="34" y="286"><tspan class="tr">├── </tspan><tspan class="cr">ai-specs/             </tspan><tspan class="mu">skills · commands (gitignored)</tspan></text>
+  <text x="34" y="314"><tspan class="tr">├── </tspan><tspan class="cr">.claude/ .cursor/ …   </tspan><tspan class="mu">symlinks + law hooks</tspan></text>
+  <text x="34" y="342"><tspan class="tr">├── </tspan><tspan class="cr">.mcp.json             </tspan><tspan class="mu">MCP server registration</tspan></text>
+  <text x="34" y="370"><tspan class="tr">└── </tspan><tspan class="cy">.speclaw/             </tspan><tspan class="mu">index · laws manifest (gitignored)</tspan></text>
+
+  <text x="34" y="430" class="mu" font-size="14">Committed: constitution + lawbook + speclaw.lock · Local: ai-specs + .speclaw</text>
+  <text x="34" y="458" class="mu" font-size="14">After clone: speclaw init / update regenerates regenerable trees</text>
 </svg>
