@@ -469,29 +469,6 @@ report SHALL warn without failing the process unless `--strict` is set.
 - Then the report SHALL include a check or field stating FTS5 availability
 - And SHALL include the Node version in use
 
-### Requirement: Laws lock accept and scan CLI entries `req~laws-integrity-cli~1`
-
-WHEN a user runs `speclaw laws`, the CLI SHALL accept subcommands `lock`,
-`accept`, and `scan` in addition to existing verify/compile/import. Help text
-SHALL list them. `accept` SHALL be interactive. Machine-consumed verify output
-SHALL remain free of the branded header when integrity findings are included.
-
-Needs: impl, utest
-Status: approved
-
-#### Scenario: Help lists lock accept scan
-- Given `speclaw` is installed
-- When a user runs `speclaw help` or laws help
-- Then the usage text SHALL mention `lock`
-- And SHALL mention `accept`
-- And SHALL mention `scan`
-
-#### Scenario: Verify includes integrity without a new MCP tool
-- Given a project with a failing strict digest
-- When a user runs `speclaw verify --ci` or equivalent
-- Then the failure SHALL be visible in CLI/SARIF output
-- And the MCP catalog SHALL NOT gain a dedicated integrity-mutating tool
-
 ### Requirement: Owners command is a first-class CLI entry `req~owners-cli~1`
 
 WHEN a user runs `speclaw`, the CLI SHALL dispatch `owners` to the

@@ -190,6 +190,27 @@ const MIGRATIONS: Migration[] = [
       "Strict paths include AGENTS.md / CLAUDE.md / compiled rules; standards docs are advisory.\n" +
       "- Preserve all project-specific wording; only apply these speclaw-authored changes.",
   },
+  {
+    version: "0.4.2",
+    describe: "Spec ownership — team.owners → CODEOWNERS",
+    agentPrompt:
+      '- Optional `team.owners` in `lawbook/config.yaml` maps capability names (and `"*"`) to ' +
+      "`@user` / `@org/team` / email owners. Run `speclaw owners --write` to compile a managed " +
+      "block at the **end** of `.github/CODEOWNERS` (GitHub: last match wins). `speclaw doctor` " +
+      "errors if content appears after the end marker. No new MCP tool — CLI only. " +
+      "deriveFromTraceability is not enabled in this release.\n" +
+      "- Preserve all project-specific wording; only apply these speclaw-authored changes.",
+  },
+  {
+    version: "1.0.0",
+    describe: "speclaw 1.0 — official release (enforcement + graph + lawbook + owners)",
+    agentPrompt:
+      "- speclaw **1.0** is the official release: Foundation (hooks + `speclaw.lock` integrity), " +
+      "Compass (schema 10, eight canonical MCP tools), Lawbook (ceremony 0–3, coverage, drift, " +
+      "bugfix), and Team (`team.owners` → `speclaw owners --write`). Install remains " +
+      "`npx @esneiderbravo/speclaw@latest init`. CI consumers use `esneiderbravo/speclaw@v1`.\n" +
+      "- Preserve all project-specific wording; only apply these speclaw-authored changes.",
+  },
 ];
 
 /**

@@ -48,6 +48,7 @@ Other
   budget                   Measure always-on context cost (tools, skills, instructions)
   coverage                 Requirement → impl → test coverage (--json, --tap, --adopt, --write)
   drift                    Spec↔code drift (--json, --reseal, --reverse, --fail-on)
+  owners                   Compile team.owners → .github/CODEOWNERS (--write / --check / --diff)
   telemetry status         Confirm speclaw ships no telemetry
   check                    Evaluate an action against the laws (hooks call this; --dry-run to preview)
   laws verify              Verify the deterministic dependency/graph laws against the index
@@ -81,6 +82,7 @@ const HEADER_COMMANDS = new Set<string | undefined>([
   "coverage",
   "drift",
   "telemetry",
+  "owners",
   "index",
   "watch",
   "lawbook",
@@ -167,6 +169,8 @@ async function dispatch(
       return (await import("./commands/drift.js")).runDrift(flags);
     case "telemetry":
       return (await import("./commands/telemetry.js")).runTelemetry(flags);
+    case "owners":
+      return (await import("./commands/owners.js")).runOwners(flags);
     case "check":
       return (await import("./commands/check.js")).runCheck(flags);
     case "laws":

@@ -275,28 +275,6 @@ reference retired tool names, doctor SHALL list them with their replacements.
 - When `speclaw doctor --json` runs
 - Then the tool-surface check SHALL name the alias and its replacement
 
-### Requirement: Doctor reports rule integrity posture `req~doctor-integrity~1`
-
-WHEN `speclaw doctor` runs, the system SHALL report whether `speclaw.lock`
-exists, whether the lock root matches a fast check, and SHALL list external
-`@import` paths outside the working directory followed transitively up to four
-hops. Doctor SHALL also list known outside-pipeline rule files discovered for
-scanning.
-
-Needs: impl, utest
-Status: approved
-
-#### Scenario: Doctor JSON includes lock root status
-- Given a project with a `speclaw.lock`
-- When `speclaw doctor --json` runs
-- Then a check SHALL report lock presence and root match status
-
-#### Scenario: External imports are named
-- Given a `CLAUDE.md` containing an import resolving outside the working
-  directory
-- When `speclaw doctor` runs
-- Then the output SHALL name the importing file and imported path
-
 ### Requirement: Doctor reports CODEOWNERS owners posture `req~doctor-owners~1`
 
 WHEN `speclaw doctor` runs on an initialised project that declares

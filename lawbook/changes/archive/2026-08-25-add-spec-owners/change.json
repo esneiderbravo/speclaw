@@ -1,0 +1,24 @@
+{
+  "level": 0,
+  "score": 0,
+  "signals": {
+    "filesTouched": 0,
+    "modulesTouched": 0,
+    "blastRadiusNodes": 0,
+    "affectedTests": 0,
+    "touchesPublicApi": false,
+    "maxHotspotScore": 0,
+    "touchesGlobalFile": false,
+    "onlyDocs": false,
+    "degraded": []
+  },
+  "rationale": "0 file(s), 0 module(s), 0 affected test(s), 0 blast node(s), no public API, no global file, hotspot=0.00 → score 0 → level 0 (cuts 3/8/15)",
+  "degraded": [],
+  "confirmedLevel": 3,
+  "confirmedBy": "human",
+  "confirmedAt": "2026-08-25T19:57:30.726Z",
+  "overrideReason": "Human confirmed E1-only (CODEOWNERS from team.owners), no MCP, no deriveFromTraceability, ceremony level 3 (explore 2026-08-25).",
+  "promotions": [],
+  "changeType": "feature",
+  "actor": "agent"
+}

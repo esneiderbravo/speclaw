@@ -10,6 +10,7 @@ import { getEmbedder } from "../compass/embedder.js";
 import { specList } from "../lawbook/engine.js";
 import { doctorDriftCheck } from "../lawbook/drift.js";
 import { loadCeremonyConfig, type CeremonyLevel } from "../lawbook/levels.js";
+import { doctorOwnersChecks } from "../team/owners.js";
 import { globError, hasBackend, hasBatchBackend, readLawManifest } from "./laws.js";
 import { estimateAlwaysOnTokens } from "./compile-laws.js";
 import { redactValue } from "../../shared/redact.js";
@@ -989,6 +990,15 @@ export async function doctor(projectPath: string, opts: DoctorOptions = {}): Pro
         status: d.status,
         detail: d.detail,
         remedy: d.remedy,
+      });
+    }
+    for (const o of doctorOwnersChecks(projectPath)) {
+      addCheck(configuration, {
+        id: o.id,
+        title: o.title,
+        status: o.status,
+        detail: o.detail,
+        remedy: o.remedy,
       });
     }
 

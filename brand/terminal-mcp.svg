@@ -1,18 +1,18 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 390" width="800" height="390" role="img" aria-label="speclaw MCP tools">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 420" width="800" height="420" role="img" aria-label="speclaw MCP tools">
   <defs>
     <linearGradient id="win" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0C1113"/><stop offset="1" stop-color="#0A0E0F"/></linearGradient>
     <style>text{font-family:'SF Mono','JetBrains Mono','Fira Code',Menlo,Consolas,monospace;font-size:17px;}.cy{fill:#17C1C1;}.cr{fill:#F4F1EA;}.mu{fill:#6E7B80;}.hd{font-weight:700;}</style>
   </defs>
-  <rect x="1" y="1" width="798" height="388" rx="16" fill="url(#win)" stroke="#232A2D" stroke-width="1.5"/>
+  <rect x="1" y="1" width="798" height="418" rx="16" fill="url(#win)" stroke="#232A2D" stroke-width="1.5"/>
   <line x1="1" y1="50" x2="799" y2="50" stroke="#1B2225"/>
   <circle cx="32" cy="26" r="7" fill="#EB5A5A"/><circle cx="56" cy="26" r="7" fill="#E3B341"/><circle cx="80" cy="26" r="7" fill="#3FB950"/>
-  <text x="400" y="31" text-anchor="middle" class="mu" font-size="14">speclaw — MCP tools (for your agent)</text>
+  <text x="400" y="31" text-anchor="middle" class="mu" font-size="14">speclaw 1.0 — eight canonical MCP tools</text>
 
-  <text x="34" y="92"><tspan class="cy hd">foundation  </tspan><tspan class="cr">init_project · scaffold · configure_agent</tspan></text>
-  <text x="34" y="120"><tspan class="cr">            doctor · speclaw_check</tspan></text>
-  <text x="34" y="168"><tspan class="cy hd">compass     </tspan><tspan class="cr">compass_index · explore · search · recall</tspan></text>
-  <text x="34" y="196"><tspan class="cr">            impact · trace · watch</tspan></text>
-  <text x="34" y="244"><tspan class="cy hd">lawbook     </tspan><tspan class="cr">lawbook_init · validate · sync · archive · list</tspan></text>
-  <text x="34" y="292"><tspan class="cy hd">tools       </tspan><tspan class="cr">list_packs · add_pack</tspan></text>
-  <text x="34" y="360" class="mu" font-size="14">20 tools · auto-registered by speclaw init in each agent's config</text>
+  <text x="34" y="96"><tspan class="cy hd">compass     </tspan><tspan class="cr">compass_explore · compass_find</tspan></text>
+  <text x="34" y="124"><tspan class="cr">            compass_diff_context · compass_index</tspan></text>
+  <text x="34" y="172"><tspan class="cy hd">lawbook     </tspan><tspan class="cr">lawbook_change · lawbook_investigate</tspan></text>
+  <text x="34" y="220"><tspan class="cy hd">setup       </tspan><tspan class="cr">speclaw_setup · speclaw_check</tspan></text>
+  <text x="34" y="268" class="mu" font-size="15">Aliases deprecated · CLI-only: doctor, scaffold, owners, verify, visualize…</text>
+  <text x="34" y="304" class="mu" font-size="15">Minimal profile (`init --minimal`) omits setup / check / investigate / index</text>
+  <text x="34" y="360" class="mu" font-size="14">8 tools · ~1.7k definition tokens · auto-registered by speclaw init</text>
 </svg>
