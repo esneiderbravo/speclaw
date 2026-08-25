@@ -4,16 +4,25 @@ import { Flags } from "../lib/args.js";
 import { ui, renderProgress, clearProgress } from "../lib/ui.js";
 
 /** (Re)build the Compass code graph for the cwd, showing progress and final stats. */
-export async function runIndex(_flags: Flags): Promise<void> {
+export async function runIndex(flags: Flags): Promise<void> {
   const cwd = process.cwd();
   ui.step("Indexing with Compass");
   const start = Date.now();
-  const stats = await buildIndex(cwd, (e) => renderProgress(e.done, e.total, e.file));
+  const stats = await buildIndex(cwd, {
+    force: Boolean(flags.force),
+    prune: Boolean(flags.prune),
+    maxCacheMB: flags["max-cache-mb"] ? Number(flags["max-cache-mb"]) : undefined,
+    retentionDays: flags.retention ? Number(flags.retention) : undefined,
+    onProgress: (e) => renderProgress(e.done, e.total, e.file),
+  });
   clearProgress();
   const secs = ((Date.now() - start) / 1000).toFixed(1);
+  const root = stats.rootUnchanged ? " · root unchanged" : "";
   ui.ok(
     `${stats.files} files · ${stats.nodes} nodes · ${stats.edges} edges · ` +
-      `${stats.embeddings} embeddings · ${stats.unchanged} unchanged  (${secs}s)`,
+      `${stats.computed} computed · ${stats.fromCache} fromCache · ` +
+      `${stats.unchanged} unchanged · ${stats.skippedByStat} skippedByStat` +
+      `${root}  (${secs}s)`,
   );
 }
 

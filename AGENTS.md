@@ -25,8 +25,9 @@ Claude-specific notes: [`CLAUDE.md`](CLAUDE.md). The law: [`LAWS.md`](LAWS.md).
    prefer `compass_affected_tests` / `speclaw affected-tests --from-diff` over
    the full suite. `compass_hotspots` / `speclaw hotspots` ranks activity × AST
    health (default 90 days); `compass_coupling` / `speclaw coupling` reports
-   Jaccard strength, `in_graph`, and `isTestPair`. Schema **8** (`node_metrics`)
-   — reindex with `speclaw index` after a schema bump. Cheat sheet:
+   Jaccard strength, `in_graph`, and `isTestPair`. Schema **9** (`embedding_cache`,
+   Merkle `dir_hashes`, `node_metrics`) — reindex with `speclaw index` after a
+   schema bump (8→9 migrates embeddings). Cheat sheet:
    [`docs/compass.md`](docs/compass.md).
 3. **Follow the lawbook workflow** for every non-trivial change; archive
    within the same PR. Artifact volume follows the confirmed ceremony level in
@@ -93,8 +94,9 @@ Claude-specific notes: [`CLAUDE.md`](CLAUDE.md). The law: [`LAWS.md`](LAWS.md).
 - `speclaw doctor --json` is the support report (redacted by default). Stable
   install: `npx @esneiderbravo/speclaw@latest init`.
 - Optional `.speclaw/affected.json` overrides affected-test globals/test globs.
-  Compass schema **8** (`node_metrics`) — reindex with `speclaw index`.
-  Hotspots/coupling default history window is 90 days.
+  Compass schema **9** (`embedding_cache`, Merkle, `node_metrics`) — reindex
+  with `speclaw index` (8→9 preserves embeddings). Hotspots/coupling default
+  history window is 90 days.
 - Ceremony 0–3 in `change.json`; `speclaw quick` for level 0; `lawbook_level`
   propose/set/promote. Optional `ceremony:` in `lawbook/config.yaml`.
 - Bugs: `speclaw lawbook draft --bug`, `bugfix.md`, `lawbook_investigate`.
