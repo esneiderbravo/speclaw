@@ -1,4 +1,4 @@
-import { explore, impact, trace, search, recall, type ExploreResult } from "./query.js";
+import { explore, impact, trace, type ExploreResult } from "./query.js";
 import { affectedTests } from "./affected.js";
 import { hotspots } from "./hotspots.js";
 import { summarizeImpact, type BlastRadiusSummary } from "./impact-summary.js";
@@ -156,9 +156,16 @@ export async function findSymbols(
   query: string,
   mode: "exact" | "concept",
   limit?: number,
+  opts?: { focus?: string[]; maxTokens?: number },
 ): Promise<unknown> {
-  if (mode === "exact") return search(projectPath, query, limit ?? 25);
-  return recall(projectPath, query, limit ?? 15);
+  const { hybridSearch } = await import("./hybrid.js");
+  const result = await hybridSearch(projectPath, query, {
+    mode,
+    focus: opts?.focus,
+    maxTokens: opts?.maxTokens,
+    seedLimit: limit ?? 50,
+  });
+  return result;
 }
 
 /** Serialize explore-rich with output budget applied. */

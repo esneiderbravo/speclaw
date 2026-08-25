@@ -8,7 +8,7 @@ Claude-specific notes: [`CLAUDE.md`](CLAUDE.md). The law: [`LAWS.md`](LAWS.md).
 
 - **What it is**: a self-contained MCP suite + CLI that turns any repo into a spec-driven, agent-ready project — its own constitution (Foundation), local code graph (Compass), and spec-driven workflow (Lawbook). 100% local: no LLM, no cloud, no API keys.
 - **Organization**: Esneider Bravo · open source (MIT)
-- **Stack**: TypeScript (ES2022, ESM, Node16 resolution) on Node.js ≥22 · MCP server (`@modelcontextprotocol/sdk`) + Clack CLI · tree-sitter (WASM) parsing · `node:sqlite` code graph · Zod schemas. No frontend, no service, no LLM.
+- **Stack**: TypeScript (ES2022, ESM, Node16 resolution) on Node.js ≥22.16 · MCP server (`@modelcontextprotocol/sdk`) + Clack CLI · tree-sitter (WASM) parsing · `node:sqlite` code graph · Zod schemas. No frontend, no service, no LLM.
 
 ## Mandatory operating rules
 
@@ -94,8 +94,9 @@ Claude-specific notes: [`CLAUDE.md`](CLAUDE.md). The law: [`LAWS.md`](LAWS.md).
 - `speclaw doctor --json` is the support report (redacted by default). Stable
   install: `npx @esneiderbravo/speclaw@latest init`.
 - Optional `.speclaw/affected.json` overrides affected-test globals/test globs.
-  Compass schema **9** (`embedding_cache`, Merkle, `node_metrics`) — reindex
-  with `speclaw index` (8→9 preserves embeddings). Hotspots/coupling default
+  Compass schema **10** (`node_text` / FTS5 / `pagerank` + embedding cache from 9) — reindex
+  with `speclaw index` (9→10 preserves embeddings); photograph bodies once with
+  `speclaw drift --reseal` if anchors are new or stale. Hotspots/coupling default
   history window is 90 days.
 - Ceremony 0–3 in `change.json`; `speclaw quick` for level 0; `lawbook_level`
   propose/set/promote. Optional `ceremony:` in `lawbook/config.yaml`.

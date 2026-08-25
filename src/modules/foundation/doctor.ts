@@ -5,7 +5,8 @@ import { isMinimalMode, packageRoot } from "../../shared/exposure.js";
 import { isGitRepo } from "../../shared/git.js";
 import { readManifest } from "../../shared/manifest.js";
 import { pkgName, pkgVersion } from "../../shared/version.js";
-import { indexExists, openDb } from "../compass/db.js";
+import { indexExists, openDb, probeFts5Support } from "../compass/db.js";
+import { getEmbedder } from "../compass/embedder.js";
 import { specList } from "../lawbook/engine.js";
 import { doctorDriftCheck } from "../lawbook/drift.js";
 import { loadCeremonyConfig, type CeremonyLevel } from "../lawbook/levels.js";
@@ -107,17 +108,26 @@ function enginesRequirement(): string {
     const pkg = JSON.parse(fs.readFileSync(path.join(packageRoot(), "package.json"), "utf8")) as {
       engines?: { node?: string };
     };
-    return pkg.engines?.node ?? ">=22";
+    return pkg.engines?.node ?? ">=22.16";
   } catch {
-    return ">=22";
+    return ">=22.16";
   }
 }
 
 function nodeSatisfies(required: string, version: string): boolean {
-  const m = /^>=\s*(\d+)/.exec(required.trim());
+  const m = /^>=\s*(\d+)(?:\.(\d+))?/.exec(required.trim());
   if (!m) return true;
-  const major = parseInt(version.replace(/^v/, "").split(".")[0]!, 10);
-  return major >= parseInt(m[1]!, 10);
+  const parts = version
+    .replace(/^v/, "")
+    .split(".")
+    .map((x) => parseInt(x, 10));
+  const major = parts[0] ?? 0;
+  const minor = parts[1] ?? 0;
+  const needMajor = parseInt(m[1]!, 10);
+  const needMinor = m[2] !== undefined ? parseInt(m[2], 10) : 0;
+  if (major > needMajor) return true;
+  if (major < needMajor) return false;
+  return minor >= needMinor;
 }
 
 function libcLabel(): string {
@@ -235,6 +245,27 @@ function buildEnvironment(projectPath: string): DoctorCheck[] {
     value: git,
     detail: git ? "repository" : "not a git repository",
     remedy: git ? undefined : "git init",
+  });
+
+  const ftsOk = probeFts5Support();
+  addCheck(checks, {
+    id: "env.fts5",
+    title: "fts5",
+    status: ftsOk ? "ok" : "warn",
+    value: ftsOk,
+    detail: ftsOk
+      ? "node:sqlite FTS5 available"
+      : "FTS5 unavailable — hybrid search degrades to vector+name (need Node >=22.16)",
+    remedy: ftsOk ? undefined : "Upgrade to Node.js >=22.16",
+  });
+
+  const embedderId = getEmbedder().id;
+  addCheck(checks, {
+    id: "env.embedder",
+    title: "embedder",
+    status: "ok",
+    value: embedderId,
+    detail: `active embedder: ${embedderId}`,
   });
 
   addCheck(checks, {
