@@ -1,0 +1,12 @@
+{
+  "confirmedLevel": 3,
+  "changeType": "feature",
+  "actor": "agent",
+  "confirmedAt": "2026-08-25T14:58:26.438Z",
+  "proposal": {
+    "level": 3,
+    "score": 17,
+    "rationale": "8 file(s), 2 module(s), 6 affected test(s), 123 blast node(s), schema 8→9 migration, embedding_cache, Merkle, CLI flags → level 3"
+  },
+  "overrideReason": "Confirmed at propose level 3 (score 17): schema 8→9 migration, embedding_cache, mtime prefilter, Merkle, CLI flags — full ceremony."
+}

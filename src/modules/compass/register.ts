@@ -100,10 +100,12 @@ export function registerCompass(server: McpServer, opts: RegisterOpts = {}): voi
     {
       projectPath: z.string(),
       action: z.enum(["index", "start", "stop", "status"]).optional(),
+      force: z.boolean().optional(),
+      prune: z.boolean().optional(),
     },
-    async ({ projectPath, action }) => {
+    async ({ projectPath, action, force, prune }) => {
       const act = action ?? "index";
-      if (act === "index") return text(await buildIndex(projectPath));
+      if (act === "index") return text(await buildIndex(projectPath, { force, prune }));
       const result =
         act === "start"
           ? startWatch(projectPath)
