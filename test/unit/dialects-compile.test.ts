@@ -199,3 +199,118 @@ test("nested AGENTS when package.json and enough laws", (t) => {
   compileLaws({ projectPath: root, agents: ["agents"] });
   assert.ok(fs.existsSync(path.join(root, "packages", "api", "AGENTS.md")));
 });
+
+test("compileLaws rejects invalid scope globs", (t) => {
+  const root = tmpRepo(t);
+  writeLawManifest(root, {
+    version: 1,
+    laws: [
+      {
+        id: "law~bad-glob~1",
+        title: "Bad",
+        severity: "error",
+        scope: ["src/[oops"],
+        prose: "x",
+        verification: { kind: "path" },
+        enforcement: "feedback",
+        source: { file: "x.md" },
+      },
+    ],
+  });
+  assert.throws(() => compileLaws({ projectPath: root, agents: [] }), /invalid scope/);
+});
+
+test("coderabbit and copilot skip when not selected or only global laws", (t) => {
+  const root = tmpRepo(t);
+  write(root, "AGENTS.md", "# a\n");
+  writeLawManifest(root, {
+    version: 1,
+    laws: [
+      {
+        id: "law~g~1",
+        title: "G",
+        severity: "warn",
+        scope: [],
+        prose: "global",
+        verification: { kind: "semantic" },
+        enforcement: "feedback",
+        source: { file: "x.md" },
+      },
+    ],
+  });
+  const r = compileLaws({ projectPath: root, agents: ["claude"], writeManifest: false });
+  assert.ok(!fs.existsSync(path.join(root, ".coderabbit.yaml")));
+  assert.ok(!fs.existsSync(path.join(root, ".github", "instructions")));
+  assert.ok(r.written.length + r.unchanged.length >= 0);
+});
+
+test("import skips duplicate ids and missing rulesync dir", (t) => {
+  const root = tmpRepo(t);
+  assert.throws(() => importRulesFrom(root, "rulesync"), /no rulesync/);
+  write(root, ".rulesync/a.md", "one\n");
+  writeLawManifest(root, { version: 1, laws: [] });
+  const first = importRulesFrom(root, "rulesync");
+  assert.equal(first.imported.length, 1);
+  const second = importRulesFrom(root, "rulesync");
+  assert.equal(second.imported.length, 0);
+  assert.ok(second.skipped.length >= 1);
+});
+
+test("coderabbit merge replaces prior speclaw block", (t) => {
+  const root = tmpRepo(t);
+  write(
+    root,
+    ".coderabbit.yaml",
+    `reviews:\n  path_instructions: []\n# speclaw:path_instructions:start\n  - path: "old/**"\n    instructions: "[speclaw:law~old~1] old"\n# speclaw:path_instructions:end\n`,
+  );
+  write(root, "AGENTS.md", "# a\n");
+  writeLawManifest(root, {
+    version: 1,
+    laws: [
+      {
+        id: "law~new~1",
+        title: "New",
+        severity: "warn",
+        scope: ["src/**"],
+        prose: "new prose",
+        verification: { kind: "semantic" },
+        enforcement: "feedback",
+        source: { file: "x.md" },
+      },
+    ],
+  });
+  compileLaws({ projectPath: root, agents: ["coderabbit"] });
+  const cr = fs.readFileSync(path.join(root, ".coderabbit.yaml"), "utf8");
+  assert.match(cr, /law~new~1/);
+  assert.equal((cr.match(/speclaw:path_instructions:start/g) ?? []).length, 1);
+});
+
+test("parseLawsFromMarkdown covers verification kinds and draft status", () => {
+  const md = `
+<!-- speclaw:law
+id: law~path~1
+title: P
+severity: info
+scope: a.ts
+enforcement: bloqueo
+verification: path
+status: draft
+-->
+path law
+
+<!-- speclaw:law
+id: law~none~1
+title: N
+severity: warn
+scope:
+enforcement: feedback
+verification: none
+-->
+none law
+`;
+  const laws = parseLawsFromMarkdown("docs/standards/y.md", md);
+  assert.equal(laws.length, 2);
+  assert.equal(laws[0]!.status, "draft");
+  assert.equal(laws[0]!.verification.kind, "path");
+  assert.equal(laws[1]!.verification.kind, "none");
+});
