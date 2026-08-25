@@ -1,8 +1,8 @@
 {
   "lockfileVersion": 1,
-  "generator": "@esneiderbravo/speclaw@0.4.0",
+  "generator": "@esneiderbravo/speclaw@0.4.2",
   "algorithm": "sha256",
-  "root": "sha256:a3da5a9c35f059233f3bf5a66d36c8fe770ebfe82b53d050e059a0d33bc3c267",
+  "root": "sha256:101ca7698e789a559f657876fda4674ce3575aa6c70546da74d30e9dba8999b6",
   "files": {
     "AGENTS.md": {
       "digest": "sha256:dc3a58a9fe9b2939969892ae5b51636606db33d884d77ef0fc7eb2cca6e13a84",
@@ -21,7 +21,7 @@
       "ownership": "advisory"
     },
     "docs/standards/architecture.md": {
-      "digest": "sha256:e8d3ff2122f27c618ec6f3e6785273555f6741e06fb545ff3a698294db77cc38",
+      "digest": "sha256:c57cd71dc9e2401b093782be6565673ba6abec57c7834312b95802a95d931125",
       "ownership": "advisory"
     },
     "docs/standards/backend-standards.md": {
