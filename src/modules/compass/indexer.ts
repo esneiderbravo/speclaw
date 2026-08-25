@@ -1,13 +1,14 @@
 import fs from "node:fs";
 import path from "node:path";
 import { createHash } from "node:crypto";
-import { openDb, clearNeedsReindex } from "./db.js";
+import { openDb, clearNeedsReindex, needsReindex } from "./db.js";
 import { langForPath } from "./languages.js";
 import { extract } from "./extract.js";
 import { getEmbedder, toBlob } from "./embedder.js";
 import { contentHashFor, defaultEmbedText } from "./embed-input.js";
 import { buildDirHashMap } from "./merkle.js";
 import { loadAffectedConfig, isTestPath, inferModule } from "./affected-config.js";
+import { personalizedPageRank, edgeWeightMul, type PrEdge } from "./pagerank.js";
 import type { DatabaseSync } from "node:sqlite";
 import type { Embedder } from "./embedder.js";
 
@@ -243,12 +244,12 @@ export async function buildIndex(
       ? { onProgress: onProgressOrOpts }
       : (onProgressOrOpts ?? {});
   const onProgress = opts.onProgress;
-  const force = Boolean(opts.force);
   const prune = Boolean(opts.prune);
   const maxCacheMB = opts.maxCacheMB ?? DEFAULT_MAX_CACHE_MB;
   const retentionDays = opts.retentionDays ?? DEFAULT_RETENTION_DAYS;
 
   const db = openDb(projectPath);
+  const force = Boolean(opts.force) || needsReindex(db);
   const embedder = getEmbedder();
   const stats: IndexStats = {
     files: 0,
@@ -319,7 +320,15 @@ export async function buildIndex(
      ON CONFLICT(content_hash, model) DO UPDATE SET last_seen_at = excluded.last_seen_at`,
   );
   const hasCache = db.prepare(
-    `SELECT 1 AS ok FROM embedding_cache WHERE content_hash = ? AND model = ? LIMIT 1`,
+    `SELECT 1 AS ok FROM embedding_cache WHERE content_hash = ? AND model = ?`,
+  );
+  const insNodeText = db.prepare(
+    `INSERT INTO node_text(node_id, name, subtokens, signature, doc) VALUES (?, ?, ?, ?, ?)
+     ON CONFLICT(node_id) DO UPDATE SET
+       name = excluded.name,
+       subtokens = excluded.subtokens,
+       signature = excluded.signature,
+       doc = excluded.doc`,
   );
 
   const allFiles = [...walkFiles(projectPath)];
@@ -430,6 +439,7 @@ export async function buildIndex(
         );
         nodeIds.push(id);
         insMetrics.run(id, s.loc, s.maxNesting, s.branches);
+        insNodeText.run(id, s.name, s.subtokens, s.signature ?? "", s.docstring);
 
         const hit = hasCache.get(ch, embedder.id) as { ok: number } | undefined;
         if (hit) {
@@ -508,6 +518,8 @@ export async function buildIndex(
 
     resolveImportEdges(db, projectPath);
 
+    recomputeGlobalPagerank(db);
+
     // Touch last_seen for all live content hashes under active model
     db.prepare(
       `UPDATE embedding_cache SET last_seen_at = ?
@@ -569,6 +581,78 @@ function evictCacheBySize(db: DatabaseSync, maxCacheMB: number): void {
     if (bytes <= target) break;
     del.run(e.content_hash, e.model);
     bytes -= e.len;
+  }
+}
+
+/**
+ * Recompute global (non-personalized) PageRank over the bipartite file↔symbol
+ * graph and replace the `pagerank` table.
+ *
+ * @param db - Open index database.
+ */
+export function recomputeGlobalPagerank(db: DatabaseSync): void {
+  const files = db.prepare("SELECT id, path FROM files").all() as Array<{
+    id: number;
+    path: string;
+  }>;
+  const nodes = db.prepare("SELECT id, name, file_id FROM nodes").all() as Array<{
+    id: number;
+    name: string;
+    file_id: number;
+  }>;
+  if (nodes.length === 0) {
+    db.exec("DELETE FROM pagerank");
+    return;
+  }
+
+  // Use negative ids for files so they never collide with node ids.
+  const fileNodeId = (fileId: number) => -fileId;
+  const nodeIds: number[] = [];
+  for (const f of files) nodeIds.push(fileNodeId(f.id));
+  for (const n of nodes) nodeIds.push(n.id);
+
+  const defCount = new Map<string, number>();
+  for (const n of nodes) defCount.set(n.name, (defCount.get(n.name) ?? 0) + 1);
+  const refCount = new Map<string, number>();
+  const callEdges = db
+    .prepare(
+      `SELECT e.src_node_id, e.dst_node_id, e.dst_name, f.path AS src_path
+       FROM edges e
+       JOIN files f ON f.id = e.src_file_id
+       WHERE e.kind = 'call' AND e.src_node_id IS NOT NULL`,
+    )
+    .all() as Array<{
+    src_node_id: number;
+    dst_node_id: number | null;
+    dst_name: string;
+    src_path: string;
+  }>;
+  for (const e of callEdges) {
+    refCount.set(e.dst_name, (refCount.get(e.dst_name) ?? 0) + 1);
+  }
+
+  const ctx = {
+    mentionedIdents: new Set<string>(),
+    focusFiles: new Set<string>(),
+    defCount,
+    refCount,
+  };
+
+  const edges: PrEdge[] = [];
+  for (const n of nodes) {
+    edges.push({ from: fileNodeId(n.file_id), to: n.id, weight: 1 });
+  }
+  for (const e of callEdges) {
+    if (e.dst_node_id == null) continue;
+    const w = edgeWeightMul(e.dst_name, e.src_path, ctx);
+    edges.push({ from: e.src_node_id, to: e.dst_node_id, weight: w });
+  }
+
+  const scores = personalizedPageRank(nodeIds, edges, []);
+  db.exec("DELETE FROM pagerank");
+  const ins = db.prepare("INSERT INTO pagerank(node_id, score) VALUES (?, ?)");
+  for (const n of nodes) {
+    ins.run(n.id, scores.get(n.id) ?? 0);
   }
 }
 

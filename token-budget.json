@@ -6,14 +6,14 @@
     "skillsAndCommands": 3000,
     "alwaysOnInstructions": 7500
   },
-  "total": 13000,
+  "total": 14000,
   "perTool": 600,
   "maxDescriptionWords": 25,
   "dispatcher": 500,
   "map": 300,
   "minimal": {
-    "tools": 1000,
-    "total": 12500
+    "tools": 1100,
+    "total": 13500
   },
-  "note": "Measured baseline (full, 8 canonical tools, no aliases): ~1.64k tools / ~12.9k always-on. Spec Kit commands alone ~18.6k."
+  "note": "Measured baseline after hybrid-retrieval compass_find schema (focus/maxTokens): ~1.73k tools / ~13.7k always-on."
 }

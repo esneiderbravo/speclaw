@@ -2,6 +2,7 @@ import type { Node } from "web-tree-sitter";
 import { LangConfig } from "./languages.js";
 import { parse } from "./parser.js";
 import { rawHash, structuralHash } from "./hash.js";
+import { tokenize } from "./embedder.js";
 
 /** A definition (function, class, method, type) found in a source file. */
 export interface ExtractedSymbol {
@@ -13,6 +14,10 @@ export interface ExtractedSymbol {
   endByte: number;
   parentIndex: number | null; // index into the symbols array
   signature: string | null;
+  /** Docstring / leading JSDoc immediately associated with the definition. */
+  docstring: string;
+  /** Space-separated name subtokens for FTS (e.g. "get user by id"). */
+  subtokens: string;
   /** sha256-128 of exact source bytes for the definition span. */
   bodyHash: string;
   /** sha256-128 of the structural normalizer walk (comment/format invariant). */
@@ -96,6 +101,92 @@ function calleeName(node: Node, lang: LangConfig): string | null {
 /** First line of the node's text, trimmed — a lightweight signature. */
 function signatureOf(node: Node): string {
   return node.text.split("\n")[0]!.trim().slice(0, 200);
+}
+
+/** Strip comment delimiters from a block/line comment. */
+function stripCommentText(raw: string): string {
+  return raw
+    .replace(/^\/\*\*?/, "")
+    .replace(/\*\/$/, "")
+    .replace(/^\/\//, "")
+    .replace(/^\s*\*/gm, "")
+    .trim()
+    .slice(0, 2000);
+}
+
+/**
+ * Docstring for a definition: prior block/JSDoc comment (TS/JS) or first string
+ * literal in the body (Python).
+ *
+ * @param node - Definition AST node.
+ * @param lang - Language config (`id` selects strategy).
+ */
+export function docstringOf(node: Node, lang: LangConfig): string {
+  if (lang.id === "python") {
+    const body = node.childForFieldName("body");
+    if (body) {
+      for (let i = 0; i < body.childCount; i++) {
+        const child = body.child(i);
+        if (!child) continue;
+        if (child.type === "expression_statement") {
+          const inner = child.child(0);
+          if (inner && (inner.type === "string" || inner.type === "concatenated_string")) {
+            return inner.text
+              .replace(/^['"]{1,3}|['"]{1,3}$/g, "")
+              .trim()
+              .slice(0, 2000);
+          }
+        }
+        if (COMMENT_TYPES.has(child.type)) continue;
+        break;
+      }
+    }
+    return "";
+  }
+
+  let prev = node.previousSibling;
+  while (prev) {
+    if (COMMENT_TYPES.has(prev.type)) {
+      const t = prev.text.trim();
+      if (t.startsWith("/**") || t.startsWith("/*") || t.startsWith("//")) {
+        return stripCommentText(t);
+      }
+      prev = prev.previousSibling;
+      continue;
+    }
+    if (prev.type === "decorator" || prev.type === "decorator_list") {
+      prev = prev.previousSibling;
+      continue;
+    }
+    break;
+  }
+
+  // JSDoc often sits before `export function` / `export class` (parent statement).
+  const parent = node.parent;
+  if (parent && (parent.type === "export_statement" || parent.type === "lexical_declaration")) {
+    let p = parent.previousSibling;
+    while (p) {
+      if (COMMENT_TYPES.has(p.type)) {
+        const t = p.text.trim();
+        if (t.startsWith("/**") || t.startsWith("/*") || t.startsWith("//")) {
+          return stripCommentText(t);
+        }
+        p = p.previousSibling;
+        continue;
+      }
+      break;
+    }
+  }
+  return "";
+}
+
+/**
+ * Space-separated lowercase subtokens of a symbol name for FTS.
+ *
+ * @param name - Identifier.
+ */
+export function nameSubtokens(name: string): string {
+  return tokenize(name).join(" ");
 }
 
 const BOOL_OPS = new Set(["&&", "||", "and", "or"]);
@@ -234,6 +325,8 @@ export async function extract(source: string, lang: LangConfig): Promise<Extract
           endByte: node.endIndex,
           parentIndex: ownerIndex,
           signature: signatureOf(node),
+          docstring: docstringOf(node, lang),
+          subtokens: nameSubtokens(name),
           bodyHash: rawHash(source, node.startIndex, node.endIndex),
           normHash: structuralHash(node),
           loc: health.loc,
