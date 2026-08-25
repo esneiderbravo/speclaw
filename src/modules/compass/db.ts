@@ -155,6 +155,43 @@ CREATE TABLE IF NOT EXISTS spec_anchors (
 CREATE INDEX IF NOT EXISTS idx_anchors_capability ON spec_anchors(capability);
 CREATE INDEX IF NOT EXISTS idx_anchors_symbol ON spec_anchors(symbol_name);
 CREATE INDEX IF NOT EXISTS idx_anchors_node ON spec_anchors(node_id);
+-- node_text: searchable name/subtokens/signature/doc (FTS content source).
+CREATE TABLE IF NOT EXISTS node_text (
+  node_id INTEGER PRIMARY KEY REFERENCES nodes(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  subtokens TEXT NOT NULL DEFAULT '',
+  signature TEXT NOT NULL DEFAULT '',
+  doc TEXT NOT NULL DEFAULT ''
+);
+-- pagerank: global (non-personalized) scores recomputed at index time.
+CREATE TABLE IF NOT EXISTS pagerank (
+  node_id INTEGER PRIMARY KEY REFERENCES nodes(id) ON DELETE CASCADE,
+  score REAL NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_pagerank_score ON pagerank(score DESC);
+`;
+
+const FTS_DDL = `
+CREATE VIRTUAL TABLE IF NOT EXISTS nodes_fts USING fts5(
+  name, subtokens, signature, doc,
+  content='node_text', content_rowid='node_id',
+  tokenize="unicode61 remove_diacritics 0 tokenchars '_$'",
+  prefix='2 3'
+);
+CREATE TRIGGER IF NOT EXISTS node_text_ai AFTER INSERT ON node_text BEGIN
+  INSERT INTO nodes_fts(rowid, name, subtokens, signature, doc)
+  VALUES (new.node_id, new.name, new.subtokens, new.signature, new.doc);
+END;
+CREATE TRIGGER IF NOT EXISTS node_text_ad AFTER DELETE ON node_text BEGIN
+  INSERT INTO nodes_fts(nodes_fts, rowid, name, subtokens, signature, doc)
+  VALUES ('delete', old.node_id, old.name, old.subtokens, old.signature, old.doc);
+END;
+CREATE TRIGGER IF NOT EXISTS node_text_au AFTER UPDATE ON node_text BEGIN
+  INSERT INTO nodes_fts(nodes_fts, rowid, name, subtokens, signature, doc)
+  VALUES ('delete', old.node_id, old.name, old.subtokens, old.signature, old.doc);
+  INSERT INTO nodes_fts(rowid, name, subtokens, signature, doc)
+  VALUES (new.node_id, new.name, new.subtokens, new.signature, new.doc);
+END;
 `;
 
 /** Ensure node_embeddings is a VIEW over embedding_cache (idempotent). */
@@ -174,8 +211,57 @@ function ensureEmbeddingsView(db: DatabaseSync): void {
   `);
 }
 
+/**
+ * Try to create the FTS5 virtual table + sync triggers. Soft-degrades when the
+ * Node SQLite build lacks FTS5 (pre-22.16).
+ *
+ * @returns Whether FTS5 is usable after this call.
+ */
+export function ensureFts(db: DatabaseSync): boolean {
+  const existing = db.prepare("SELECT 1 FROM sqlite_master WHERE name = 'nodes_fts' LIMIT 1").get();
+  if (existing) {
+    db.prepare(
+      "INSERT INTO meta(key, value) VALUES ('fts5', '1') ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+    ).run();
+    return true;
+  }
+  try {
+    db.exec(FTS_DDL);
+    db.prepare(
+      "INSERT INTO meta(key, value) VALUES ('fts5', '1') ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+    ).run();
+    return true;
+  } catch {
+    db.prepare(
+      "INSERT INTO meta(key, value) VALUES ('fts5', '0') ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+    ).run();
+    return false;
+  }
+}
+
+/** Whether the open database has a usable FTS5 index. */
+export function ftsAvailable(db: DatabaseSync): boolean {
+  const row = db.prepare("SELECT value FROM meta WHERE key = 'fts5'").get() as
+    { value: string } | undefined;
+  if (row?.value === "0") return false;
+  const tbl = db.prepare("SELECT 1 FROM sqlite_master WHERE name = 'nodes_fts' LIMIT 1").get();
+  return Boolean(tbl);
+}
+
+/** Probe whether this Node build can create an FTS5 virtual table. */
+export function probeFts5Support(): boolean {
+  try {
+    const mem = new DatabaseSync(":memory:");
+    mem.exec("CREATE VIRTUAL TABLE t USING fts5(x)");
+    mem.close();
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 /** Schema version stamped into the `meta` table on first creation. */
-export const SCHEMA_VERSION = "9";
+export const SCHEMA_VERSION = "10";
 
 /** The stamped schema version, or null if the db predates versioning / has no meta table. */
 function readSchemaVersion(db: DatabaseSync): string | null {
@@ -190,7 +276,7 @@ function readSchemaVersion(db: DatabaseSync): string | null {
 
 /**
  * Decide whether an existing database is from an incompatible schema and must be
- * rebuilt. Schema 8→9 is handled by {@link migrate8to9} instead of a wipe.
+ * rebuilt. Schema 8→9 and 9→10 are handled by migrators instead of a wipe.
  */
 function isStale(db: DatabaseSync): boolean {
   const hasEdges = db
@@ -198,7 +284,7 @@ function isStale(db: DatabaseSync): boolean {
     .get();
   if (!hasEdges) return false;
   const ver = readSchemaVersion(db);
-  if (ver === "8") return false; // migrate in openDb
+  if (ver === "8" || ver === "9") return false; // migrate in openDb
   if (ver !== SCHEMA_VERSION) return true;
   const edgeCols = (db.prepare("PRAGMA table_info(edges)").all() as { name: string }[]).map(
     (c) => c.name,
@@ -218,12 +304,17 @@ function isStale(db: DatabaseSync): boolean {
 function resetSchema(db: DatabaseSync): void {
   db.exec(`
     DROP VIEW IF EXISTS node_embeddings;
+    DROP TRIGGER IF EXISTS node_text_ai;
+    DROP TRIGGER IF EXISTS node_text_ad;
+    DROP TRIGGER IF EXISTS node_text_au;
+    DROP TABLE IF EXISTS nodes_fts;
+    DROP TABLE IF EXISTS pagerank;
+    DROP TABLE IF EXISTS node_text;
     DROP TABLE IF EXISTS spec_anchors;
     DROP TABLE IF EXISTS coverage_links;
     DROP TABLE IF EXISTS git_history_cache;
     DROP TABLE IF EXISTS embedding_cache;
     DROP TABLE IF EXISTS dir_hashes;
-    DROP TABLE IF EXISTS node_embeddings;
     DROP TABLE IF EXISTS edges;
     DROP TABLE IF EXISTS node_metrics;
     DROP TABLE IF EXISTS nodes;
@@ -322,7 +413,7 @@ export function migrate8to9(db: DatabaseSync, projectPath: string): void {
 
     db.prepare(
       "INSERT INTO meta(key, value) VALUES ('schema_version', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
-    ).run(SCHEMA_VERSION);
+    ).run("9");
     db.exec("COMMIT");
   } catch (err) {
     try {
@@ -338,10 +429,57 @@ export function migrate8to9(db: DatabaseSync, projectPath: string): void {
 }
 
 /**
+ * Migrate schema 9 → 10: `node_text`, optional FTS5, `pagerank`. Embedding cache
+ * is left intact; a reindex is required to populate text rows.
+ *
+ * @param db - Open connection already at schema 9.
+ */
+export function migrate9to10(db: DatabaseSync): void {
+  db.exec("BEGIN IMMEDIATE");
+  try {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS node_text (
+        node_id INTEGER PRIMARY KEY REFERENCES nodes(id) ON DELETE CASCADE,
+        name TEXT NOT NULL,
+        subtokens TEXT NOT NULL DEFAULT '',
+        signature TEXT NOT NULL DEFAULT '',
+        doc TEXT NOT NULL DEFAULT ''
+      );
+      CREATE TABLE IF NOT EXISTS pagerank (
+        node_id INTEGER PRIMARY KEY REFERENCES nodes(id) ON DELETE CASCADE,
+        score REAL NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS idx_pagerank_score ON pagerank(score DESC);
+    `);
+    ensureFts(db);
+    db.prepare(
+      "INSERT INTO meta(key, value) VALUES ('schema_version', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+    ).run("10");
+    db.prepare(
+      "INSERT INTO meta(key, value) VALUES ('needs_reindex', '1') ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+    ).run();
+    db.prepare(
+      "INSERT INTO meta(key, value) VALUES ('reindex_reason', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+    ).run("schema 10 adds full-text index (names, subtokens, signatures, docs); reindex required");
+    db.exec("COMMIT");
+  } catch (err) {
+    try {
+      db.exec("ROLLBACK");
+    } catch {
+      /* already rolled back */
+    }
+    throw new Error(
+      `schema 9→10 migration failed — delete .speclaw/index.db to rebuild: ${(err as Error).message}`,
+      { cause: err },
+    );
+  }
+}
+
+/**
  * Open (creating if needed) the index database at `<projectPath>/.speclaw/index.db`.
  *
  * Ensures the `.speclaw` directory exists, enables WAL journaling and foreign
- * keys, and applies the schema. Schema 8 databases are migrated in place to 9
+ * keys, and applies the schema. Schema 8→9 and 9→10 migrate in place
  * (embeddings preserved). Other incompatible schemas are wiped and rebuilt.
  *
  * @param projectPath - Absolute path to the project root.
@@ -363,13 +501,21 @@ export function openDb(projectPath: string): DatabaseSync {
 
   if (ver === "8") {
     migrate8to9(db, projectPath);
+    migrate9to10(db);
     db.exec(SCHEMA);
     ensureEmbeddingsView(db);
+    ensureFts(db);
+  } else if (ver === "9") {
+    migrate9to10(db);
+    db.exec(SCHEMA);
+    ensureEmbeddingsView(db);
+    ensureFts(db);
   } else {
     const wiped = isStale(db);
     if (wiped) resetSchema(db);
     db.exec(SCHEMA);
     ensureEmbeddingsView(db);
+    ensureFts(db);
     const row = db.prepare("SELECT value FROM meta WHERE key = 'schema_version'").get() as
       { value: string } | undefined;
     if (!row) {

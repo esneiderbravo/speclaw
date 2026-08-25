@@ -17,6 +17,8 @@ const FROZEN_IDS = [
   "env.node",
   "env.platform",
   "env.git",
+  "env.fts5",
+  "env.embedder",
   "env.ast-engine",
   "cfg.manifest",
   "cfg.ownership",

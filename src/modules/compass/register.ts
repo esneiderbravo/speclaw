@@ -61,15 +61,23 @@ export function registerCompass(server: McpServer, opts: RegisterOpts = {}): voi
 
   add(
     "compass_find",
-    "Find symbols by exact name or by concept. Use exact for identifiers, concept for meaning.",
+    "Hybrid search over the index: BM25, vectors, and name match. mode sets weights; pass focus for edited files.",
     {
       projectPath: z.string(),
       query: z.string(),
       mode: z.enum(["exact", "concept"]),
       limit: z.number().optional(),
+      focus: z.array(z.string()).optional(),
+      maxTokens: z.number().int().min(256).max(32_000).optional(),
     },
-    async ({ projectPath, query, mode, limit }) =>
-      text(await findSymbols(projectPath, query, mode, limit)),
+    async ({ projectPath, query, mode, limit, focus, maxTokens }) =>
+      text(
+        JSON.stringify(
+          await findSymbols(projectPath, query, mode, limit, { focus, maxTokens }),
+          null,
+          2,
+        ),
+      ),
   );
 
   add(

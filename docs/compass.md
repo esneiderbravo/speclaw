@@ -29,9 +29,9 @@ a request, not whole files.
 
 | Tool | Use it to |
 |------|-----------|
-| `compass_index` | Build/refresh the graph (`.speclaw/index.db`); optional watch actions (`start`/`stop`/`status`). Schema **9** adds `embedding_cache` + Merkle `dir_hashes` (mtime prefilter; 8→9 migrates vectors). Also: `node_metrics`, test/module flags, drift hashes, coverage links. |
+| `compass_index` | Build/refresh the graph (`.speclaw/index.db`); optional watch actions (`start`/`stop`/`status`). Schema **10** adds FTS5 `nodes_fts` + `node_text` + `pagerank` (9→10 migrates; reindex populates text, embedding cache reused). Also: `embedding_cache`, Merkle, `node_metrics`, test/module flags. |
 | `compass_explore` | Read a node's source plus callers, callees, blast radius, affected tests, and hotspot — in one call. Use `to:` for trace-style paths. |
-| `compass_find` | Find symbols: `mode: exact` for name/keyword search, `mode: concept` for semantic recall. |
+| `compass_find` | **Hybrid** search always: BM25 + vectors + name match → RRF → task-relative rank. `mode: exact|concept` only adjusts fusion weights. Optional `focus` / `maxTokens`. |
 | `compass_diff_context` | Graph context for a change set (working tree, git rev, or explicit paths): symbols touched, blast radius, tests, hotspots. |
 | `lawbook_change` | Lawbook lifecycle: init, list, validate, sync, archive, level, coverage, drift. |
 | `lawbook_investigate` | Graph-backed bug RCA (stack trace or symptom). |
@@ -40,9 +40,9 @@ a request, not whole files.
 
 Retired names (`compass_search`, `compass_recall`, `compass_impact`, …) remain
 as deprecated aliases for one release cycle. Prefer the canonical tools above.
-CLI-only: `speclaw index`, `explore`, `search`, `recall`, `impact`, `trace`,
+CLI-only: `speclaw index`, `explore`, `search`/`recall` (hybrid; `--focus` `--max-tokens` `--explain`), `impact`, `trace`,
 `affected-tests`, `hotspots`, `coupling`, `diff-context`, `visualize`, `scaffold`,
-`doctor`, `laws verify`.
+`doctor`, `laws verify`. Requires **Node ≥22.16** for FTS5 (soft-degrades without it).
 
 If the graph is missing (no `.speclaw/index.db`), run `compass_index` first —
 a missing graph is not license to skip Compass. The only legitimate fallbacks
@@ -50,9 +50,9 @@ to Grep/Read: a Compass call returned nothing useful for your query, or the
 target isn't indexed code (stylesheets, JSON/config, markdown, logs).
 
 <!-- speclaw:map:start -->
-speclaw · 188 files · 673 nodes
-src/ (101)  test/ (82)  scripts/ (4)  eslint.config.js/ (1)
-hubs: tmpRepo 240 · write 170 · has 102 · parse 63 · run 55 · commit 52 · read 38 · runCli 33 · gitInit 33 · buildIndex 30 · specInit 29 · emptyReport 29
+speclaw · 197 files · 710 nodes
+src/ (105)  test/ (87)  scripts/ (4)  eslint.config.js/ (1)
+hubs: tmpRepo 247 · write 174 · has 114 · buildIndex 76 · openDb 74 · parse 63 · run 63 · commit 52 · read 38 · runCli 33 · gitInit 33 · text 31
 entry: src/server.ts (mcp) · src/cli/index.ts (bin)
 <!-- speclaw:map:end -->
 
