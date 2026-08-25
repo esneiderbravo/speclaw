@@ -7,6 +7,7 @@ import {
   LawManifest,
   compileScope,
   hasBackend,
+  isActiveLaw,
   manifestPath,
   matchCompiled,
   readLawManifest,
@@ -83,7 +84,9 @@ function loadLaws(projectPath: string): IndexedLaw[] | null {
   if (hit && hit.mtimeMs === mtimeMs) return hit.laws;
   const manifest: LawManifest | null = readLawManifest(projectPath);
   if (!manifest) return null;
-  const laws = manifest.laws.map((law) => ({ law, scope: compileScope(law.scope) }));
+  const laws = manifest.laws
+    .filter(isActiveLaw)
+    .map((law) => ({ law, scope: compileScope(law.scope) }));
   cache.set(projectPath, { mtimeMs, laws });
   return laws;
 }

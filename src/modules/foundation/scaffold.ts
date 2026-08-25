@@ -16,6 +16,7 @@ import {
   writeLawManifest,
 } from "./laws.js";
 import { HookInstallResult, installHooks } from "./hooks.js";
+import { compileLaws } from "./compile-laws.js";
 
 const ASSETS = assetsDir(import.meta.url);
 
@@ -211,6 +212,11 @@ export function scaffold(
   // configured. The seam is the manifest: check-dispatcher enforces `path` laws;
   // executable-laws will extend the same manifest with more backends.
   const lawManifest = ensureLawManifest(projectPath, report);
+  try {
+    compileLaws({ projectPath, agents, writeManifest: false });
+  } catch {
+    // Compilation must not fail scaffold; `speclaw laws compile` surfaces errors.
+  }
   ensureVerifyWorkflow(projectPath, report);
   report.hooks = installHooks(projectPath, agents, lawManifest, report, {
     baselines: managedOpts.baselines,

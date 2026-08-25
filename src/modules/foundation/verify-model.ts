@@ -26,7 +26,7 @@ export interface Finding {
 /** A law that could not be evaluated, always with a machine-readable reason. */
 export interface SkippedLaw {
   lawId: string;
-  reason: "no-index" | "engine-error";
+  reason: "no-index" | "engine-error" | "draft";
   detail?: string;
 }
 

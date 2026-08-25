@@ -51,6 +51,8 @@ Other
   telemetry status         Confirm speclaw ships no telemetry
   check                    Evaluate an action against the laws (hooks call this; --dry-run to preview)
   laws verify              Verify the deterministic dependency/graph laws against the index
+  laws compile             Compile laws into agent rule dialects (AGENTS / Claude / Cursor / …)
+  laws import              Import third-party rules as draft laws (--from rulesync)
   verify                   Verify laws for CI: exit codes, --sarif, --json, --strict-engines
   mcp                      Start the MCP server (used by your agent's config)
   help                     Show this help
