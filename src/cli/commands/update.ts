@@ -180,6 +180,16 @@ const MIGRATIONS: Migration[] = [
       "and `law_verify` are CLI-only. Minimal profile omits setup/check/investigate/index.\n" +
       "- Preserve all project-specific wording; only apply these speclaw-authored changes.",
   },
+  {
+    version: "0.4.1",
+    describe: "Rule integrity — speclaw.lock digests + injection scan",
+    agentPrompt:
+      "- Mention committed `speclaw.lock` at the repo root (never under `.speclaw/`), " +
+      "`speclaw laws lock` / `accept` / `scan`, and that digest acceptance is interactive TTY only " +
+      "(never via MCP). `speclaw verify` folds integrity findings with deps/graph. " +
+      "Strict paths include AGENTS.md / CLAUDE.md / compiled rules; standards docs are advisory.\n" +
+      "- Preserve all project-specific wording; only apply these speclaw-authored changes.",
+  },
 ];
 
 /**

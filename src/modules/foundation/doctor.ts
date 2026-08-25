@@ -15,6 +15,7 @@ import { estimateAlwaysOnTokens } from "./compile-laws.js";
 import { redactValue } from "../../shared/redact.js";
 import { readDeprecatedCallCounts, scanRetiredToolReferences } from "../../shared/deprecation.js";
 import { CANONICAL_TOOLS, ALIAS_TARGETS, isCanonicalTool } from "../../shared/tool-catalog.js";
+import { discoverIntegrityPaths, lockfilePath, readLockfile, rootDigest } from "./lock.js";
 
 /** Pass / warn / fail / not-applicable for a single diagnostic check. */
 export type CheckStatus = "ok" | "warn" | "error" | "skip";
@@ -628,6 +629,157 @@ function specsOrphansCheck(projectPath: string): DoctorCheck {
   };
 }
 
+function integrityChecks(projectPath: string): DoctorCheck[] {
+  // Covers: req~doctor-integrity~1
+  const out: DoctorCheck[] = [];
+  const abs = lockfilePath(projectPath);
+  if (!fs.existsSync(abs)) {
+    out.push({
+      id: "cfg.integrity.lock",
+      title: "rule lockfile",
+      status: "warn",
+      detail: "no speclaw.lock — rule digests are not pinned",
+      remedy: "speclaw laws lock",
+    });
+  } else {
+    try {
+      const lock = readLockfile(projectPath)!;
+      const matches = rootDigest(lock.files) === lock.root;
+      out.push({
+        id: "cfg.integrity.lock",
+        title: "rule lockfile",
+        status: matches ? "ok" : "warn",
+        value: matches,
+        detail: matches
+          ? `speclaw.lock root matches (${Object.keys(lock.files).length} files)`
+          : "speclaw.lock root does not match recomputed digests",
+        remedy: matches ? undefined : "speclaw laws lock",
+      });
+    } catch (err) {
+      out.push({
+        id: "cfg.integrity.lock",
+        title: "rule lockfile",
+        status: "error",
+        detail: (err as Error).message,
+        remedy: "speclaw laws lock",
+      });
+    }
+  }
+
+  const imports = findExternalImports(projectPath, 4);
+  out.push({
+    id: "cfg.integrity.imports",
+    title: "external rule imports",
+    status: imports.length ? "warn" : "ok",
+    value: imports.length ? imports.slice(0, 8).join("; ") : null,
+    detail: imports.length
+      ? `${imports.length} external @import hop(s) (≤4): ${imports.slice(0, 5).join("; ")}`
+      : "no external @import / @~/ paths detected in rule files",
+    remedy: imports.length
+      ? "review imports that resolve outside the working directory"
+      : undefined,
+  });
+
+  const { files } = discoverIntegrityPaths(projectPath);
+  const outside = files.filter((f) => {
+    const n = f.split("\\").join("/");
+    return (
+      n === ".clinerules" ||
+      n === ".windsurfrules" ||
+      n === "BUGBOT.md" ||
+      n === ".cursorrules" ||
+      n.startsWith("ai-specs/skills/") ||
+      n.startsWith(".claude/skills/")
+    );
+  });
+  out.push({
+    id: "cfg.integrity.outside-pipeline",
+    title: "outside-pipeline rules",
+    status: "ok",
+    value: outside.length,
+    detail:
+      outside.length > 0
+        ? `${outside.length} scan-only / outside-pipeline path(s): ${outside.slice(0, 6).join(", ")}`
+        : "no outside-pipeline rule files discovered",
+  });
+
+  return out;
+}
+
+/**
+ * Follow `@~/…`, absolute `@/…`, and `@import "…"` targets outside the project,
+ * transitively up to `maxHops`.
+ */
+/* node:coverage disable */
+function findExternalImports(projectPath: string, maxHops: number): string[] {
+  const roots = [
+    "CLAUDE.md",
+    "AGENTS.md",
+    "LAWS.md",
+    ".cursorrules",
+    ".clinerules",
+    ".windsurfrules",
+  ];
+  const seen = new Set<string>();
+  const out: string[] = [];
+  const queue: Array<{ file: string; hop: number }> = [];
+
+  for (const r of roots) {
+    const abs = path.join(projectPath, r);
+    if (fs.existsSync(abs)) queue.push({ file: abs, hop: 0 });
+  }
+
+  while (queue.length) {
+    const { file, hop } = queue.shift()!;
+    if (hop > maxHops || seen.has(file)) continue;
+    seen.add(file);
+    let text: string;
+    try {
+      text = fs.readFileSync(file, "utf8");
+    } catch {
+      continue;
+    }
+    for (const line of text.split(/\r?\n/)) {
+      const m =
+        /@([~/][^\s)\]>"']+)/.exec(line) ??
+        /@import\s+["']([^"']+)["']/.exec(line) ??
+        /@([A-Za-z]:[^\s)\]>"']+)/.exec(line);
+      if (!m) continue;
+      const target = m[1]!;
+      const resolved = resolveImportTarget(file, target);
+      if (!resolved) continue;
+      const projectRoot = path.resolve(projectPath);
+      const outside =
+        target.startsWith("~/") ||
+        path.isAbsolute(target) ||
+        !resolved.startsWith(projectRoot + path.sep);
+      if (outside) {
+        const label = `${path.relative(projectPath, file) || path.basename(file)} → ${target}`;
+        out.push(label);
+        if (hop < maxHops && fs.existsSync(resolved) && fs.statSync(resolved).isFile()) {
+          queue.push({ file: resolved, hop: hop + 1 });
+        }
+      }
+    }
+  }
+  return out;
+}
+
+function resolveImportTarget(fromFile: string, target: string): string | null {
+  if (target.startsWith("~/")) {
+    const home = process.env.HOME || process.env.USERPROFILE || "";
+    if (!home) return null;
+    return path.resolve(home, target.slice(2));
+  }
+  if (target.startsWith("/") || /^[A-Za-z]:/.test(target)) return path.resolve(target);
+  if (target.startsWith("./") || target.startsWith("../")) {
+    return path.resolve(path.dirname(fromFile), target);
+  }
+  if (!target.includes("://")) return path.resolve(path.dirname(fromFile), target);
+  return null;
+}
+/* node:coverage enable */
+
 /** Ceremony config validity + archived level histogram. */
 function ceremonyChecks(projectPath: string): DoctorCheck[] {
   const out: DoctorCheck[] = [];
@@ -729,13 +881,16 @@ function configurationChecks(projectPath: string, initialised: boolean): DoctorC
       "cfg.index.freshness",
       "cfg.specs.orphans",
     ] as const;
-    return ids.map((id) => ({
-      id,
-      title: id.replace(/^cfg\./, ""),
-      status: "skip" as const,
-      detail: "project not initialised",
-      remedy: "speclaw init",
-    }));
+    return [
+      ...ids.map((id) => ({
+        id,
+        title: id.replace(/^cfg\./, ""),
+        status: "skip" as const,
+        detail: "project not initialised",
+        remedy: "speclaw init",
+      })),
+      ...integrityChecks(projectPath),
+    ];
   }
 
   const checks: DoctorCheck[] = [];
@@ -767,6 +922,7 @@ function configurationChecks(projectPath: string, initialised: boolean): DoctorC
   });
 
   checks.push(lawsCheck(projectPath));
+  checks.push(...integrityChecks(projectPath));
   // budget + mcp + freshness + specs filled async by caller
   return checks;
 }

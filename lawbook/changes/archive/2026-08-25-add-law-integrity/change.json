@@ -1,0 +1,13 @@
+{
+  "changeType": "feature",
+  "actor": "agent",
+  "confirmedLevel": 3,
+  "confirmedBy": "human",
+  "confirmedAt": "2026-08-25T18:52:36.438Z",
+  "proposal": {
+    "level": 0,
+    "score": 1,
+    "rationale": "Graph under-scored (score 1 → level 0) relative to full lockfile+scan+accept+CI+skills; human override to level 3."
+  },
+  "overrideReason": "Human confirmed full lockfile+scan+accept+CI+skills scan, no new MCP tool, AGENTS/CLAUDE strict, ceremony level 3 (explore 2026-08-25)."
+}

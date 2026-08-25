@@ -13,6 +13,7 @@ import {
   type DoctorReport,
 } from "../../src/modules/foundation/doctor.js";
 
+// Covers: req~doctor-integrity~1
 const FROZEN_IDS = [
   "env.node",
   "env.platform",
@@ -29,6 +30,9 @@ const FROZEN_IDS = [
   "cfg.tool-surface",
   "cfg.index.freshness",
   "cfg.specs.orphans",
+  "cfg.integrity.lock",
+  "cfg.integrity.imports",
+  "cfg.integrity.outside-pipeline",
   "auth.none",
   "conn.registry",
   "conn.egress",
@@ -73,7 +77,11 @@ test("uninitialised project still reports environment; configuration is skip", a
   const env = report.sections.find((s) => s.id === "environment")!;
   assert.ok(env.checks.some((c) => c.id === "env.node"));
   const cfg = report.sections.find((s) => s.id === "configuration")!;
-  assert.ok(cfg.checks.every((c) => c.status === "skip"));
+  // Integrity checks still run without init (lock may exist independently).
+  assert.ok(
+    cfg.checks.filter((c) => !c.id.startsWith("cfg.integrity.")).every((c) => c.status === "skip"),
+  );
+  assert.ok(cfg.checks.some((c) => c.id === "cfg.integrity.lock"));
 });
 
 test("auth.none is ok and local-only", async (t) => {

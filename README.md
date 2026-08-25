@@ -268,19 +268,34 @@ context. Agents without hooks (Cursor, Codex) enforce the same laws in CI via
 ## <img src="https://raw.githubusercontent.com/esneiderbravo/speclaw/main/brand/diamond.png" height="20" alt="◆" align="absmiddle">&nbsp; Verify in CI
 
 `speclaw verify` evaluates your `deps` and `graph` laws against the local Compass
-index. It is deterministic: **no model, no API key, no network.**
+index, and — when `speclaw.lock` is present — compares digests of managed rule
+files and scans them (plus skill packs) for known injection patterns. It is
+deterministic: **no model, no API key, no network.**
 
 ```bash
 speclaw verify --ci --sarif speclaw.sarif --json speclaw.json
 ```
 
+Create or refresh the committed lockfile (repo root, never under `.speclaw/`):
+
+```bash
+speclaw laws lock
+speclaw laws scan
+speclaw laws accept AGENTS.md   # interactive TTY only — never via MCP
+```
+
 | Exit | Meaning |
 | :-- | :-- |
 | **0** | No findings at or above `--fail-on` (default `error`) |
-| **1** | At least one finding at or above `--fail-on` |
+| **1** | At least one finding at or above `--fail-on` (including strict integrity / scan errors) |
 | **2** | Usage error (unknown `--fail-on` / `--format`) |
 | **3** | Environment (shallow clone under `--ci`, or an unwritable `--sarif`/`--json` path) |
 | **4** | At least one law was skipped, and `--strict-engines` was set |
+
+**Limits (honest):** digests catch any edit; the scanner catches known payload
+shapes after Unicode normalization — not LLM-grade semantic injection. Digest
+acceptance is a human gate (`laws accept` on a TTY). There is no Sigstore signing
+of the lock in this release.
 
 On GitHub:
 

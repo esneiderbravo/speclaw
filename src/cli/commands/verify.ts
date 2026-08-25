@@ -8,6 +8,7 @@ import { toMarkdown } from "../../modules/foundation/report-md.js";
 import { toSarif } from "../../modules/foundation/sarif.js";
 import { loadManifestForVerify } from "../../modules/foundation/laws.js";
 import { BatchEngine, verifyLaws, type VerifyReport } from "../../modules/foundation/verify.js";
+import { foldIntegrityIntoReport, verifyIntegrity } from "../../modules/foundation/integrity.js";
 import { driftFindingsForVerify } from "../../modules/lawbook/drift.js";
 
 const FORMATS = new Set(["text", "json", "sarif", "markdown"]);
@@ -50,6 +51,14 @@ export async function runVerify(flags: Flags): Promise<void> {
     engines: engines.length ? engines : undefined,
     lawIds: list(flags.law).length ? list(flags.law) : undefined,
   });
+
+  // Rule-file integrity (speclaw.lock digests + injection scan). Soft when no lock.
+  // Covers: req~integrity-verify~1
+  const integrity = verifyIntegrity({ projectPath: cwd });
+  foldIntegrityIntoReport(report, integrity);
+  if (integrity.guidance && format === "text" && flags.json !== true) {
+    ui.info(integrity.guidance);
+  }
 
   // Structural spec↔code drift (when anchors exist) contributes semantic/deleted
   // findings into the same report stream used by SARIF / exit codes.
