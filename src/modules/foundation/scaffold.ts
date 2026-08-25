@@ -17,6 +17,7 @@ import {
 } from "./laws.js";
 import { HookInstallResult, installHooks } from "./hooks.js";
 import { compileLaws } from "./compile-laws.js";
+import { refreshLockfile } from "./lock.js";
 
 const ASSETS = assetsDir(import.meta.url);
 
@@ -216,6 +217,12 @@ export function scaffold(
     compileLaws({ projectPath, agents, writeManifest: false });
   } catch {
     // Compilation must not fail scaffold; `speclaw laws compile` surfaces errors.
+  }
+  // Covers: req~lock-refresh-update~1
+  try {
+    refreshLockfile(projectPath);
+  } catch {
+    // Lock refresh must not fail scaffold; `speclaw laws lock` surfaces errors.
   }
   ensureVerifyWorkflow(projectPath, report);
   report.hooks = installHooks(projectPath, agents, lawManifest, report, {

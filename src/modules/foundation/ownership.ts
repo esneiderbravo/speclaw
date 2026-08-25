@@ -1,6 +1,10 @@
 // Which scaffolded files speclaw owns vs the user owns. `speclaw update` uses
 // this split to decide what it may overwrite automatically (managed) and what it
 // must leave to the user's agent via a prompt (personalized).
+//
+// Integrity severity (`strict` / `advisory` / `scan-only` in lock.ts) is a
+// separate axis: CLAUDE.md / AGENTS.md stay PERSONALIZED for update, but are
+// `strict` for `verifyIntegrity` digest mismatches.
 
 /**
  * Project-relative trees that hold speclaw's workflow machinery. The user is not

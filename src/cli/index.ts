@@ -53,7 +53,10 @@ Other
   laws verify              Verify the deterministic dependency/graph laws against the index
   laws compile             Compile laws into agent rule dialects (AGENTS / Claude / Cursor / …)
   laws import              Import third-party rules as draft laws (--from rulesync)
-  verify                   Verify laws for CI: exit codes, --sarif, --json, --strict-engines
+  laws lock                Create/refresh committed speclaw.lock digests for rule files
+  laws accept <path>       Interactively accept a changed rule-file digest (TTY only)
+  laws scan                Scan rule/skill files for prompt-injection patterns
+  verify                   Verify laws + integrity for CI: exit codes, --sarif, --json, --strict-engines
   mcp                      Start the MCP server (used by your agent's config)
   help                     Show this help
   --version                Print the installed speclaw version
