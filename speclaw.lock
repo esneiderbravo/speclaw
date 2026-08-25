@@ -1,19 +1,19 @@
 {
   "lockfileVersion": 1,
-  "generator": "@esneiderbravo/speclaw@0.4.2",
+  "generator": "@esneiderbravo/speclaw@1.0.0",
   "algorithm": "sha256",
-  "root": "sha256:101ca7698e789a559f657876fda4674ce3575aa6c70546da74d30e9dba8999b6",
+  "root": "sha256:530515e4e4e4ca96b47fb1ba29516d93256267430987105641fa712bfde42b34",
   "files": {
     "AGENTS.md": {
-      "digest": "sha256:dc3a58a9fe9b2939969892ae5b51636606db33d884d77ef0fc7eb2cca6e13a84",
+      "digest": "sha256:63dc1f3876b1af5e0ae1523f8bd62f8bd12d381139162a1e45d61181ba8da357",
       "ownership": "strict"
     },
     "CLAUDE.md": {
-      "digest": "sha256:c47c648c6225d66ab2ebfaa7d9727a5c57cde67e1d24eae4f7f9d55d84a7f357",
+      "digest": "sha256:89622ce82395a8539c5538293f48329c1879b3b85e55d0c3320b3d221ff53b36",
       "ownership": "strict"
     },
     "LAWS.md": {
-      "digest": "sha256:324ff0488430b283b3dcf9c418f8c665c79cb2e83d531e8d08661ea36878d331",
+      "digest": "sha256:d02c39f11aae1e591951eeb30cb0caeb1c885739bd9753026f719a9f16836fb0",
       "ownership": "advisory"
     },
     "docs/compass.md": {
@@ -33,7 +33,7 @@
       "ownership": "advisory"
     },
     "docs/standards/conventions.md": {
-      "digest": "sha256:49c5e402de31eab85923652d73e2358f998cf51cff1c771c803b645edb88c6a2",
+      "digest": "sha256:bf59e90a6f0ed7f723cba5c4b6b940aef023a19a7c19a0c142cfdcd4731670e1",
       "ownership": "advisory"
     },
     "docs/standards/documentation.md": {
@@ -45,14 +45,18 @@
       "ownership": "advisory"
     },
     "docs/standards/lawbook.md": {
-      "digest": "sha256:d604701ce87a31b6c44e8e62db06944259de43f86d2354d18112b1c91516958f",
+      "digest": "sha256:fc4979cf7be23b1a25b782768d08e8efed824a6b3b5b1b8eab47927c75f0e260",
       "ownership": "advisory"
     },
     "docs/standards/testing-standards.md": {
-      "digest": "sha256:9b1d1a7a9af035a991c17970500d1df839ba6050e7e57bf6711357e74edace95",
+      "digest": "sha256:ea67972e0e051c7363066ed3a0f3b9584c54acad4c3e1b1a19067a01d42f75e9",
       "ownership": "advisory"
     }
   },
-  "symlinks": {},
+  "symlinks": {
+    ".claude/rules/speclaw": {
+      "target": "../../ai-specs/rules"
+    }
+  },
   "accepted": []
 }

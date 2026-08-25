@@ -70,4 +70,9 @@ These bind in addition to the standards above — they encode speclaw's identity
    proposal/design with `bugfix.md` (repro + regression + prevention) and
    graph-backed `lawbook_investigate` / the investigate skill. Feature ceremony
    is unchanged. Security-withheld mode is not in this release.
+7. **Rule-file integrity is committed.** `speclaw.lock` lives at the repository
+   root (never under `.speclaw/`). `speclaw laws lock` / `scan` / `accept`;
+   digest acceptance is interactive TTY only — never via MCP. `speclaw verify`
+   folds integrity findings with deps/graph. Strict paths are `AGENTS.md`,
+   `CLAUDE.md`, and compiled rules; `docs/standards/` is advisory.
 

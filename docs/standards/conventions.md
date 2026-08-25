@@ -46,4 +46,11 @@ history); if there is none, leave tracker linkage to the team.
   git history and the release commit carry the narrative.
 - `speclaw update` brings a scaffolded project up to date **additively** (new
   standards/skills/steps only), never overwriting existing files.
+- **1.0** is the official release. Install remains
+  `npx @esneiderbravo/speclaw@latest init`. CI consumers use
+  `esneiderbravo/speclaw@v1`.
+- Spec ownership: optional `team.owners` in `lawbook/config.yaml`;
+  `speclaw owners --write` compiles a managed block at the **end** of
+  `.github/CODEOWNERS` (last match wins). Do not put content after the speclaw
+  end marker — `speclaw doctor` treats that as an error. CLI only; no MCP tool.
 

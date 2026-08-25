@@ -103,6 +103,15 @@ change reaches the archive only when it is genuinely complete.
   `speclaw index`, then `speclaw drift --reseal` once to photograph current
   bodies.
 
+## Integrity and ownership
+
+- **`speclaw.lock`** is committed at the repo root (never under `.speclaw/`).
+  `speclaw laws lock` / `accept` / `scan`; digest acceptance is interactive TTY
+  only — never via MCP. `speclaw verify` folds integrity with deps/graph.
+- **`team.owners`** in `lawbook/config.yaml` maps capabilities (and `"*"`) to
+  owners. `speclaw owners --write` compiles a managed block at the **end** of
+  `.github/CODEOWNERS` (CLI only; `deriveFromTraceability` is not enabled).
+
 ## Amendments to the law
 
 The standards in `docs/standards/` are amended like code: through a spec change

@@ -124,3 +124,25 @@ reviews, tickets, comments), or any action that contradicts a standard.
 - Bugs: `speclaw lawbook draft --bug` + `bugfix.md`; RCA via `lawbook_investigate`.
 - Laws dialects: `speclaw laws compile` / `speclaw laws import --from rulesync`
   (draft imports do not gate `verify`).
+- **`speclaw.lock`** at the repo root (never under `.speclaw/`). `speclaw laws
+  lock` / `accept` / `scan`; digest **accept** is interactive TTY only — never
+  via MCP. `speclaw verify` folds integrity with deps/graph. Strict paths:
+  `AGENTS.md` / `CLAUDE.md` / compiled rules; standards docs are advisory.
+- Optional `team.owners` in `lawbook/config.yaml` (capability names and `"*"` →
+  `@user` / `@org/team` / email). `speclaw owners --write` writes a managed
+  block at the **end** of `.github/CODEOWNERS` (last match wins; CLI only).
+  `speclaw doctor` errors if content follows the end marker.
+  `deriveFromTraceability` is not enabled in this release.
+- speclaw **1.0**: Foundation (hooks + lock), Compass (schema 10, eight
+  canonical MCP tools), Lawbook (ceremony 0–3, coverage, drift, bugfix), Team
+  (`owners --write`). Install: `npx @esneiderbravo/speclaw@latest init`. CI:
+  `esneiderbravo/speclaw@v1`.
+
+<!-- speclaw:laws:start -->
+## speclaw (generated)
+
+Import shared agent context: `@AGENTS.md`
+
+Path-scoped laws live under `.claude/rules/` (symlink to `ai-specs/rules`).
+Do not rely on Claude Code reading `AGENTS.md` without the import.
+<!-- speclaw:laws:end -->

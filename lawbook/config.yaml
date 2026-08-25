@@ -27,9 +27,10 @@ ceremony:
   cuts: [3, 8, 15]
   hotspotFloor: 0.7
 
-# Spec ownership → managed CODEOWNERS block (`speclaw owners --write`).
+# Spec ownership → managed CODEOWNERS block (`speclaw owners --write`, CLI only).
 # The speclaw block is always written at the end of `.github/CODEOWNERS`
-# (GitHub: last matching pattern wins).
+# (GitHub: last matching pattern wins). doctor errors if content follows the
+# end marker. deriveFromTraceability is not enabled in this release.
 team:
   owners:
     cli: ["@esneiderbravo"]

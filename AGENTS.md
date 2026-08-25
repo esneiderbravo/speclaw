@@ -85,6 +85,7 @@ Claude-specific notes: [`CLAUDE.md`](CLAUDE.md). The law: [`LAWS.md`](LAWS.md).
 | `.claude/` `.cursor/` `.codex/` `.agents/` | IDE mirrors (symlinks into `ai-specs/`) |
 | `lawbook/` | Spec-driven workflow: specs, changes, archive |
 | `lawbook/anchors/` | Sealed spec↔code drift photographs (`speclaw drift`) |
+| `speclaw.lock` | Committed rule-file digests (repo root — never under `.speclaw/`) |
 | `.mcp.json` | MCP wiring (speclaw) |
 
 ## Operator notes
@@ -103,3 +104,64 @@ Claude-specific notes: [`CLAUDE.md`](CLAUDE.md). The law: [`LAWS.md`](LAWS.md).
 - Bugs: `speclaw lawbook draft --bug`, `bugfix.md`, `lawbook_investigate`.
 - Laws dialects: `speclaw laws compile` (AGENTS/CLAUDE blocks + `ai-specs/rules`);
   `speclaw laws import --from rulesync` (draft laws do not gate verify).
+- **`speclaw.lock`** lives at the repo root (never under `.speclaw/`).
+  `speclaw laws lock` / `accept` / `scan`; digest **accept** is interactive TTY
+  only — never via MCP. `speclaw verify` folds integrity findings with
+  deps/graph. Strict paths: `AGENTS.md` / `CLAUDE.md` / compiled rules;
+  standards docs are advisory.
+- Optional `team.owners` in `lawbook/config.yaml` maps capabilities (and `"*"`)
+  to `@user` / `@org/team` / email. `speclaw owners --write` compiles a managed
+  block at the **end** of `.github/CODEOWNERS` (GitHub: last match wins; CLI
+  only — no MCP tool). `speclaw doctor` errors if content appears after the end
+  marker. `deriveFromTraceability` is not enabled in this release.
+- speclaw **1.0** is the official release: Foundation (hooks + `speclaw.lock`),
+  Compass (schema 10, eight canonical MCP tools), Lawbook (ceremony 0–3,
+  coverage, drift, bugfix), Team (`team.owners` → `speclaw owners --write`).
+  Install: `npx @esneiderbravo/speclaw@latest init`. CI consumers:
+  `esneiderbravo/speclaw@v1`.
+
+<!-- speclaw:laws:start -->
+## speclaw laws (generated)
+
+_Edit `docs/standards/*.md` or `.speclaw/laws-manifest.json`; do not edit this block._
+
+## Scoped rules
+
+### No secrets in the repository (`law~no-secrets-in-repo~1`)
+
+In files that match `**/.env`, `**/.env.*`, `**/*.env`, Never write a .env file into the repository. Secrets live in the environment, not in version control.
+
+### Protect the templates (`law~protect-templates~1`)
+
+In files that match `src/modules/*/assets/**`, Assets under src/modules/*/assets/** are product output — keep the {{placeholder}} and speclaw-init contracts intact, and let the build copy them (never hand-copy into dist/).
+
+## Rules for `ATTRIBUTION.md`
+
+### Keep attribution honest (`law~honest-attribution~1`)
+
+In files that match `ATTRIBUTION.md`, Keep ATTRIBUTION.md accurate as the Compass and Lawbook modules evolve.
+
+## Rules for `package.json`
+
+### Local-first is non-negotiable (`law~local-first~1`)
+
+In files that match `package.json`, Justify any new dependency in the PR: it must not break 'runs offline with no API keys'.
+
+## Rules for `src/modules`
+
+### No circular module dependencies (`law~no-module-cycles~1`)
+
+In files that match `src/modules/**`, There are no circular dependencies between modules.
+
+## Rules for `src/modules/compass`
+
+### Compass does not import foundation (`law~compass-does-not-import-foundation~1`)
+
+In files that match `src/modules/compass/**`, src/modules/compass must not import from src/modules/foundation.
+
+## Rules for `src/shared`
+
+### shared stays the innermost layer (`law~shared-stays-inner~1`)
+
+In files that match `src/shared/**`, src/shared must not import from src/modules or src/cli.
+<!-- speclaw:laws:end -->
