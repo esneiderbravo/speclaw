@@ -1,22 +1,63 @@
 import { Flags, list } from "../lib/args.js";
 import { ui, c } from "../lib/ui.js";
 import { BatchEngine, verifyLaws } from "../../modules/foundation/verify.js";
+import { compileLaws } from "../../modules/foundation/compile-laws.js";
+import { importRulesFrom } from "../../modules/foundation/import-rules.js";
 
 /**
- * `speclaw laws <subcommand>` — the CLI twin of the batch law tools. Today it
- * exposes `verify`, the twin of the `law_verify` MCP tool: it runs the project's
- * deterministic `deps`/`graph` laws against the Compass index and prints the
- * four-state result. Both transports delegate to the same {@link verifyLaws}
- * core, so the CLI and the tool never diverge.
- *
- * - `laws verify [--engine deps,graph] [--path a,b] [--law id1,id2] [--json]`
+ * `speclaw laws <subcommand>` — verify (batch), compile (dialects), import (draft).
  *
  * @param flags - Parsed CLI flags; `flags._[0]` is the subcommand.
  */
 export async function runLaws(flags: Flags): Promise<void> {
   const sub = flags._[0];
+  if (sub === "compile") {
+    const agents = list(flags.agent);
+    const report = compileLaws({
+      projectPath: process.cwd(),
+      agents: agents.length ? agents : undefined,
+    });
+    if (flags.json) {
+      console.log(JSON.stringify(report, null, 2));
+      return;
+    }
+    ui.heading("speclaw laws compile");
+    ui.ok(
+      `${report.lawCount} active · ${report.draftCount} draft · ` +
+        `${report.written.length} written · ${report.unchanged.length} unchanged` +
+        (report.failed.length ? ` · ${report.failed.length} failed` : ""),
+    );
+    for (const f of report.failed) ui.warn(`${f.path}: ${f.error}`);
+    if (report.failed.length) process.exit(1);
+    return;
+  }
+
+  if (sub === "import") {
+    const from = typeof flags.from === "string" ? flags.from : "";
+    if (!from) {
+      ui.err(`Usage: ${ui.code("speclaw laws import --from rulesync")}`);
+      process.exit(1);
+    }
+    try {
+      const report = importRulesFrom(process.cwd(), from);
+      if (flags.json) {
+        console.log(JSON.stringify(report, null, 2));
+        return;
+      }
+      ui.heading("speclaw laws import");
+      ui.ok(`${report.imported.length} imported · ${report.skipped.length} skipped`);
+      for (const id of report.imported) ui.plain(`  + ${c.cream(id)}`);
+    } catch (err) {
+      ui.err((err as Error).message);
+      process.exit(1);
+    }
+    return;
+  }
+
   if (sub !== "verify") {
-    ui.err(`Unknown laws subcommand: ${sub ?? "(none)"} — try ${ui.code("speclaw laws verify")}.`);
+    ui.err(
+      `Unknown laws subcommand: ${sub ?? "(none)"} — try ${ui.code("speclaw laws verify|compile|import")}.`,
+    );
     process.exit(1);
   }
 

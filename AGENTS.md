@@ -100,3 +100,5 @@ Claude-specific notes: [`CLAUDE.md`](CLAUDE.md). The law: [`LAWS.md`](LAWS.md).
 - Ceremony 0–3 in `change.json`; `speclaw quick` for level 0; `lawbook_level`
   propose/set/promote. Optional `ceremony:` in `lawbook/config.yaml`.
 - Bugs: `speclaw lawbook draft --bug`, `bugfix.md`, `lawbook_investigate`.
+- Laws dialects: `speclaw laws compile` (AGENTS/CLAUDE blocks + `ai-specs/rules`);
+  `speclaw laws import --from rulesync` (draft laws do not gate verify).
