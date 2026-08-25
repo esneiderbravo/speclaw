@@ -68,3 +68,9 @@ test("getEmbedder/setEmbedder swap the active embedder", () => {
     setEmbedder(original);
   }
 });
+
+test("LexicalEmbedder id includes EMBED_INPUT_VERSION for cache invalidation", async () => {
+  const { EMBED_INPUT_VERSION } = await import("../../src/modules/compass/embed-input.js");
+  const e = new LexicalEmbedder();
+  assert.match(e.id, new RegExp(`\\+${EMBED_INPUT_VERSION}$`));
+});

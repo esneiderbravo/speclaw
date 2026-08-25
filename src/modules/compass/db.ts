@@ -1,6 +1,7 @@
 import { DatabaseSync } from "node:sqlite";
 import fs from "node:fs";
 import path from "node:path";
+import { contentHashFor, defaultEmbedText } from "./embed-input.js";
 
 /** A row of the `files` table: one indexed source file. */
 export interface FileRow {
@@ -10,6 +11,8 @@ export interface FileRow {
   lang: string;
   is_test: number;
   module: string;
+  mtime_ms: number | null;
+  size: number | null;
 }
 
 /** A row of the `nodes` table: one definition (function, class, method, type). */
@@ -26,6 +29,7 @@ export interface NodeRow {
   signature: string | null;
   body_hash: string | null;
   norm_hash: string | null;
+  content_hash: string | null;
 }
 
 const SCHEMA = `
@@ -39,7 +43,9 @@ CREATE TABLE IF NOT EXISTS files (
   hash TEXT NOT NULL,
   lang TEXT NOT NULL,
   is_test INTEGER NOT NULL DEFAULT 0,
-  module TEXT NOT NULL DEFAULT ''
+  module TEXT NOT NULL DEFAULT '',
+  mtime_ms INTEGER,
+  size INTEGER
 );
 CREATE INDEX IF NOT EXISTS idx_files_is_test ON files(is_test);
 -- nodes: the definitions in the codebase (functions, classes, methods, types).
@@ -55,11 +61,13 @@ CREATE TABLE IF NOT EXISTS nodes (
   parent_id INTEGER,
   signature TEXT,
   body_hash TEXT,
-  norm_hash TEXT
+  norm_hash TEXT,
+  content_hash TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_nodes_name ON nodes(name);
 CREATE INDEX IF NOT EXISTS idx_nodes_file ON nodes(file_id);
 CREATE INDEX IF NOT EXISTS idx_nodes_norm_hash ON nodes(norm_hash);
+CREATE INDEX IF NOT EXISTS idx_nodes_content_hash ON nodes(content_hash);
 -- node_metrics: AST health frames (LOC / nesting / branches) per definition.
 CREATE TABLE IF NOT EXISTS node_metrics (
   node_id INTEGER PRIMARY KEY REFERENCES nodes(id) ON DELETE CASCADE,
@@ -80,12 +88,23 @@ CREATE TABLE IF NOT EXISTS edges (
 CREATE INDEX IF NOT EXISTS idx_edges_dst ON edges(dst_name);
 CREATE INDEX IF NOT EXISTS idx_edges_src ON edges(src_node_id);
 CREATE INDEX IF NOT EXISTS idx_edges_dstid ON edges(dst_node_id);
--- node_embeddings: the local vector store (one embedding per node).
-CREATE TABLE IF NOT EXISTS node_embeddings (
-  node_id INTEGER PRIMARY KEY REFERENCES nodes(id) ON DELETE CASCADE,
-  dim INTEGER NOT NULL,
+-- embedding_cache: vectors keyed by embedder-input content hash (survives reindex).
+CREATE TABLE IF NOT EXISTS embedding_cache (
+  content_hash TEXT NOT NULL,
   model TEXT NOT NULL,
-  vec BLOB NOT NULL
+  dim INTEGER NOT NULL,
+  vec BLOB NOT NULL,
+  created_at INTEGER NOT NULL,
+  last_seen_at INTEGER NOT NULL,
+  PRIMARY KEY (content_hash, model)
+);
+CREATE INDEX IF NOT EXISTS idx_embedding_cache_seen ON embedding_cache(last_seen_at);
+-- dir_hashes: Merkle tree of indexed directories ("" = project root).
+CREATE TABLE IF NOT EXISTS dir_hashes (
+  path TEXT PRIMARY KEY,
+  hash TEXT NOT NULL,
+  n_files INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL
 );
 -- git_history_cache: memoized results of the expensive git-history scans
 -- (churn, co-change), keyed by query and invalidated when HEAD moves.
@@ -138,8 +157,25 @@ CREATE INDEX IF NOT EXISTS idx_anchors_symbol ON spec_anchors(symbol_name);
 CREATE INDEX IF NOT EXISTS idx_anchors_node ON spec_anchors(node_id);
 `;
 
+/** Ensure node_embeddings is a VIEW over embedding_cache (idempotent). */
+function ensureEmbeddingsView(db: DatabaseSync): void {
+  const row = db
+    .prepare("SELECT type FROM sqlite_master WHERE name = 'node_embeddings' LIMIT 1")
+    .get() as { type: string } | undefined;
+  if (row?.type === "view") return;
+  if (row?.type === "table") {
+    db.exec("DROP TABLE node_embeddings");
+  }
+  db.exec(`
+    CREATE VIEW node_embeddings AS
+      SELECT n.id AS node_id, ec.dim AS dim, ec.model AS model, ec.vec AS vec
+      FROM nodes n
+      JOIN embedding_cache ec ON ec.content_hash = n.content_hash
+  `);
+}
+
 /** Schema version stamped into the `meta` table on first creation. */
-export const SCHEMA_VERSION = "8";
+export const SCHEMA_VERSION = "9";
 
 /** The stamped schema version, or null if the db predates versioning / has no meta table. */
 function readSchemaVersion(db: DatabaseSync): string | null {
@@ -154,17 +190,16 @@ function readSchemaVersion(db: DatabaseSync): string | null {
 
 /**
  * Decide whether an existing database is from an incompatible schema and must be
- * rebuilt. A fresh database (no tables) needs no reset — the schema will create
- * them. An existing one is stale if its stamped version differs from the current
- * one, or if the `edges` table is missing a column the current code writes to
- * (guards against past schema changes that weren't version-bumped).
+ * rebuilt. Schema 8→9 is handled by {@link migrate8to9} instead of a wipe.
  */
 function isStale(db: DatabaseSync): boolean {
   const hasEdges = db
     .prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'edges'")
     .get();
   if (!hasEdges) return false;
-  if (readSchemaVersion(db) !== SCHEMA_VERSION) return true;
+  const ver = readSchemaVersion(db);
+  if (ver === "8") return false; // migrate in openDb
+  if (ver !== SCHEMA_VERSION) return true;
   const edgeCols = (db.prepare("PRAGMA table_info(edges)").all() as { name: string }[]).map(
     (c) => c.name,
   );
@@ -182,9 +217,12 @@ function isStale(db: DatabaseSync): boolean {
 /** Drop every table (children first) so the current schema can be recreated cleanly. */
 function resetSchema(db: DatabaseSync): void {
   db.exec(`
+    DROP VIEW IF EXISTS node_embeddings;
     DROP TABLE IF EXISTS spec_anchors;
     DROP TABLE IF EXISTS coverage_links;
     DROP TABLE IF EXISTS git_history_cache;
+    DROP TABLE IF EXISTS embedding_cache;
+    DROP TABLE IF EXISTS dir_hashes;
     DROP TABLE IF EXISTS node_embeddings;
     DROP TABLE IF EXISTS edges;
     DROP TABLE IF EXISTS node_metrics;
@@ -195,13 +233,116 @@ function resetSchema(db: DatabaseSync): void {
 }
 
 /**
+ * Migrate schema 8 → 9: embedding_cache, dir_hashes, mtime/size, content_hash,
+ * preserve vectors into the cache, replace node_embeddings table with a view.
+ *
+ * @param db - Open connection already at schema 8.
+ * @param projectPath - Project root for backfilling content hashes from disk.
+ */
+export function migrate8to9(db: DatabaseSync, projectPath: string): void {
+  db.exec("BEGIN IMMEDIATE");
+  try {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS embedding_cache (
+        content_hash TEXT NOT NULL,
+        model TEXT NOT NULL,
+        dim INTEGER NOT NULL,
+        vec BLOB NOT NULL,
+        created_at INTEGER NOT NULL,
+        last_seen_at INTEGER NOT NULL,
+        PRIMARY KEY (content_hash, model)
+      );
+      CREATE INDEX IF NOT EXISTS idx_embedding_cache_seen ON embedding_cache(last_seen_at);
+      CREATE TABLE IF NOT EXISTS dir_hashes (
+        path TEXT PRIMARY KEY,
+        hash TEXT NOT NULL,
+        n_files INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL
+      );
+    `);
+
+    const fileCols = (db.prepare("PRAGMA table_info(files)").all() as { name: string }[]).map(
+      (c) => c.name,
+    );
+    if (!fileCols.includes("mtime_ms")) db.exec("ALTER TABLE files ADD COLUMN mtime_ms INTEGER");
+    if (!fileCols.includes("size")) db.exec("ALTER TABLE files ADD COLUMN size INTEGER");
+
+    const nodeCols = (db.prepare("PRAGMA table_info(nodes)").all() as { name: string }[]).map(
+      (c) => c.name,
+    );
+    if (!nodeCols.includes("content_hash")) {
+      db.exec("ALTER TABLE nodes ADD COLUMN content_hash TEXT");
+      db.exec("CREATE INDEX IF NOT EXISTS idx_nodes_content_hash ON nodes(content_hash)");
+    }
+
+    const upd = db.prepare("UPDATE nodes SET content_hash = ? WHERE id = ?");
+    const rows = db
+      .prepare(
+        `SELECT n.id, n.kind, n.name, n.signature, f.lang
+         FROM nodes n JOIN files f ON f.id = n.file_id`,
+      )
+      .all() as Array<{
+      id: number;
+      kind: string;
+      name: string;
+      signature: string | null;
+      lang: string;
+    }>;
+    for (const r of rows) {
+      const embedText = defaultEmbedText(r.kind, r.name, r.signature);
+      upd.run(
+        contentHashFor({
+          lang: r.lang,
+          kind: r.kind,
+          name: r.name,
+          signature: r.signature,
+          embedText,
+        }),
+        r.id,
+      );
+    }
+    void projectPath;
+
+    const now = Date.now();
+    const embType = db
+      .prepare("SELECT type FROM sqlite_master WHERE name = 'node_embeddings' LIMIT 1")
+      .get() as { type: string } | undefined;
+    if (embType?.type === "table") {
+      db.prepare(
+        `INSERT OR IGNORE INTO embedding_cache(content_hash, model, dim, vec, created_at, last_seen_at)
+         SELECT n.content_hash, ne.model, ne.dim, ne.vec, ?, ?
+         FROM node_embeddings ne
+         JOIN nodes n ON n.id = ne.node_id
+         WHERE n.content_hash IS NOT NULL`,
+      ).run(now, now);
+      db.exec("DROP TABLE node_embeddings");
+    }
+
+    ensureEmbeddingsView(db);
+
+    db.prepare(
+      "INSERT INTO meta(key, value) VALUES ('schema_version', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+    ).run(SCHEMA_VERSION);
+    db.exec("COMMIT");
+  } catch (err) {
+    try {
+      db.exec("ROLLBACK");
+    } catch {
+      /* already rolled back */
+    }
+    throw new Error(
+      `schema 8→9 migration failed — delete .speclaw/index.db to rebuild: ${(err as Error).message}`,
+      { cause: err },
+    );
+  }
+}
+
+/**
  * Open (creating if needed) the index database at `<projectPath>/.speclaw/index.db`.
  *
  * Ensures the `.speclaw` directory exists, enables WAL journaling and foreign
- * keys, and applies the schema. If an existing database is from an incompatible
- * schema (e.g. after a speclaw upgrade), it is dropped and rebuilt — `.speclaw`
- * is fully regenerable, so the next index just repopulates it. The schema
- * version is stamped on a fresh (or freshly reset) database.
+ * keys, and applies the schema. Schema 8 databases are migrated in place to 9
+ * (embeddings preserved). Other incompatible schemas are wiped and rebuilt.
  *
  * @param projectPath - Absolute path to the project root.
  * @returns An open connection to the index database.
@@ -210,23 +351,37 @@ export function openDb(projectPath: string): DatabaseSync {
   const dir = path.join(projectPath, ".speclaw");
   fs.mkdirSync(dir, { recursive: true });
   const db = new DatabaseSync(path.join(dir, "index.db"));
-  db.exec("PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON;");
+  db.exec("PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON; PRAGMA busy_timeout = 5000;");
 
-  const wiped = isStale(db);
-  if (wiped) resetSchema(db);
+  const ver = (() => {
+    try {
+      return readSchemaVersion(db);
+    } catch {
+      return null;
+    }
+  })();
 
-  db.exec(SCHEMA);
-  const row = db.prepare("SELECT value FROM meta WHERE key = 'schema_version'").get() as
-    { value: string } | undefined;
-  if (!row) {
-    db.prepare("INSERT INTO meta(key, value) VALUES ('schema_version', ?)").run(SCHEMA_VERSION);
+  if (ver === "8") {
+    migrate8to9(db, projectPath);
+    db.exec(SCHEMA);
+    ensureEmbeddingsView(db);
+  } else {
+    const wiped = isStale(db);
+    if (wiped) resetSchema(db);
+    db.exec(SCHEMA);
+    ensureEmbeddingsView(db);
+    const row = db.prepare("SELECT value FROM meta WHERE key = 'schema_version'").get() as
+      { value: string } | undefined;
+    if (!row) {
+      db.prepare("INSERT INTO meta(key, value) VALUES ('schema_version', ?)").run(SCHEMA_VERSION);
+    }
+    if (wiped) {
+      db.prepare(
+        "INSERT INTO meta(key, value) VALUES ('needs_reindex', '1') ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+      ).run();
+    }
   }
-  if (wiped) {
-    db.prepare(
-      "INSERT INTO meta(key, value) VALUES ('needs_reindex', '1') ON CONFLICT(key) DO UPDATE SET value = excluded.value",
-    ).run();
-  }
-  // Projection from committed JSON — safe even when nodes are empty (node_id null).
+
   rehydrateAnchors(db, projectPath);
   return db;
 }

@@ -19,7 +19,7 @@ Setup
   agent add <id>           Configure another agent later (symlinks + MCP)
 
 Compass (code intelligence — the same surface agents use via MCP)
-  index                    (Re)build the local code graph, with progress
+  index                    (Re)build the local code graph (--force / --prune)
   watch                    Keep the index fresh on file changes
   explore <node>           A node's source + callers/callees
   search <query>           Find nodes by name/keyword

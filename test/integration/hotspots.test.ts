@@ -10,7 +10,7 @@ import { hotspots, coupling } from "../../src/modules/compass/hotspots.js";
 
 const cli = path.join(process.cwd(), "dist/cli/index.js");
 
-test("schema 8 creates node_metrics and reindexes from 7", async (t) => {
+test("schema 9 creates node_metrics and reindexes from 7", async (t) => {
   const root = tmpRepo(t);
   write(root, "src/a.ts", `export function a(): void {}\n`);
   await buildIndex(root);
@@ -18,7 +18,7 @@ test("schema 8 creates node_metrics and reindexes from 7", async (t) => {
   assert.equal(
     (db.prepare("SELECT value FROM meta WHERE key = 'schema_version'").get() as { value: string })
       .value,
-    "8",
+    SCHEMA_VERSION,
   );
   assert.ok(
     db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='node_metrics'").get(),

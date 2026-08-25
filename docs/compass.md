@@ -29,7 +29,7 @@ a request, not whole files.
 
 | Tool | Use it to |
 |------|-----------|
-| `compass_index` | Build/refresh the graph (`.speclaw/index.db`); optional watch actions (`start`/`stop`/`status`). Schema **8** stores `node_metrics`, test/module flags, drift hashes, and coverage links. |
+| `compass_index` | Build/refresh the graph (`.speclaw/index.db`); optional watch actions (`start`/`stop`/`status`). Schema **9** adds `embedding_cache` + Merkle `dir_hashes` (mtime prefilter; 8→9 migrates vectors). Also: `node_metrics`, test/module flags, drift hashes, coverage links. |
 | `compass_explore` | Read a node's source plus callers, callees, blast radius, affected tests, and hotspot — in one call. Use `to:` for trace-style paths. |
 | `compass_find` | Find symbols: `mode: exact` for name/keyword search, `mode: concept` for semantic recall. |
 | `compass_diff_context` | Graph context for a change set (working tree, git rev, or explicit paths): symbols touched, blast radius, tests, hotspots. |
@@ -50,9 +50,9 @@ to Grep/Read: a Compass call returned nothing useful for your query, or the
 target isn't indexed code (stylesheets, JSON/config, markdown, logs).
 
 <!-- speclaw:map:start -->
-speclaw · 170 files · 633 nodes
-src/ (90)  test/ (75)  scripts/ (4)  eslint.config.js/ (1)
-hubs: tmpRepo 220 · write 145 · has 93 · parse 62 · openDb 56 · commit 52 · buildIndex 50 · run 39 · read 38 · runCli 33 · gitInit 33 · specInit 29
+speclaw · 178 files · 643 nodes
+src/ (92)  test/ (81)  scripts/ (4)  eslint.config.js/ (1)
+hubs: tmpRepo 234 · write 159 · has 100 · parse 62 · run 55 · commit 52 · read 38 · runCli 33 · gitInit 33 · buildIndex 30 · specInit 29 · emptyReport 29
 entry: src/server.ts (mcp) · src/cli/index.ts (bin)
 <!-- speclaw:map:end -->
 
