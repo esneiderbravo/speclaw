@@ -1,4 +1,5 @@
-import { explore, search, recall, impact, trace } from "../../modules/compass/query.js";
+import { explore, impact, trace } from "../../modules/compass/query.js";
+import { hybridSearch } from "../../modules/compass/hybrid.js";
 import { affectedTests } from "../../modules/compass/affected.js";
 import { hotspots, coupling } from "../../modules/compass/hotspots.js";
 import { diffContext, formatDiffContext } from "../../modules/compass/diff-context.js";
@@ -17,6 +18,9 @@ export async function runQuery(cmd: string, flags: Flags): Promise<void> {
   const cwd = process.cwd();
   const args = flags._;
   const asJson = Boolean(flags.json);
+  const focus = list(flags.focus);
+  const maxTokens = flags["max-tokens"] ? Number(flags["max-tokens"]) : undefined;
+  const explain = Boolean(flags.explain);
   try {
     switch (cmd) {
       case "explore": {
@@ -35,18 +39,34 @@ export async function runQuery(cmd: string, flags: Flags): Promise<void> {
         r.callers?.forEach((c) => ui.info(`${c.name} (${c.file}:${c.line})`));
         return;
       }
-      case "search": {
-        const hits = search(cwd, need(args[0], "search <query>"));
-        ui.heading(`${hits.length} result(s)`);
-        hits.forEach((h) => ui.info(`${h.name} (${h.kind}) ${h.file}:${h.line}`));
-        return;
-      }
+      case "search":
       case "recall": {
-        const hits = await recall(cwd, need(args[0], 'recall "<query>"'));
-        ui.heading(`${hits.length} result(s) by meaning`);
-        hits.forEach((h) =>
-          ui.info(`${h.score.toFixed(3)}  ${h.name} (${h.kind}) ${h.file}:${h.line}`),
+        const q = need(args[0], cmd === "recall" ? 'recall "<query>"' : "search <query>");
+        const mode = cmd === "recall" ? "concept" : "exact";
+        const result = await hybridSearch(cwd, q, {
+          mode,
+          focus: focus.length ? focus : undefined,
+          maxTokens,
+        });
+        if (asJson) {
+          console.log(JSON.stringify(result, null, 2));
+          return;
+        }
+        ui.heading(
+          `${result.hits.length} hybrid hit(s) · route=${result.route} · tokens=${result.tokens}/${result.budget}`,
         );
+        if (result.degraded.length) ui.warn(`degraded: ${result.degraded.join(", ")}`);
+        if (result.focus.length) ui.info(`focus: ${result.focus.join(", ")}`);
+        for (const h of result.hits) {
+          const sig = explain
+            ? `  [bm25=${h.signals.bm25Rank ?? "-"} knn=${h.signals.knnRank ?? "-"} name=${h.signals.nameRank ?? "-"} pr=${h.signals.pagerank.toFixed(4)} hops=${h.signals.hops} score=${h.signals.score.toFixed(4)}]`
+            : "";
+          ui.info(`${h.name} (${h.kind}) ${h.file}:${h.line}${sig}`);
+        }
+        if (explain && result.rendered) {
+          ui.heading("TreeContext");
+          console.log(result.rendered);
+        }
         return;
       }
       case "impact": {

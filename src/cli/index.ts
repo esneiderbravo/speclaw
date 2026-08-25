@@ -22,8 +22,8 @@ Compass (code intelligence — the same surface agents use via MCP)
   index                    (Re)build the local code graph (--force / --prune)
   watch                    Keep the index fresh on file changes
   explore <node>           A node's source + callers/callees
-  search <query>           Find nodes by name/keyword
-  recall "<query>"         Find code by meaning (semantic)
+  search <query>           Hybrid find (BM25+vector+name); --focus --max-tokens --explain
+  recall "<query>"         Hybrid find with concept weights; same flags as search
   impact <node>            Blast radius (grouped by module; --flat / --json)
   affected-tests           Tests affected by a change (--file / --from-diff / --json)
   diff-context             Change context for a diff (--file / --rev / --worktree / --json)

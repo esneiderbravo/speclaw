@@ -47,7 +47,7 @@
     "prepublishOnly": "npm run build"
   },
   "engines": {
-    "node": ">=22"
+    "node": ">=22.16"
   },
   "dependencies": {
     "@clack/prompts": "^1.7.0",

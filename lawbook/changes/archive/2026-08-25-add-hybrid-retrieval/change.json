@@ -1,0 +1,13 @@
+{
+  "changeType": "feature",
+  "actor": "agent",
+  "confirmedLevel": 3,
+  "confirmedBy": "human",
+  "confirmedAt": "2026-08-25T17:00:28.118Z",
+  "proposal": {
+    "level": 2,
+    "score": 9,
+    "rationale": "1 file(s), 1 module(s), 82 affected test(s), global file, hotspot=0.05 → score 9 → level 2 (cuts 3/8/15); graph under-scored relative to full hybrid pipeline."
+  },
+  "overrideReason": "Human confirmed full hybrid pipeline (FTS+RRF+PageRank+budget+TreeContext+golden set), schema 9→10, engines≥22.16, compass_find API; graph propose underscored at level 2."
+}
