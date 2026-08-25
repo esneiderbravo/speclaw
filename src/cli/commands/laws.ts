@@ -10,11 +10,7 @@ import {
   refreshLockfile,
   verifyIntegrity,
 } from "../../modules/foundation/integrity.js";
-import {
-  digestText,
-  extractSpeclawYamlBlock,
-  readLockfile,
-} from "../../modules/foundation/lock.js";
+import { digestText, prepareIntegrityText, readLockfile } from "../../modules/foundation/lock.js";
 import fs from "node:fs";
 import path from "node:path";
 import os from "node:os";
@@ -176,8 +172,7 @@ async function runAccept(flags: Flags): Promise<void> {
     process.exit(1);
   }
 
-  let raw = fs.readFileSync(abs, "utf8");
-  if (rel === ".coderabbit.yaml") raw = extractSpeclawYamlBlock(raw) ?? raw;
+  const raw = prepareIntegrityText(rel, fs.readFileSync(abs, "utf8"));
   const actual = digestText(raw);
   const expected = lock.files[rel]?.digest;
   ui.heading("speclaw laws accept");

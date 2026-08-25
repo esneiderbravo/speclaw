@@ -267,9 +267,43 @@ function walkFiles(
   }
 }
 
+/** Markers for the regenerable map block inside `docs/compass.md` (see compass/map.ts). */
+export const COMPASS_MAP_START = "<!-- speclaw:map:start -->";
+export const COMPASS_MAP_END = "<!-- speclaw:map:end -->";
+
+/**
+ * Strip the regenerable map body between markers so integrity digests stay stable
+ * across `speclaw index` (which rewrites the map in CI before verify).
+ *
+ * @param text - Full docs/compass.md contents.
+ * @returns The same text with an empty map body, or `text` if markers are missing.
+ */
+export function stripCompassMapBlock(text: string): string {
+  const start = text.indexOf(COMPASS_MAP_START);
+  const end = text.indexOf(COMPASS_MAP_END);
+  if (start < 0 || end < 0 || end < start) return text;
+  return text.slice(0, start + COMPASS_MAP_START.length) + "\n" + text.slice(end);
+}
+
+/**
+ * Path-specific bytes that feed {@link digestText}: speclaw-owned coderabbit
+ * region, regenerable Compass map body stripped, otherwise the file as-is.
+ *
+ * @param relPath - Project-relative path.
+ * @param raw - File contents.
+ * @returns Text to canonicalize and hash for this path.
+ */
+export function prepareIntegrityText(relPath: string, raw: string): string {
+  const n = relPath.split("\\").join("/");
+  if (n === ".coderabbit.yaml") return extractSpeclawYamlBlock(raw) ?? raw;
+  if (n === "docs/compass.md") return stripCompassMapBlock(raw);
+  return raw;
+}
+
 /**
  * Snapshot digests for discovered files with ownership policy.
  * For `.coderabbit.yaml`, digests only the speclaw delimited block when present.
+ * For `docs/compass.md`, digests with the regenerable map body stripped.
  */
 export function snapshotLockEntries(projectPath: string): {
   files: Record<string, LockFileEntry>;
@@ -281,10 +315,7 @@ export function snapshotLockEntries(projectPath: string): {
     const ownership = integrityPolicy(rel);
     if (ownership === "scan-only") continue; // locked only when previously accepted / explicit
     const abs = path.join(projectPath, rel);
-    let raw = fs.readFileSync(abs, "utf8");
-    if (rel === ".coderabbit.yaml") {
-      raw = extractSpeclawYamlBlock(raw) ?? raw;
-    }
+    const raw = prepareIntegrityText(rel, fs.readFileSync(abs, "utf8"));
     files[rel] = { digest: digestText(raw), ownership };
   }
   const symlinkMap: Record<string, LockSymlinkEntry> = {};

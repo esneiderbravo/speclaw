@@ -120,6 +120,47 @@ test("untracked advisory file warns", (t) => {
   assert.ok(r.verifyFindings.some((f) => f.lawId === "integrity~untracked~1"));
 });
 
+test("compass map rewrite does not mismatch lock digest", (t) => {
+  const root = tmpRepo(t);
+  write(root, "AGENTS.md", "ok\n");
+  write(
+    root,
+    "docs/compass.md",
+    "# Compass\n\n<!-- speclaw:map:start -->\nOLD MAP\n<!-- speclaw:map:end -->\n\n## Start\n",
+  );
+  refreshLockfile(root);
+  write(
+    root,
+    "docs/compass.md",
+    "# Compass\n\n<!-- speclaw:map:start -->\nNEW MAP COUNTS\n<!-- speclaw:map:end -->\n\n## Start\n",
+  );
+  const r = verifyIntegrity({ projectPath: root, checks: "integrity" });
+  assert.equal(r.files.find((f) => f.path === "docs/compass.md")?.status, "ok");
+  assert.ok(!r.verifyFindings.some((f) => f.file === "docs/compass.md"));
+});
+
+test("compass body outside the map still warns", (t) => {
+  const root = tmpRepo(t);
+  write(root, "AGENTS.md", "ok\n");
+  write(
+    root,
+    "docs/compass.md",
+    "# Compass\n\n<!-- speclaw:map:start -->\nMAP\n<!-- speclaw:map:end -->\n\n## Start\n",
+  );
+  refreshLockfile(root);
+  write(
+    root,
+    "docs/compass.md",
+    "# Compass\n\n<!-- speclaw:map:start -->\nMAP\n<!-- speclaw:map:end -->\n\n## Changed\n",
+  );
+  const r = verifyIntegrity({ projectPath: root, checks: "integrity" });
+  assert.equal(r.ok, true);
+  const hit = r.verifyFindings.find(
+    (f) => f.lawId === "integrity~advisory-mismatch~1" && f.file === "docs/compass.md",
+  );
+  assert.ok(hit);
+});
+
 test("modified standards doc warns only", (t) => {
   const root = tmpRepo(t);
   write(root, "AGENTS.md", "ok\n");

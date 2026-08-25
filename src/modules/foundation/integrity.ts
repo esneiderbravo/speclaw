@@ -8,10 +8,10 @@ import path from "node:path";
 import {
   digestText,
   discoverIntegrityPaths,
-  extractSpeclawYamlBlock,
   integrityPolicy,
   isRegenerableIdeMirror,
   lockfilePath,
+  prepareIntegrityText,
   readLockfile,
   refreshLockfile,
   rootDigest,
@@ -160,10 +160,7 @@ export function verifyIntegrity(opts: VerifyIntegrityOpts): IntegrityReport {
         });
         continue;
       }
-      let raw = fs.readFileSync(abs, "utf8");
-      if (rel === ".coderabbit.yaml") {
-        raw = extractSpeclawYamlBlock(raw) ?? raw;
-      }
+      const raw = prepareIntegrityText(rel, fs.readFileSync(abs, "utf8"));
       const actual = digestText(raw);
       if (actual === entry.digest) {
         files.push({
@@ -344,8 +341,7 @@ export function acceptLockPath(
   if (!lock) throw new Error("No speclaw.lock — run `speclaw laws lock` first.");
   const abs = path.join(projectPath, relPath);
   if (!fs.existsSync(abs)) throw new Error(`File not found: ${relPath}`);
-  let raw = fs.readFileSync(abs, "utf8");
-  if (relPath === ".coderabbit.yaml") raw = extractSpeclawYamlBlock(raw) ?? raw;
+  const raw = prepareIntegrityText(relPath, fs.readFileSync(abs, "utf8"));
   const dig = digestText(raw);
   const ownership = lock.files[relPath]?.ownership ?? integrityPolicy(relPath);
   if (ownership === "scan-only") {
