@@ -43,7 +43,7 @@
     "check": "prettier --check . && eslint .",
     "budget:calibrate": "node scripts/budget-calibrate.mjs",
     "pretest": "tsc -p tsconfig.test.json && node scripts/prep-test-assets.mjs",
-    "test": "node --test --experimental-test-coverage --test-coverage-lines=80 --test-coverage-functions=80 --test-coverage-branches=80 --test-coverage-exclude='dist-test/test/**' --test-coverage-exclude='dist/**' 'dist-test/test/**/*.test.js'",
+    "test": "node --test --test-concurrency=1 --experimental-test-coverage --test-coverage-lines=80 --test-coverage-functions=80 --test-coverage-branches=80 --test-coverage-exclude='dist-test/test/**' --test-coverage-exclude='dist/**' 'dist-test/test/**/*.test.js'",
     "prepublishOnly": "npm run build"
   },
   "engines": {

@@ -1,0 +1,58 @@
+{
+  "lockfileVersion": 1,
+  "generator": "@esneiderbravo/speclaw@0.4.0",
+  "algorithm": "sha256",
+  "root": "sha256:a3da5a9c35f059233f3bf5a66d36c8fe770ebfe82b53d050e059a0d33bc3c267",
+  "files": {
+    "AGENTS.md": {
+      "digest": "sha256:dc3a58a9fe9b2939969892ae5b51636606db33d884d77ef0fc7eb2cca6e13a84",
+      "ownership": "strict"
+    },
+    "CLAUDE.md": {
+      "digest": "sha256:c47c648c6225d66ab2ebfaa7d9727a5c57cde67e1d24eae4f7f9d55d84a7f357",
+      "ownership": "strict"
+    },
+    "LAWS.md": {
+      "digest": "sha256:324ff0488430b283b3dcf9c418f8c665c79cb2e83d531e8d08661ea36878d331",
+      "ownership": "advisory"
+    },
+    "docs/compass.md": {
+      "digest": "sha256:e57689190ea0202825de285d2188329f6c814234a8871837b0d6e42a70f1bb59",
+      "ownership": "advisory"
+    },
+    "docs/standards/architecture.md": {
+      "digest": "sha256:e8d3ff2122f27c618ec6f3e6785273555f6741e06fb545ff3a698294db77cc38",
+      "ownership": "advisory"
+    },
+    "docs/standards/backend-standards.md": {
+      "digest": "sha256:837a0f87736c338c520c12d66ff46654276aef62170c0688ab2680274b78381e",
+      "ownership": "advisory"
+    },
+    "docs/standards/base-standards.md": {
+      "digest": "sha256:855ddaa3a601d774cc19240e771cfb80c262d9ceb7837952e132215bf9f59f12",
+      "ownership": "advisory"
+    },
+    "docs/standards/conventions.md": {
+      "digest": "sha256:49c5e402de31eab85923652d73e2358f998cf51cff1c771c803b645edb88c6a2",
+      "ownership": "advisory"
+    },
+    "docs/standards/documentation.md": {
+      "digest": "sha256:aabfc96579c73a8f3ac6690c682f016ac21bc98bc045fd94207de0049b137943",
+      "ownership": "advisory"
+    },
+    "docs/standards/frontend-standards.md": {
+      "digest": "sha256:09a444869c57ec2566ba52f95328f363a91693e6677a5fef07426c86ced64eb6",
+      "ownership": "advisory"
+    },
+    "docs/standards/lawbook.md": {
+      "digest": "sha256:d604701ce87a31b6c44e8e62db06944259de43f86d2354d18112b1c91516958f",
+      "ownership": "advisory"
+    },
+    "docs/standards/testing-standards.md": {
+      "digest": "sha256:9b1d1a7a9af035a991c17970500d1df839ba6050e7e57bf6711357e74edace95",
+      "ownership": "advisory"
+    }
+  },
+  "symlinks": {},
+  "accepted": []
+}
