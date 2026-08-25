@@ -26,3 +26,19 @@ coverage:
 ceremony:
   cuts: [3, 8, 15]
   hotspotFloor: 0.7
+
+# EARS requirement linter — strict for speclaw dogfood.
+ears:
+  severity: strict
+  vagueWords:
+    [
+      appropriately,
+      properly,
+      as needed,
+      efficiently,
+      user-friendly,
+      robust,
+      adecuadamente,
+      correctamente,
+    ]
+  silentCodes: []

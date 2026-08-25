@@ -3,6 +3,24 @@
 All notable changes to this project are documented here. Speclaw follows
 [Semantic Versioning](https://semver.org/) for the published npm package.
 
+## [Unreleased]
+
+### Added
+
+- **EARS** requirement linter in `speclaw lawbook validate` / `lawbook_change`
+  validate — five molds + complex/unstructured, stable diagnostic codes, rewrite
+  suggestions (never auto-edit). Config: `ears.severity` (`strict` default for
+  new scaffolds and speclaw), `vagueWords`, `silentCodes`.
+- **Property coverage gate** — `Needs: ptest` (source of truth); optional
+  `Verification: property` expands effective needs. Recognizes fast-check /
+  Hypothesis / Schemathesis near `// Covers:`; does not run or generate tests.
+- `fast-check` devDependency + `test/property/ears.test.ts` dogfood property.
+
+### Changed
+
+- `docs/standards/lawbook.md` documents EARS + `ptest`.
+- Scaffold `lawbook/config.yaml` includes `ears:` block.
+
 ## [0.3.12] — 2026-08-23
 
 ### Added
