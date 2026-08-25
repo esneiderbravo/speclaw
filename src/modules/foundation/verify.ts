@@ -1,6 +1,6 @@
 import { performance } from "node:perf_hooks";
 import { openDb, indexExists } from "../compass/db.js";
-import { hasBatchBackend, loadManifestForVerify } from "./laws.js";
+import { hasBatchBackend, isActiveLaw, loadManifestForVerify } from "./laws.js";
 import { runDepsLaw } from "./deps.js";
 import { runGraphLaw } from "./graph.js";
 import {
@@ -72,6 +72,14 @@ export function verifyLaws(args: VerifyArgs): VerifyReport {
 
   const engines = args.engines;
   const selected = manifest.laws.filter((law) => {
+    if (!isActiveLaw(law)) {
+      skipped.push({
+        lawId: law.id,
+        reason: "draft",
+        detail: "status=draft — pending human activation; does not gate",
+      });
+      return false;
+    }
     if (!hasBatchBackend(law)) return false;
     if (args.lawIds && !args.lawIds.includes(law.id)) return false;
     if (engines && !engines.includes(law.verification.kind as BatchEngine)) return false;

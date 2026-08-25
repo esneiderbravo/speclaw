@@ -121,3 +121,5 @@ reviews, tickets, comments), or any action that contradicts a standard.
   `lawbook_level` / `speclaw lawbook level` propose/set/promote. Optional
   `ceremony:` in `lawbook/config.yaml` (cuts default `[3, 8, 15]`).
 - Bugs: `speclaw lawbook draft --bug` + `bugfix.md`; RCA via `lawbook_investigate`.
+- Laws dialects: `speclaw laws compile` / `speclaw laws import --from rulesync`
+  (draft imports do not gate `verify`).

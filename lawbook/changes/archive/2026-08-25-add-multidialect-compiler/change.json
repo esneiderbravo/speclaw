@@ -1,0 +1,13 @@
+{
+  "changeType": "feature",
+  "actor": "agent",
+  "confirmedLevel": 3,
+  "confirmedBy": "human",
+  "confirmedAt": "2026-08-25T16:02:18.128Z",
+  "proposal": {
+    "level": 1,
+    "score": 7,
+    "rationale": "Graph propose under-scored (2 indexed files); full multidialect + standards parse is level 3 work."
+  },
+  "overrideReason": "Full multidialect scope (3B+4B): five dialects, standards parse, rulesync import, CodeRabbit merge, nested AGENTS; graph propose under-scored (level 1)."
+}
