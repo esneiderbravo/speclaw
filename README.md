@@ -8,15 +8,17 @@
 &nbsp;<a href="https://github.com/esneiderbravo/speclaw/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/esneiderbravo/speclaw/ci.yml?branch=main&label=CI&labelColor=0B0F10&style=flat-square&color=0E8E8E" alt="CI"></a>
 &nbsp;<a href="https://www.npmjs.com/package/@esneiderbravo/speclaw?activeTab=versions"><img src="https://img.shields.io/badge/provenance-SLSA-0E8E8E?labelColor=0B0F10&style=flat-square" alt="npm provenance"></a>
 &nbsp;<a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-0E8E8E?labelColor=0B0F10&style=flat-square" alt="MIT"></a>
-&nbsp;<img src="https://img.shields.io/badge/node-%E2%89%A522-0E8E8E?labelColor=0B0F10&style=flat-square" alt="Node >= 22">
+&nbsp;<img src="https://img.shields.io/badge/node-%E2%89%A522.16-0E8E8E?labelColor=0B0F10&style=flat-square" alt="Node >= 22.16">
+&nbsp;<img src="https://img.shields.io/badge/v1.0-0E8E8E?labelColor=0B0F10&style=flat-square" alt="v1.0">
 
 <br/><br/>
 
 <p align="center">
 <b>AI agents are brilliant and blind</b> — brilliant at writing code, blind to <i>your</i>
-project's rules. <b>speclaw</b> hands them what they're missing: the codebase's
+project's rules. <b>speclaw 1.0</b> hands them what they're missing: the codebase's
 <b>written laws</b> (a constitution built from your real code), a <b>local map</b> to
-navigate it without burning tokens, and a <b>disciplined workflow</b> for every change.
+navigate it without burning tokens, a <b>disciplined workflow</b> for every change,
+and the <b>gates</b> that make those laws hold in the editor, in CI, and in the PR.
 <br/>
 One command. No cloud, no LLM, no API keys — <b>everything runs on your machine.</b>
 </p>
@@ -24,6 +26,7 @@ One command. No cloud, no LLM, no API keys — <b>everything runs on your machin
 <img src="https://img.shields.io/badge/100%25_local-0E8E8E?labelColor=0B0F10&style=flat-square" alt="100% local">
 &nbsp;<img src="https://img.shields.io/badge/no_LLM_·_no_cloud-0E8E8E?labelColor=0B0F10&style=flat-square" alt="no LLM">
 &nbsp;<img src="https://img.shields.io/badge/CLI_+_MCP-0E8E8E?labelColor=0B0F10&style=flat-square" alt="CLI + MCP">
+&nbsp;<img src="https://img.shields.io/badge/8_canonical_tools-0E8E8E?labelColor=0B0F10&style=flat-square" alt="8 tools">
 &nbsp;<img src="https://img.shields.io/badge/any_agent-0E8E8E?labelColor=0B0F10&style=flat-square" alt="any agent">
 
 </div>
@@ -59,16 +62,19 @@ speclaw init
 ```
 
 The `speclaw` command is then available everywhere — run `speclaw index`,
-`speclaw doctor`, `speclaw visualize`, or `speclaw lawbook …` directly.
+`speclaw doctor`, `speclaw verify`, `speclaw owners --write`, or
+`speclaw lawbook …` directly.
 
 `init` will:
 
 1. **Ask which agents you use** (Claude Code, Cursor, Codex, Windsurf, …) — and
    configure only those. Add more later; nothing is forced on you.
 2. Write the **foundation** (constitution + standards) and the **lawbook workflow**,
-   and compile your blocking laws into **agent hooks** for the agents that support them.
+   compile your blocking laws into **agent hooks**, and create a committed
+   **`speclaw.lock`** baseline for rule-file integrity.
 3. **Index your code** with a live progress bar and a summary of what it found.
-4. Register the speclaw **MCP server** in each chosen agent's config.
+4. Register the speclaw **MCP server** in each chosen agent's config
+   (eight canonical tools; use `--minimal` to omit setup/lifecycle tools).
 5. Print a prompt to paste into your agent so it fills the constitution with your
    project's real architecture and conventions.
 
@@ -82,7 +88,8 @@ When something breaks, run `speclaw doctor --json` and paste it into an issue
 Every npm publish is signed via **Trusted Publishing (OIDC)** and carries a
 SLSA provenance attestation tied to this repository and workflow. That proves
 *where* the tarball was built — not that its contents are benign. Pair it with
-your own review and (later) law-integrity pinning.
+your own review and with **`speclaw.lock`** digests on rule files (see
+[Verify in CI](#-verify-in-ci)).
 
 ```bash
 npm audit signatures
@@ -102,15 +109,15 @@ gh attestation verify <tarball> --owner esneiderbravo
 
 <br/>
 
-## <img src="https://raw.githubusercontent.com/esneiderbravo/speclaw/main/brand/diamond.png" height="20" alt="◆" align="absmiddle">&nbsp; The suite — modules
+## <img src="https://raw.githubusercontent.com/esneiderbravo/speclaw/main/brand/diamond.png" height="20" alt="◆" align="absmiddle">&nbsp; The suite — five modules
 
 | Module | What it does |
 | :-- | :-- |
-| **Foundation** | The project's constitution: `LAWS.md` binding a set of granular standards under `docs/standards/` (base, architecture, backend, frontend, testing, documentation, conventions, lawbook), plus strict `CLAUDE.md` / `AGENTS.md` agent contracts — filled from your real codebase. It also **enforces** them: blocking laws compile into agent hooks that deny a forbidden edit at the keystroke (`speclaw check` / `speclaw_check`), and architectural laws are verified deterministically against the Compass graph — dependency rules (`deps`) and cycles (`graph`) — via `speclaw verify` (CI orchestrator: exit codes, SARIF, markdown) and `speclaw laws verify` / `law_verify`. Each law is reported as passed, failed, skipped, or unknown (an unresolved reference is *unknown*, never a silent pass). |
-| **Compass** | speclaw's own local code graph. Parses your code (tree-sitter) into nodes + edges plus a local vector store, so an agent finds and understands code with a fraction of the tokens a grep/read loop would cost. No LLM, 100% local, lives in `.speclaw/` (gitignored). |
-| **Lawbook** | speclaw's own spec-driven workflow: `draft → build → sync → archive` (and `explore`), backed by `lawbook_*` engine tools. No external CLI. |
-| **Team** | Local team surfaces: declare `team.owners` in `lawbook/config.yaml` and compile a managed trailing block in `.github/CODEOWNERS` with `speclaw owners --write` (GitHub: last match wins). CLI + `doctor` only — no MCP tool in this release. |
-| **Tools** | Opt-in packs of skills and subagents (currently the dev-agents) that agents use for specific tasks. |
+| **Foundation** | The project's constitution: `LAWS.md` binding granular standards under `docs/standards/`, plus `CLAUDE.md` / `AGENTS.md`. **Enforced** via agent hooks (`speclaw check`), deterministic graph laws (`speclaw verify` / `laws verify`), multidialect compile (`laws compile`), and committed **`speclaw.lock`** digests + injection scan (`laws lock` / `accept` / `scan`). |
+| **Compass** | Local code graph (tree-sitter → `node:sqlite`): hybrid find (FTS5 + vectors + RRF + PageRank), impact, affected-tests, hotspots, coupling, visualize. Schema **10**. No LLM — lives in `.speclaw/` (gitignored). |
+| **Lawbook** | Spec-driven workflow with **adaptive ceremony** (levels 0–3), bugfix changes + `lawbook_investigate`, EARS linting, requirement **coverage**, and sealed **drift** anchors. Loop: `explore → draft → build → sync → archive`. |
+| **Team** | Declare `team.owners` in `lawbook/config.yaml`; `speclaw owners --write` compiles a managed trailing block in `.github/CODEOWNERS` (GitHub: last match wins). Doctor checks the posture. CLI-only — no MCP tool. |
+| **Tools** | Opt-in packs of skills and subagents (currently the dev-agents). |
 
 Compass is inspired by [CodeGraph](https://github.com/colbymchenry/codegraph) and the Lawbook module by [OpenSpec](https://github.com/Fission-AI/openspec) — both MIT. speclaw reimplements the ideas as its own code and gives full credit; see [ATTRIBUTION.md](ATTRIBUTION.md).
 
@@ -124,16 +131,15 @@ tokenizer on this corpus — not a BPE dependency):
 
 | | Tokens |
 | :-- | --: |
-| **speclaw budget (always-on)** | **~12.9k** (8 MCP tools · ceiling **13.0k**) |
+| **speclaw budget (always-on)** | **~13.7k** (8 MCP tools · ceiling **14.0k**) |
 | Spec Kit commands alone | ~18.6k ([spec-kit#1401](https://github.com/github/spec-kit/issues/1401)) |
 
 ```bash
 speclaw budget          # human table
 speclaw budget --json   # machine-readable; used by the suite gate
 speclaw coverage        # requirement → impl → test coverage (TAP / table)
-speclaw coverage --json # machine-readable coverage report
 speclaw drift           # sealed spec ↔ code drift (default --fail-on semantic)
-speclaw drift --reseal  # photograph current bodies into lawbook/anchors/
+speclaw owners --write  # team.owners → .github/CODEOWNERS
 speclaw init --minimal  # omit setup/lifecycle MCP tools from registration
 ```
 
@@ -160,38 +166,40 @@ non-trivial lands without a spec change. It's a loop of five steps:
 | Step | What happens |
 | :-- | :-- |
 | **explore** | Think an idea through *before* committing to it — should we do this, and how. Writes nothing. |
-| **draft** | Capture the intent as a change under `lawbook/changes/<name>/` — four artifacts plus a `reports/` folder, always (see below). |
+| **draft** | Propose a **ceremony level** (0–3) from graph signals, confirm it, then scaffold only what that level needs under `lawbook/changes/<name>/`. |
 | **build** | Implement the tasks in order, keeping code and spec in agreement, and record test results under `reports/`. |
-| **sync** | Reconcile the delta specs against what was actually built, then promote them into the canonical `lawbook/specs/` — the always-true description of how the system behaves. |
-| **archive** | Reconcile, then validate, promote, and move the change to `lawbook/changes/archive/` — **in the same PR**, never a post-merge chore. Gated: refused while any task is unchecked, `reports/` is empty, or the specs are unsynced. |
+| **sync** | Reconcile the delta specs against what was actually built, then promote them into the canonical `lawbook/specs/`. |
+| **archive** | Reconcile, then validate, promote, and move the change to `lawbook/changes/archive/` — **in the same PR**. Gated on tasks, reports, synced specs, and coverage. |
 
-**Every `draft` writes four artifacts under `lawbook/changes/<name>/` — none optional:**
+**Ceremony levels** (confirmed in `change.json`; missing ⇒ level 3):
 
-| Artifact | What it captures |
-| :-- | :-- |
-| `proposal.md` | The **why** — motivation, what changes, non-goals, and whether migrations are needed. |
-| `specs/<capability>/spec.md` | The **delta specs** — one per affected capability, normative and testable. |
-| `design.md` | The **how** — approach, alternatives weighed, and the trade-offs behind the decision. |
-| `tasks.md` | The **plan** — ordered, checkable steps, including the mandatory ones from `config.yaml`. |
+| Level | When | Artifacts |
+| :-- | :-- | :-- |
+| **0** | One-liner / typo / docs-only | `speclaw quick` → `record.md` + `reports/` |
+| **1** | Small fix with a delta | `record.md` + `tasks.md` + ≥1 delta + `reports/` |
+| **2** | Normal feature | `proposal.md` + tasks + deltas + `reports/` (`design.md` optional) |
+| **3** | Full ceremony | proposal + design + tasks + deltas + `reports/` |
+| **bug** | Regression / RCA | `speclaw lawbook draft --bug` → `bugfix.md` + investigate first |
 
-Plus a **`reports/`** folder — scaffolded at draft, filled at build with one report per discipline (`backend.md`, `frontend.md`, …) recording the real unit/integration/e2e results. Evidence of testing travels with the change, and `lawbook_archive` refuses to archive without it.
+Plus a **`reports/`** folder — scaffolded at draft, filled at build with one report
+per discipline (`backend.md`, `frontend.md`, `api.md`, …). `lawbook_archive`
+refuses to archive without it.
 
 > [!NOTE]
 > **Delta specs are normative and testable.** Requirements use `SHALL`/`MUST`
-> under `### Requirement:` headers, each with one or more `#### Scenario:` blocks
-> whose acceptance criteria hold without production integrations. `lawbook_validate`
-> checks that the code matches what the spec promises before you sync or archive.
+> under `### Requirement:` headers (EARS-friendly), each with `#### Scenario:`
+> blocks. `lawbook_validate` checks structure; `speclaw coverage` tracks
+> `req~…~N` → impl/test via `// Covers:` comments.
 
 **Three ways to drive it — same engine, no external CLI:**
 
-- **In your agent** — the `/lawbook:explore`, `/lawbook:draft`, `/lawbook:build`, `/lawbook:sync`, `/lawbook:archive` commands (installed as skills).
-- **MCP tools** — eight canonical tools: `compass_explore`, `compass_find`, `compass_diff_context`, `compass_index`, `lawbook_change`, `lawbook_investigate`, `speclaw_setup`, `speclaw_check`.
-- **CLI** — `speclaw lawbook init | list | validate | sync | archive`.
+- **In your agent** — `/lawbook:explore`, `/lawbook:draft`, `/lawbook:build`, `/lawbook:sync`, `/lawbook:archive` (and `/lawbook:quick`, investigate).
+- **MCP tools** — eight canonical: `compass_explore`, `compass_find`, `compass_diff_context`, `compass_index`, `lawbook_change`, `lawbook_investigate`, `speclaw_setup`, `speclaw_check`.
+- **CLI** — `speclaw lawbook …`, `speclaw quick`, `speclaw coverage`, `speclaw drift`.
 
-The workspace is committed under `lawbook/`: `specs/` (canonical), `changes/`
-(in-flight), `changes/archive/` (shipped), and `config.yaml` (the mandatory task
-steps every change must include). The standards themselves are amended the same
-way — through a spec change reviewed by a human.
+The workspace is committed under `lawbook/`: `specs/`, `changes/`,
+`changes/archive/`, `anchors/` (drift photographs), and `config.yaml`
+(mandatory tasks, ceremony cuts, `team.owners`, EARS knobs).
 
 <br/>
 
@@ -205,7 +213,7 @@ still use Compass and the lawbook engine by calling the CLI from its shell.
 <p align="center"><b>CLI</b> — the installer &amp; operator, runs anywhere <code>node</code> does</p>
 <p align="center"><img src="https://raw.githubusercontent.com/esneiderbravo/speclaw/main/brand/terminal-cli.png" width="800" alt="speclaw CLI commands"></p>
 
-<p align="center"><b>MCP</b> — the integrated agent surface, auto-registered by <code>init</code></p>
+<p align="center"><b>MCP</b> — eight canonical tools, auto-registered by <code>init</code></p>
 <p align="center"><img src="https://raw.githubusercontent.com/esneiderbravo/speclaw/main/brand/terminal-mcp.png" width="800" alt="speclaw MCP tools"></p>
 
 <br/>
@@ -217,26 +225,20 @@ still use Compass and the lawbook engine by calling the CLI from its shell.
 </p>
 
 **Committed vs. local.** Your **personalized source** is committed — `LAWS.md`,
-`CLAUDE.md`, `AGENTS.md`, `docs/standards/*`, `docs/compass.md`, and the
-`lawbook/` workspace. speclaw's **regenerable workflow content is local, not
-committed**: only `ai-specs/` (skills, commands, rules, agent packs, and its
-`.speclaw.json` manifest) is gitignored, because `init`/`update` reconstruct it
-from the package — like a dependency. So **after cloning a speclaw project, run
-`speclaw init` (or `speclaw update`)** to regenerate `ai-specs/` locally, which
-the agent IDE symlinks point into. If a project committed `ai-specs/` before
-this behavior existed, `init`/`update` print the exact `git rm -r --cached
-ai-specs` command to stop tracking it (they never touch your git index
-themselves). The agent directories (`.claude/`, `.cursor/`, …) are **left to
-you** — commit your own skills and commands there if you want to.
+`CLAUDE.md`, `AGENTS.md`, `docs/standards/*`, `docs/compass.md`, the `lawbook/`
+workspace, and **`speclaw.lock`** (rule digests at the repo root). speclaw's
+**regenerable workflow content is local, not committed**: only `ai-specs/`
+(skills, commands, rules, agent packs, and its `.speclaw.json` manifest) is
+gitignored, because `init`/`update` reconstruct it from the package. So **after
+cloning a speclaw project, run `speclaw init` (or `speclaw update`)** to
+regenerate `ai-specs/` locally. Optional **`team.owners`** in
+`lawbook/config.yaml` compiles into a managed block at the end of
+`.github/CODEOWNERS` via `speclaw owners --write`.
 
 **Enforcement artifacts.** For agents that support hooks, speclaw merges its law
-hooks into that agent's settings (e.g. `.claude/settings.json`) **by identity** —
-it never touches hooks you added yourself. Each speclaw `mcp_tool` hook includes
-an `input` map Claude Code substitutes from the hook event (`${cwd}`,
-`${hook_event_name}`, `${tool_input.file_path}`, …) so `speclaw_check` receives
-`projectPath` / `event` / `payload`. The compiled law manifest lives in
-`.speclaw/laws-manifest.json` (gitignored, regenerated on `init`/`update`), and a
-context-coverage log in `.speclaw/context-log.jsonl` feeds `speclaw doctor`.
+hooks into that agent's settings **by identity** — it never touches hooks you
+added yourself. The compiled law manifest lives in `.speclaw/laws-manifest.json`
+(gitignored), and a context-coverage log feeds `speclaw doctor`.
 
 <br/>
 
@@ -262,7 +264,8 @@ So `speclaw init` compiles your blocking laws into agent hooks: a law marked
 and source. `speclaw check --dry-run --path <file>` previews what would block, and
 `speclaw doctor` reports how many of your laws actually reached the agent's
 context. Agents without hooks (Cursor, Codex) enforce the same laws in CI via
-`speclaw verify`.
+`speclaw verify`. Digests in `speclaw.lock` catch silent edits to the rule files
+themselves (the *Rules File Backdoor*).
 
 <br/>
 
@@ -296,7 +299,8 @@ speclaw laws accept AGENTS.md   # interactive TTY only — never via MCP
 **Limits (honest):** digests catch any edit; the scanner catches known payload
 shapes after Unicode normalization — not LLM-grade semantic injection. Digest
 acceptance is a human gate (`laws accept` on a TTY). There is no Sigstore signing
-of the lock in this release.
+of the lock in this release. Regenerable IDE mirrors (e.g. `.cursor/rules` →
+`ai-specs/`) are not pinned as strict committed files.
 
 On GitHub:
 
@@ -306,7 +310,8 @@ On GitHub:
 
 `init` / `update` write `.github/workflows/speclaw.yml` only when that path is
 missing — they never overwrite your CI. Make the check required in branch
-protection yourself; speclaw does not.
+protection yourself; speclaw does not. Pair with `speclaw owners` + *Require
+review from Code Owners* when you declare `team.owners`.
 
 <br/>
 
@@ -322,17 +327,12 @@ speclaw update
 `update` upgrades the global package **and** brings the current project up to date
 without a re-init, splitting files by who owns them:
 
-- **Managed files** (speclaw's workflow machinery — the skills, commands, rules,
-  and agent packs under `ai-specs/`) are **refreshed** to the new version, so
-  improvements actually reach your project. They live locally (gitignored, see
-  *What lands in your project*) and are reconstructed from the package. If you
-  edited one locally, `update` reports the overwrite; pass `--backup` to keep a
-  `<file>.bak` (itself gitignored) before it is refreshed.
-- **Personalized files** (your constitution and standards — `CLAUDE.md`,
-  `AGENTS.md`, `LAWS.md`, `docs/standards/*`, `docs/compass.md`,
-  `lawbook/config.yaml`) are **never auto-edited**. When a release changes their
-  speclaw-authored content, `update` prints a prompt for **the agent you're
-  using** to apply the change while preserving your project's specifics.
+- **Managed files** (skills/commands/rules under `ai-specs/`) are **refreshed**.
+  Pass `--backup` to keep a `<file>.bak` before overwrite.
+- **Personalized files** (`CLAUDE.md`, `AGENTS.md`, `LAWS.md`, `docs/standards/*`,
+  `docs/compass.md`, `lawbook/config.yaml`) are **never auto-edited** — `update`
+  prints a prompt for the agent you're using.
+- **`speclaw.lock`** and the CODEOWNERS owners block are refreshed when configured.
 
 - `speclaw update --check` — report whether an update exists, change nothing.
 - `NO_UPDATE_NOTIFIER=1` — silence the reminder.
@@ -341,7 +341,7 @@ without a re-init, splitting files by who owns them:
 
 ## <img src="https://raw.githubusercontent.com/esneiderbravo/speclaw/main/brand/diamond.png" height="20" alt="◆" align="absmiddle">&nbsp; Requirements
 
-- **Node.js ≥ 22** — uses the built-in `node:sqlite`.
+- **Node.js ≥ 22.16** — uses built-in `node:sqlite` (FTS5 for hybrid find).
 - **No native builds, no services, no API keys, no LLM download.** Tree-sitter
   parsers ship as WASM; the vector store is local.
 
@@ -354,6 +354,6 @@ without a re-init, splitting files by who owns them:
 [CodeGraph](https://github.com/colbymchenry/codegraph) &nbsp;·&nbsp;
 see [ATTRIBUTION.md](ATTRIBUTION.md)
 
-<i>speclaw · where specs become law</i>
+<i>speclaw 1.0 · where specs become law</i>
 
 </div>

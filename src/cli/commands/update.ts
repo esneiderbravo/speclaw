@@ -201,6 +201,16 @@ const MIGRATIONS: Migration[] = [
       "deriveFromTraceability is not enabled in this release.\n" +
       "- Preserve all project-specific wording; only apply these speclaw-authored changes.",
   },
+  {
+    version: "1.0.0",
+    describe: "speclaw 1.0 — official release (enforcement + graph + lawbook + owners)",
+    agentPrompt:
+      "- speclaw **1.0** is the official release: Foundation (hooks + `speclaw.lock` integrity), " +
+      "Compass (schema 10, eight canonical MCP tools), Lawbook (ceremony 0–3, coverage, drift, " +
+      "bugfix), and Team (`team.owners` → `speclaw owners --write`). Install remains " +
+      "`npx @esneiderbravo/speclaw@latest init`. CI consumers use `esneiderbravo/speclaw@v1`.\n" +
+      "- Preserve all project-specific wording; only apply these speclaw-authored changes.",
+  },
 ];
 
 /**
