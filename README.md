@@ -102,13 +102,14 @@ gh attestation verify <tarball> --owner esneiderbravo
 
 <br/>
 
-## <img src="https://raw.githubusercontent.com/esneiderbravo/speclaw/main/brand/diamond.png" height="20" alt="◆" align="absmiddle">&nbsp; The suite — four modules
+## <img src="https://raw.githubusercontent.com/esneiderbravo/speclaw/main/brand/diamond.png" height="20" alt="◆" align="absmiddle">&nbsp; The suite — modules
 
 | Module | What it does |
 | :-- | :-- |
 | **Foundation** | The project's constitution: `LAWS.md` binding a set of granular standards under `docs/standards/` (base, architecture, backend, frontend, testing, documentation, conventions, lawbook), plus strict `CLAUDE.md` / `AGENTS.md` agent contracts — filled from your real codebase. It also **enforces** them: blocking laws compile into agent hooks that deny a forbidden edit at the keystroke (`speclaw check` / `speclaw_check`), and architectural laws are verified deterministically against the Compass graph — dependency rules (`deps`) and cycles (`graph`) — via `speclaw verify` (CI orchestrator: exit codes, SARIF, markdown) and `speclaw laws verify` / `law_verify`. Each law is reported as passed, failed, skipped, or unknown (an unresolved reference is *unknown*, never a silent pass). |
 | **Compass** | speclaw's own local code graph. Parses your code (tree-sitter) into nodes + edges plus a local vector store, so an agent finds and understands code with a fraction of the tokens a grep/read loop would cost. No LLM, 100% local, lives in `.speclaw/` (gitignored). |
 | **Lawbook** | speclaw's own spec-driven workflow: `draft → build → sync → archive` (and `explore`), backed by `lawbook_*` engine tools. No external CLI. |
+| **Team** | Local team surfaces: declare `team.owners` in `lawbook/config.yaml` and compile a managed trailing block in `.github/CODEOWNERS` with `speclaw owners --write` (GitHub: last match wins). CLI + `doctor` only — no MCP tool in this release. |
 | **Tools** | Opt-in packs of skills and subagents (currently the dev-agents) that agents use for specific tasks. |
 
 Compass is inspired by [CodeGraph](https://github.com/colbymchenry/codegraph) and the Lawbook module by [OpenSpec](https://github.com/Fission-AI/openspec) — both MIT. speclaw reimplements the ideas as its own code and gives full credit; see [ATTRIBUTION.md](ATTRIBUTION.md).

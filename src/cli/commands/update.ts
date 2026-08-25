@@ -190,6 +190,17 @@ const MIGRATIONS: Migration[] = [
       "Strict paths include AGENTS.md / CLAUDE.md / compiled rules; standards docs are advisory.\n" +
       "- Preserve all project-specific wording; only apply these speclaw-authored changes.",
   },
+  {
+    version: "0.4.2",
+    describe: "Spec ownership — team.owners → CODEOWNERS",
+    agentPrompt:
+      '- Optional `team.owners` in `lawbook/config.yaml` maps capability names (and `"*"`) to ' +
+      "`@user` / `@org/team` / email owners. Run `speclaw owners --write` to compile a managed " +
+      "block at the **end** of `.github/CODEOWNERS` (GitHub: last match wins). `speclaw doctor` " +
+      "errors if content appears after the end marker. No new MCP tool — CLI only. " +
+      "deriveFromTraceability is not enabled in this release.\n" +
+      "- Preserve all project-specific wording; only apply these speclaw-authored changes.",
+  },
 ];
 
 /**

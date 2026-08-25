@@ -18,6 +18,7 @@ import {
 import { HookInstallResult, installHooks } from "./hooks.js";
 import { compileLaws } from "./compile-laws.js";
 import { refreshLockfile } from "./lock.js";
+import { refreshOwnersIfConfigured } from "../team/owners.js";
 
 const ASSETS = assetsDir(import.meta.url);
 
@@ -230,6 +231,15 @@ export function scaffold(
     backup: managedOpts.backup,
     record,
   });
+
+  // Refresh CODEOWNERS managed block when the project declared team.owners —
+  // never invent owners when the key is absent.
+  try {
+    refreshOwnersIfConfigured(projectPath);
+  } catch (err) {
+    // Surface as a soft note — invalid tokens should not abort scaffold/update.
+    report.skipped.push(`owners refresh skipped: ${(err as Error).message}`);
+  }
 
   // Record what was installed so `speclaw update` can re-apply these packs and
   // gate feature migrations by version, plus the managed-file baselines that let
