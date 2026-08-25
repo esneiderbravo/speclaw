@@ -1,15 +1,15 @@
 {
   "lockfileVersion": 1,
-  "generator": "@esneiderbravo/speclaw@0.4.2",
+  "generator": "@esneiderbravo/speclaw@1.0.0",
   "algorithm": "sha256",
-  "root": "sha256:101ca7698e789a559f657876fda4674ce3575aa6c70546da74d30e9dba8999b6",
+  "root": "sha256:48ffebd84d5beb896c8512f897feab271421ea503561786ba76f80edc8ac018f",
   "files": {
     "AGENTS.md": {
-      "digest": "sha256:dc3a58a9fe9b2939969892ae5b51636606db33d884d77ef0fc7eb2cca6e13a84",
+      "digest": "sha256:f3882da6c0cdcd2548e2667866dcdd022e3eb64c89107b4218980d01e9592a48",
       "ownership": "strict"
     },
     "CLAUDE.md": {
-      "digest": "sha256:c47c648c6225d66ab2ebfaa7d9727a5c57cde67e1d24eae4f7f9d55d84a7f357",
+      "digest": "sha256:d55975b682800de4bd41254fcbc1c20b8f08082d966d696a16748075c9e488f5",
       "ownership": "strict"
     },
     "LAWS.md": {
@@ -53,6 +53,10 @@
       "ownership": "advisory"
     }
   },
-  "symlinks": {},
+  "symlinks": {
+    ".claude/rules/speclaw": {
+      "target": "../../ai-specs/rules"
+    }
+  },
   "accepted": []
 }

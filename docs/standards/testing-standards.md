@@ -24,7 +24,9 @@ CI runs both jobs on every push to `main` and every PR
 build`) and `test` (`npm ci && npm run build && npm test`), reported as two
 required status checks. PRs also run `.github/workflows/speclaw.yml` (the
 `speclaw` check); speclaw never makes that check required itself — add it in
-branch protection if you want PRs gated on law verification. `main` is
+branch protection if you want PRs gated on law verification. Consumer
+workflows use `esneiderbravo/speclaw@v1`. `speclaw verify` folds lockfile
+integrity findings with deps/graph. `main` is
 protected so a change merges only through a pull request whose `build` and
 `test` checks pass on an up-to-date branch, with linear history and no
 force-pushes — codified in `.github/branch-protection.json` and applied by
