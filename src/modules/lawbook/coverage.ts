@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { openDb, indexExists } from "../compass/db.js";
+import { detectPropertyRunnerInWindow, loadPropertyRunners, type PropertyRunner } from "./ears.js";
 import {
   formatItemId,
   loadSpecItems,
@@ -17,6 +18,7 @@ export interface CoverageConfig {
   gateArchive: boolean;
   sources: Record<string, string[]>;
   exclude: string[];
+  propertyRunners: PropertyRunner[];
 }
 
 export const DEFAULT_COVERAGE_CONFIG: CoverageConfig = {
@@ -27,8 +29,10 @@ export const DEFAULT_COVERAGE_CONFIG: CoverageConfig = {
     impl: ["src/**"],
     utest: ["test/unit/**", "test/**/*.test.ts", "test/**/*.test.js"],
     itest: ["test/integration/**"],
+    ptest: ["test/property/**"],
   },
   exclude: ["**/node_modules/**", "**/dist/**", "**/.speclaw/**"],
+  propertyRunners: [],
 };
 
 export type LinkStatus = "Covers" | "Outdated" | "Predated" | "Orphaned" | "Unwanted" | "Ambiguous";
@@ -104,7 +108,10 @@ interface RawLink {
 export function loadCoverageConfig(projectPath: string): CoverageConfig {
   const cfg: CoverageConfig = structuredClone(DEFAULT_COVERAGE_CONFIG);
   const cfgPath = path.join(projectPath, "lawbook", "config.yaml");
-  if (!fs.existsSync(cfgPath)) return cfg;
+  if (!fs.existsSync(cfgPath)) {
+    cfg.propertyRunners = loadPropertyRunners(projectPath);
+    return cfg;
+  }
   const text = fs.readFileSync(cfgPath, "utf8");
   const gate = /^\s*gateArchive\s*:\s*(true|false)\s*$/im.exec(text);
   if (gate) cfg.gateArchive = gate[1]!.toLowerCase() === "true";
@@ -127,7 +134,21 @@ export function loadCoverageConfig(projectPath: string): CoverageConfig {
       )
       .filter(Boolean);
   }
+  cfg.propertyRunners = loadPropertyRunners(projectPath);
   return cfg;
+}
+
+/**
+ * Effective coverage needs for an item: explicit `Needs:` or defaults, plus
+ * `ptest` when `Verification: property` is declared.
+ */
+// Covers: req~ptest-need~1, req~ptest-archive-gate~1
+export function effectiveNeeds(item: SpecItem, cfg: CoverageConfig): string[] {
+  const needs = item.needs.length > 0 ? [...item.needs] : [...cfg.defaultNeeds];
+  if (item.verification === "property" && !needs.includes("ptest")) {
+    needs.push("ptest");
+  }
+  return needs;
 }
 
 /** Glob match supporting `**`, `*`, and path separators. */
@@ -161,11 +182,35 @@ export function matchGlob(relPath: string, pattern: string): boolean {
 export function inferArtifactType(relPath: string, cfg: CoverageConfig): string | null {
   const norm = relPath.split("\\").join("/");
   if (cfg.exclude.some((g) => matchGlob(norm, g))) return null;
-  for (const type of ["itest", "utest", "impl"] as const) {
+  for (const type of ["ptest", "itest", "utest", "impl"] as const) {
     const globs = cfg.sources[type] ?? [];
     if (globs.some((g) => matchGlob(norm, g))) return type;
   }
   return null;
+}
+
+/**
+ * Prefer `ptest` when a property-runner invocation sits near the link line.
+ */
+// Covers: req~ptest-need~1
+export function refineSourceType(
+  projectPath: string,
+  filePath: string,
+  line: number,
+  current: string,
+  runners: PropertyRunner[],
+): string {
+  if (runners.length === 0) return current;
+  const abs = path.isAbsolute(filePath) ? filePath : path.join(projectPath, filePath);
+  if (!fs.existsSync(abs)) return current;
+  let source: string;
+  try {
+    source = fs.readFileSync(abs, "utf8");
+  } catch {
+    return current;
+  }
+  const hit = detectPropertyRunnerInWindow(source, line, runners);
+  return hit ? "ptest" : current;
 }
 
 function readIndexLinks(projectPath: string): RawLink[] {
@@ -235,6 +280,7 @@ function classifyLink(
   item: SpecItem | undefined,
   idCounts: Map<string, number>,
   cfg: CoverageConfig,
+  projectPath: string,
 ): CoverageLink {
   const base: CoverageLink = {
     artifactType: link.artifactType,
@@ -272,6 +318,13 @@ function classifyLink(
   }
   const inferred = inferArtifactType(link.filePath, cfg);
   if (inferred) base.sourceType = inferred;
+  base.sourceType = refineSourceType(
+    projectPath,
+    link.filePath,
+    link.line,
+    base.sourceType,
+    cfg.propertyRunners,
+  );
   return base;
 }
 
@@ -306,12 +359,12 @@ export function buildCoverageReport(
 
   for (const item of identified) {
     const idText = item.idText!;
-    const needs = item.needs.length > 0 ? item.needs : [...cfg.defaultNeeds];
+    const needs = effectiveNeeds(item, cfg);
     const itemLinks = rawLinks
       .filter((l) => l.artifactType === item.id!.artifactType && l.name === item.id!.name)
       .map((l) => {
         matchedKeys.add(`${l.filePath}:${l.line}:${l.revision}:${l.kind}`);
-        return classifyLink(l, item, idCounts, cfg);
+        return classifyLink(l, item, idCounts, cfg, projectPath);
       });
 
     const covering = itemLinks.filter((l) => l.status === "Covers");
@@ -395,7 +448,7 @@ export function buildCoverageReport(
   for (const l of rawLinks) {
     const key = `${l.filePath}:${l.line}:${l.revision}:${l.kind}`;
     if (matchedKeys.has(key)) continue;
-    orphans.push(classifyLink(l, undefined, idCounts, cfg));
+    orphans.push(classifyLink(l, undefined, idCounts, cfg, projectPath));
   }
 
   const gated = results.filter((r) => cfg.gateStatuses.includes(r.status));

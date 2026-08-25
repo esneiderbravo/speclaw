@@ -19,6 +19,12 @@ export interface SpecItem {
   tags: string[];
   depends: string[];
   covers: string[];
+  /**
+   * Optional verification keyword (`example` | `property` | `contract` | `manual`).
+   * `property` expands effective coverage needs to include `ptest`; `Needs: ptest`
+   * remains the source of truth when listed explicitly.
+   */
+  verification: string | null;
   /** Inline [@test|/[@impl] markers found under this item. */
   inlineLinks: InlineLink[];
   specPath: string;
@@ -34,7 +40,7 @@ export interface InlineLink {
 
 const RE_REQUIREMENT = /^###\s+Requirement:\s*(.+?)\s*$/;
 const RE_ID = /`([a-z]{2,6})~([A-Za-z0-9._-]+)~(\d+)`/;
-const RE_KEYWORD = /^(Status|Needs|Tags|Depends|Covers)\s*:\s*(.+?)\s*$/i;
+const RE_KEYWORD = /^(Status|Needs|Tags|Depends|Covers|Verification)\s*:\s*(.+?)\s*$/i;
 const RE_INLINE = /\[@(test|impl)\s+([^\]]+)\]/gi;
 const RE_ID_LOOSE = /\b([a-z]{2,6})~([A-Za-z0-9._-]+)~(\d+)\b/g;
 
@@ -112,6 +118,7 @@ export function parseSpecItems(specPath: string, content: string): SpecItem[] {
         tags: [],
         depends: [],
         covers: [],
+        verification: null,
         inlineLinks: [],
         specPath,
         line: i + 1,
@@ -140,6 +147,7 @@ export function parseSpecItems(specPath: string, content: string): SpecItem[] {
       else if (key === "tags") current.tags = splitList(value);
       else if (key === "depends") current.depends = parseIdList(value);
       else if (key === "covers") current.covers = parseIdList(value);
+      else if (key === "verification") current.verification = value.trim().toLowerCase();
       continue;
     }
 

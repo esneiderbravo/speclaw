@@ -7,6 +7,7 @@ import {
   loadCoverageConfig,
   matchGlob,
   proposeAdopt,
+  refineSourceType,
 } from "../../src/modules/lawbook/coverage.js";
 import { tmpRepo, write } from "../helpers/env.js";
 
@@ -86,4 +87,39 @@ test("proposeAdopt invents stable ids without writing", (t) => {
   assert.equal(proposals.length, 1);
   assert.equal(proposals[0]!.proposedId, "req~hook-generation~1");
   assert.equal(proposals[0]!.collision, false);
+});
+
+// Covers: req~ptest-need~1, req~ptest-archive-gate~1, req~ears-cli-surface~1
+test("Verification: property expands effective needs to include ptest", (t) => {
+  const root = tmpRepo(t);
+  write(
+    root,
+    "lawbook/specs/demo/spec.md",
+    `### Requirement: Universal \`req~univ~1\`
+
+Verification: property
+Needs: impl
+
+The system SHALL hold for any input.
+`,
+  );
+  const cfg = loadCoverageConfig(root);
+  const report = buildCoverageReport(root, { cfg });
+  assert.ok(report.items[0]!.needs.includes("ptest"));
+  assert.ok(report.items[0]!.uncoveredTypes.includes("ptest"));
+});
+
+test("refineSourceType promotes utest to ptest near fc.assert", (t) => {
+  const root = tmpRepo(t);
+  write(
+    root,
+    "test/unit/demo.test.ts",
+    `// Covers: req~univ~1
+import fc from "fast-check";
+fc.assert(fc.property(fc.boolean(), (b) => b || !b));
+`,
+  );
+  const cfg = loadCoverageConfig(root);
+  const refined = refineSourceType(root, "test/unit/demo.test.ts", 1, "utest", cfg.propertyRunners);
+  assert.equal(refined, "ptest");
 });

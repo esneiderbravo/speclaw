@@ -3,6 +3,13 @@ import path from "node:path";
 import { coverageArchiveBlockers } from "./coverage.js";
 import { sealCapability, type SealSummary } from "./anchors.js";
 import {
+  classifyEars,
+  diagnoseEars,
+  extractNormativeBody,
+  loadEarsConfig,
+  splitRequirementBlocks,
+} from "./ears.js";
+import {
   artifactNeeds,
   confirmedLevel,
   countUncheckedTasks,
@@ -60,6 +67,17 @@ mandatory_task_steps:
 ceremony:
   cuts: [3, 8, 15]
   hotspotFloor: 0.7
+
+# Requirement → impl → test coverage (\`speclaw coverage\`).
+coverage:
+  gateArchive: true
+  defaultNeeds: [impl, utest]
+
+# EARS requirement linter (strict by default for new projects).
+ears:
+  severity: strict
+  vagueWords: [appropriately, properly, as needed, efficiently, user-friendly, robust, adecuadamente, correctamente]
+  silentCodes: []
 `;
 
 const README_MD = `# lawbook/ — the spec-driven workflow (speclaw)
@@ -291,6 +309,7 @@ export function specValidate(
   const root = specRoot(projectPath);
   const changeSpecs = path.join(changeDir, "specs");
   const capabilities = canonicalCapabilities(root);
+  const earsCfg = loadEarsConfig(projectPath);
   for (const file of deltas) {
     const rel = path.relative(changeDir, file);
     const content = fs.readFileSync(file, "utf8");
@@ -302,6 +321,21 @@ export function specValidate(
     }
     if (!/^###\s+Requirement:/m.test(content)) {
       issues.push(`${rel}: no "### Requirement:" header`);
+    }
+
+    for (const req of splitRequirementBlocks(content)) {
+      const { body, hasScenarios } = extractNormativeBody(req.block);
+      if (!body.trim()) continue;
+      // Covers: req~ears-validate~1, req~ptest-archive-gate~1
+      const classification = classifyEars(body);
+      const diags = diagnoseEars(classification, { hasScenarios, config: earsCfg });
+      for (const d of diags) {
+        const loc = `${rel}:${req.line}`;
+        const msg =
+          `${loc}: ${d.code}: ${d.message}` + (d.suggestion ? ` Suggested: ${d.suggestion}` : "");
+        if (d.severity === "error") issues.push(msg);
+        else if (d.severity === "warn" || d.severity === "info") warnings.push(msg);
+      }
     }
 
     const relFromSpecs = path.relative(changeSpecs, file);

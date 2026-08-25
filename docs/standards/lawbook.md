@@ -54,7 +54,12 @@ the change; the archive is blocked until at least one discipline report exists.
 
 ## Delta specs
 
-- Normative requirements use SHALL/MUST.
+- Normative requirements use SHALL/MUST and SHOULD fit an **EARS** mold
+  (ubiquitous / WHEN / WHILE / IF…THEN / WHERE / complex). `speclaw lawbook
+  validate` classifies each requirement; with `ears.severity: strict` (default
+  for new projects and for speclaw itself), unstructured bodies and missing
+  modals are blocking issues. Suggestions are advisory — speclaw never
+  auto-rewrites requirement files.
 - Requirement headers use `### Requirement:`.
 - Scenario headers use exactly `#### Scenario:`.
 - Acceptance criteria are testable without production integrations.
@@ -85,7 +90,13 @@ change reaches the archive only when it is genuinely complete.
   implementations/tests with `// Covers:` (or `@covers`) comments.
   `speclaw coverage` / `lawbook_coverage` reports requirement → impl → test.
   Defaults live under `coverage.defaultNeeds` / `coverage.gateArchive` in
-  `lawbook/config.yaml`.
+  `lawbook/config.yaml`. Declare `Needs: ptest` (source of truth) when a
+  requirement needs a property test; optional `Verification: property` expands
+  effective needs to include `ptest`. speclaw recognizes runners (fast-check,
+  Hypothesis, …) near the `Covers:` line — it does **not** run or generate
+  property tests.
+- **EARS** — configure `ears.severity` (`strict` | `lenient`), `vagueWords`, and
+  `silentCodes` in `lawbook/config.yaml`.
 - **Drift** — sealed spec↔code snapshots live in committed
   `lawbook/anchors/*.json` (dual body/norm hashes). `speclaw drift` /
   `lawbook_drift` classifies change; after a Compass schema bump, reindex with
