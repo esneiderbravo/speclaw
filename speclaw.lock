@@ -2,16 +2,8 @@
   "lockfileVersion": 1,
   "generator": "@esneiderbravo/speclaw@0.4.0",
   "algorithm": "sha256",
-  "root": "sha256:a3d428c3ed94f94b5e45ab6e35b6c8ea54b208099e397daa30f5e0dbf4c58a9e",
+  "root": "sha256:23f0fdc0b53ae291e7a6901add46f9da0fffff81ac1562bd7df20c0c7774e18e",
   "files": {
-    ".cursor/rules/spec-reports-disciplines.md": {
-      "digest": "sha256:4c05ed575e528ad65f80f07d1b152f034f66eeb3b95952cb40b436ef2b693657",
-      "ownership": "strict"
-    },
-    ".cursor/rules/spec-tasks-mandatory-steps.md": {
-      "digest": "sha256:383e734af0be564f3c47c50d30b2b3b25224a068ad70f2687c601f254c335cf7",
-      "ownership": "strict"
-    },
     "AGENTS.md": {
       "digest": "sha256:dc3a58a9fe9b2939969892ae5b51636606db33d884d77ef0fc7eb2cca6e13a84",
       "ownership": "strict"
@@ -25,7 +17,7 @@
       "ownership": "advisory"
     },
     "docs/compass.md": {
-      "digest": "sha256:4a01383b198fc46f80535a1d53df6e915e928eb102dc646d82ec73dfeb09e115",
+      "digest": "sha256:b309751e990a049b10e59540dad254502df1f95bd0e6826fadd298fb8d5414e3",
       "ownership": "advisory"
     },
     "docs/standards/architecture.md": {

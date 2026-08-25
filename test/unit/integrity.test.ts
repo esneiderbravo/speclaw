@@ -75,6 +75,29 @@ test("missing strict file fails; missing advisory warns", (t) => {
   );
 });
 
+test("missing regenerable IDE mirror warns without failing", (t) => {
+  const root = tmpRepo(t);
+  write(root, "AGENTS.md", "ok\n");
+  refreshLockfile(root);
+  const lockPath = path.join(root, "speclaw.lock");
+  const lock = JSON.parse(fs.readFileSync(lockPath, "utf8")) as {
+    files: Record<string, { digest: string; ownership: string }>;
+    root?: string;
+  };
+  lock.files[".cursor/rules/stale.md"] = {
+    digest: "sha256:deadbeef",
+    ownership: "strict",
+  };
+  fs.writeFileSync(lockPath, JSON.stringify(lock, null, 2));
+  const r = verifyIntegrity({ projectPath: root, checks: "integrity" });
+  assert.equal(r.ok, true);
+  const hit = r.verifyFindings.find(
+    (f) => f.lawId === "integrity~missing~1" && f.file === ".cursor/rules/stale.md",
+  );
+  assert.ok(hit);
+  assert.equal(hit!.severity, "warn");
+});
+
 test("symlink retarget fails integrity", (t) => {
   const root = tmpRepo(t);
   write(root, "AGENTS.md", "ok\n");

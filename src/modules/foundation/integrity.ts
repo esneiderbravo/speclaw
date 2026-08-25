@@ -10,6 +10,7 @@ import {
   discoverIntegrityPaths,
   extractSpeclawYamlBlock,
   integrityPolicy,
+  isRegenerableIdeMirror,
   lockfilePath,
   readLockfile,
   refreshLockfile,
@@ -120,6 +121,25 @@ export function verifyIntegrity(opts: VerifyIntegrityOpts): IntegrityReport {
     for (const [rel, entry] of Object.entries(lock.files)) {
       const abs = path.join(projectPath, rel);
       if (!fs.existsSync(abs)) {
+        // Stale lock entries for regenerable IDE mirrors (ai-specs gitignored) —
+        // warn only; never fail CI on a clean clone.
+        if (isRegenerableIdeMirror(rel)) {
+          files.push({
+            path: rel,
+            ownership: entry.ownership,
+            status: "missing",
+            expected: entry.digest,
+          });
+          verifyFindings.push({
+            lawId: "integrity~missing~1",
+            severity: "warn",
+            engine: "integrity",
+            file: rel,
+            message:
+              "Regenerable IDE rule mirror missing — run `speclaw update` or `speclaw laws lock` to drop stale entries",
+          });
+          continue;
+        }
         const severity = entry.ownership === "strict" ? "error" : "warn";
         if (entry.ownership === "strict") ok = false;
         files.push({
