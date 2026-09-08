@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { z } from "zod";
-import { adaptedLaws, catalogLaws, mergeAdaptedSeed } from "./seed-laws.js";
+import { adaptedLaws, catalogLaws, mergeAdaptedSeed, type PersistableLaw } from "./seed-laws.js";
 
 // The machine-readable law model and its manifest. This is the contract seam
 // (`.speclaw/laws-manifest.json`) between where laws come from and how they are
@@ -315,7 +315,11 @@ export function mergeSeedLaws(
   existing: LawManifest,
   projectPath: string,
 ): { manifest: LawManifest; added: string[]; removed: string[] } {
-  return mergeAdaptedSeed(existing, projectPath);
+  const { manifest, added, removed } = mergeAdaptedSeed(
+    { version: existing.version, laws: existing.laws as PersistableLaw[] },
+    projectPath,
+  );
+  return { manifest: manifestSchema.parse(manifest), added, removed };
 }
 
 // ─── Glob matching (the `path` backend) ──────────────────────────────────────

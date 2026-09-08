@@ -1,5 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import fs from "node:fs";
+import path from "node:path";
 import { tmpRepo, read, has, write } from "../helpers/env.js";
 import { speclawLayout } from "../helpers/fixtures.js";
 import {
@@ -222,4 +224,9 @@ test("write/read round-trips a manifest and validation rejects a bad law", (t) =
 test("readLawManifest returns null for a missing or corrupt manifest", (t) => {
   const root = tmpRepo(t);
   assert.equal(readLawManifest(root), null);
+});
+
+test("seed-laws does not import laws.ts", () => {
+  const src = fs.readFileSync(path.join("src", "modules", "foundation", "seed-laws.ts"), "utf8");
+  assert.doesNotMatch(src, /from ["']\.\/laws\.js["']/);
 });

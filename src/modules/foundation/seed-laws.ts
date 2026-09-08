@@ -1,11 +1,13 @@
 import fs from "node:fs";
 import path from "node:path";
 import { assetsDir } from "../../shared/paths.js";
-import type { Law, LawManifest, Verification } from "./laws.js";
 
 // Catalog adapter: the shipped JSON is speclaw's own architecture plus a few
 // portable laws. Consumer repos get only what their tree can actually host —
 // never compass/foundation/ATTRIBUTION rules copied from this package.
+//
+// Types are declared here (not imported from laws.ts) so the adapter and the
+// schema do not form a file-level import cycle.
 
 const ASSETS = assetsDir(import.meta.url);
 
@@ -18,12 +20,34 @@ export const TEST_SCOPE_EXCLUSIONS: readonly string[] = [
   "!**/__tests__/**",
 ];
 
-/** Adapter metadata on a shipped catalog law; stripped before persist. */
-export interface CatalogLaw extends Law {
+/** Persistable law shape plus optional catalog adapter fields. */
+export interface CatalogLaw {
+  id: string;
+  title: string;
+  rationale?: string;
+  severity: "error" | "warn" | "info";
+  scope: string[];
+  prose: string;
+  verification: {
+    kind: "path" | "ast" | "graph" | "deps" | "process" | "traceability" | "semantic" | "none";
+    rule?: Record<string, unknown>;
+  };
+  enforcement: "bloqueo" | "feedback" | "gate";
+  source: { file: string; line?: number };
+  status?: "active" | "draft";
   /** Every entry must exist (file, directory, or glob) or the law is omitted. */
   requires?: string[];
   /** Rewrite `scope` from detected source roots when catalog defaults miss. */
   adaptScope?: "source-roots";
+}
+
+/** Catalog law with adapter fields stripped — structurally a `Law`. */
+export type PersistableLaw = Omit<CatalogLaw, "requires" | "adaptScope">;
+
+/** Manifest shape accepted by the adapter merge (structurally a `LawManifest`). */
+export interface SeedManifest {
+  version: number;
+  laws: PersistableLaw[];
 }
 
 interface LawCatalog {
@@ -50,27 +74,21 @@ export function readLawCatalog(): LawCatalog {
   return raw;
 }
 
-/** Drop adapter-only fields so the result is a persistable `Law`. */
-export function asLaw(entry: CatalogLaw): Law {
-  const law: Law = {
+/** Drop adapter-only fields so the result is a persistable law. */
+export function asLaw(entry: CatalogLaw): PersistableLaw {
+  const law: PersistableLaw = {
     id: entry.id,
     title: entry.title,
     severity: entry.severity,
     scope: [...entry.scope],
     prose: entry.prose,
-    verification: cloneVerification(entry.verification),
+    verification: structuredClone(entry.verification),
     enforcement: entry.enforcement,
     source: { ...entry.source },
   };
   if (entry.rationale !== undefined) law.rationale = entry.rationale;
   if (entry.status !== undefined) law.status = entry.status;
   return law;
-}
-
-function cloneVerification(v: Verification): Verification {
-  if (v.kind === "deps") return { kind: "deps", rule: { ...v.rule } };
-  if (v.kind === "graph") return { kind: "graph", rule: { ...v.rule } };
-  return { kind: v.kind };
 }
 
 /**
@@ -169,7 +187,7 @@ function withTestExclusions(scope: string[]): string[] {
   return out;
 }
 
-function adaptCycleLaw(projectPath: string, entry: CatalogLaw): Law | null {
+function adaptCycleLaw(projectPath: string, entry: CatalogLaw): PersistableLaw | null {
   const law = asLaw(entry);
   const catalogHits = positivesSatisfied(projectPath, entry.scope);
   const roots = catalogHits
@@ -180,7 +198,7 @@ function adaptCycleLaw(projectPath: string, entry: CatalogLaw): Law | null {
   if (law.verification.kind === "graph") {
     law.verification = {
       kind: "graph",
-      rule: { ...law.verification.rule, circular: true, edgeKinds: ["import"] },
+      rule: { ...(law.verification.rule ?? {}), circular: true, edgeKinds: ["import"] },
     };
   }
   return law;
@@ -196,7 +214,7 @@ function isApplicable(projectPath: string, entry: CatalogLaw): boolean {
  *
  * @returns Persistable laws in catalog order.
  */
-export function catalogLaws(): Law[] {
+export function catalogLaws(): PersistableLaw[] {
   return readLawCatalog().laws.map(asLaw);
 }
 
@@ -207,9 +225,9 @@ export function catalogLaws(): Law[] {
  * @param projectPath - Project root whose tree is inspected.
  * @returns Persistable laws; adapter fields omitted.
  */
-export function adaptedLaws(projectPath: string): Law[] {
+export function adaptedLaws(projectPath: string): PersistableLaw[] {
   // Covers: req~adapt-seed-to-repo~1
-  const out: Law[] = [];
+  const out: PersistableLaw[] = [];
   for (const entry of readLawCatalog().laws) {
     if (!isApplicable(projectPath, entry)) continue;
     if (entry.adaptScope === "source-roots") {
@@ -223,7 +241,7 @@ export function adaptedLaws(projectPath: string): Law[] {
 }
 
 /** True when `existing` is still the shipped catalog text (title + prose). */
-export function isUnmodifiedCatalogLaw(existing: Law, catalog: CatalogLaw): boolean {
+export function isUnmodifiedCatalogLaw(existing: PersistableLaw, catalog: CatalogLaw): boolean {
   return existing.title === catalog.title && existing.prose === catalog.prose;
 }
 
@@ -236,16 +254,16 @@ export function isUnmodifiedCatalogLaw(existing: Law, catalog: CatalogLaw): bool
  * @returns The merged manifest and the ids that were added or removed.
  */
 export function mergeAdaptedSeed(
-  existing: LawManifest,
+  existing: SeedManifest,
   projectPath: string,
-): { manifest: LawManifest; added: string[]; removed: string[] } {
+): { manifest: SeedManifest; added: string[]; removed: string[] } {
   const catalog = readLawCatalog();
   const byId = new Map(catalog.laws.map((l) => [l.id, l]));
   const adapted = adaptedLaws(projectPath);
   const adaptedById = new Map(adapted.map((l) => [l.id, l]));
   const added: string[] = [];
   const removed: string[] = [];
-  const result: Law[] = [];
+  const result: PersistableLaw[] = [];
   const seen = new Set<string>();
 
   for (const law of existing.laws) {
