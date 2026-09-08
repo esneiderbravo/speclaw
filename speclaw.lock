@@ -2,10 +2,10 @@
   "lockfileVersion": 1,
   "generator": "@esneiderbravo/speclaw@1.0.0",
   "algorithm": "sha256",
-  "root": "sha256:530515e4e4e4ca96b47fb1ba29516d93256267430987105641fa712bfde42b34",
+  "root": "sha256:b447e487e78a7c6a1c7708fbaabca9b8574302bb8eda4f966203ced2b5d8feac",
   "files": {
     "AGENTS.md": {
-      "digest": "sha256:63dc1f3876b1af5e0ae1523f8bd62f8bd12d381139162a1e45d61181ba8da357",
+      "digest": "sha256:cde59b5b42ee40b2e7034a40e02dbcfbebc33cc703663ed4dfffdc77012d857c",
       "ownership": "strict"
     },
     "CLAUDE.md": {

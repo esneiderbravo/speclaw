@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpRepo, read, has } from "../helpers/env.js";
-import { sampleProfile } from "../helpers/fixtures.js";
+import { sampleProfile, speclawLayout } from "../helpers/fixtures.js";
 import { scaffold } from "../../src/modules/foundation/scaffold.js";
 import { doctor } from "../../src/modules/foundation/doctor.js";
 import { checkAction, clearLawCache } from "../../src/modules/foundation/check.js";
@@ -63,8 +63,8 @@ test("a curated manifest keeps existing entries on refresh and gains missing see
   const kept = after.laws.find((l) => l.id === "law~no-secrets-in-repo~1");
   assert.equal(kept?.title, "CUSTOM", "existing entries are not overwritten");
   assert.ok(
-    after.laws.some((l) => l.id === "law~shared-stays-inner~1"),
-    "missing seed ids are appended",
+    !after.laws.some((l) => l.id === "law~shared-stays-inner~1"),
+    "dogfood laws are not appended when the tree does not host them",
   );
 });
 
@@ -85,6 +85,7 @@ test("a real PreToolUse payload against the scaffolded manifest is blocked", (t)
 
 test("InstructionsLoaded end-to-end records coverage and doctor reports it", async (t) => {
   const root = tmpRepo(t);
+  speclawLayout(root);
   scaffold(root, sampleProfile(), [], ["claude"]);
   clearLawCache();
 

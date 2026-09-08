@@ -98,6 +98,17 @@ test("scaffold writes the verify workflow when missing and never overwrites it",
   assert.ok(second.skipped.some((p) => p.endsWith(".github/workflows/speclaw.yml")));
 });
 
+test("scaffold seeds a cycle law scoped to apps/*/src on an apps-layout repo", (t) => {
+  const root = tmpRepo(t);
+  write(root, "apps/backend/src/main.ts", "export {};\n");
+  scaffold(root, sampleProfile(), [], []);
+  const back = readLawManifest(root)!;
+  const cycle = back.laws.find((l) => l.id === "law~no-module-cycles~1");
+  assert.ok(cycle);
+  assert.ok(cycle!.scope.includes("apps/*/src/**"));
+  assert.ok(!back.laws.some((l) => l.id === "law~compass-does-not-import-foundation~1"));
+});
+
 test("scaffold merges missing seed laws by id without overwriting curated entries", (t) => {
   const root = tmpRepo(t);
   writeLawManifest(root, {
@@ -120,5 +131,8 @@ test("scaffold merges missing seed laws by id without overwriting curated entrie
   const kept = back.laws.find((l) => l.id === "law~no-secrets-in-repo~1");
   assert.equal(kept?.title, "CUSTOM");
   assert.equal(kept?.prose, "keep this");
-  assert.ok(back.laws.some((l) => l.id === "law~shared-stays-inner~1"));
+  assert.ok(
+    !back.laws.some((l) => l.id === "law~shared-stays-inner~1"),
+    "dogfood laws are not appended when the tree does not host them",
+  );
 });

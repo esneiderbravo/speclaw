@@ -50,9 +50,9 @@ to Grep/Read: a Compass call returned nothing useful for your query, or the
 target isn't indexed code (stylesheets, JSON/config, markdown, logs).
 
 <!-- speclaw:map:start -->
-speclaw · 212 files · 807 nodes
-src/ (111)  test/ (96)  scripts/ (4)  eslint.config.js/ (1)
-hubs: tmpRepo 295 · write 244 · has 120 · buildIndex 76 · openDb 74 · parse 69 · run 63 · commit 52 · read 42 · runCli 33 · gitInit 33 · text 32
+speclaw · 213 files · 826 nodes
+src/ (112)  test/ (96)  scripts/ (4)  eslint.config.js/ (1)
+hubs: tmpRepo 304 · write 251 · has 121 · openDb 77 · buildIndex 76 · parse 70 · run 63 · commit 52 · read 42 · runCli 33 · gitInit 33 · text 32
 entry: src/server.ts (mcp) · src/cli/index.ts (bin)
 <!-- speclaw:map:end -->
 

@@ -1,5 +1,5 @@
 import type { DatabaseSync } from "node:sqlite";
-import { GraphRule, Law } from "./laws.js";
+import { GraphRule, Law, matchesScope } from "./laws.js";
 import type { Finding } from "./verify-model.js";
 import type { EngineResult } from "./deps.js";
 import { underPaths } from "./verify-model.js";
@@ -9,13 +9,19 @@ import { underPaths } from "./verify-model.js";
 // recursive SCC pass overflows the stack on deep import chains) and reports the
 // minimal cycle inside a component, not the whole component — a 3-file cycle is
 // actionable, a 40-file SCC is not. Intra-file self-dependencies are excluded
-// from the graph: at file granularity they are not cycles.
+// from the graph: at file granularity they are not cycles. A law's `scope` globs
+// further restrict the adjacency (empty scope = whole indexed graph).
 
 /** A directed file→file graph as an adjacency map. */
 type Adj = Map<string, string[]>;
 
-/** Build the cross-file dependency graph, restricted to `paths` when given. */
-function buildGraph(db: DatabaseSync, paths: string[] | undefined, edgeKinds?: string[]): Adj {
+/** Build the cross-file dependency graph, restricted to `paths` and `scope`. */
+function buildGraph(
+  db: DatabaseSync,
+  paths: string[] | undefined,
+  edgeKinds: string[] | undefined,
+  scope: string[],
+): Adj {
   const kindFilter =
     edgeKinds && edgeKinds.length > 0
       ? ` AND e.kind IN (${edgeKinds.map(() => "?").join(", ")})`
@@ -36,6 +42,7 @@ function buildGraph(db: DatabaseSync, paths: string[] | undefined, edgeKinds?: s
   const adj: Adj = new Map();
   for (const { src, dst } of rows) {
     if (!underPaths(src, paths) || !underPaths(dst, paths)) continue;
+    if (!matchesScope(scope, src) || !matchesScope(scope, dst)) continue;
     const list = adj.get(src);
     if (list) list.push(dst);
     else adj.set(src, [dst]);
@@ -223,8 +230,9 @@ function reachableFindings(law: Law, rule: GraphRule, adj: Adj): Finding[] {
  *   resolved graph, so a graph law never reports an unknown here).
  */
 export function runGraphLaw(db: DatabaseSync, law: Law, paths?: string[]): EngineResult {
+  // Covers: req~graph-honours-scope~1
   const rule = (law.verification as { kind: "graph"; rule: GraphRule }).rule;
-  const adj = buildGraph(db, paths, rule.edgeKinds);
+  const adj = buildGraph(db, paths, rule.edgeKinds, law.scope);
   const findings: Finding[] = [];
 
   const wantReachable = rule.reachable === true && rule.from != null && rule.to != null;

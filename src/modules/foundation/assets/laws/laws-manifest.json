@@ -21,7 +21,8 @@
       "prose": "Justify any new dependency in the PR: it must not break 'runs offline with no API keys'.",
       "verification": { "kind": "path" },
       "enforcement": "feedback",
-      "source": { "file": "LAWS.md" }
+      "source": { "file": "LAWS.md" },
+      "requires": ["src/modules/compass", "src/modules/foundation"]
     },
     {
       "id": "law~protect-templates~1",
@@ -32,7 +33,8 @@
       "prose": "Assets under src/modules/*/assets/** are product output — keep the {{placeholder}} and speclaw-init contracts intact, and let the build copy them (never hand-copy into dist/).",
       "verification": { "kind": "path" },
       "enforcement": "feedback",
-      "source": { "file": "LAWS.md" }
+      "source": { "file": "LAWS.md" },
+      "requires": ["src/modules/foundation/assets"]
     },
     {
       "id": "law~honest-attribution~1",
@@ -43,7 +45,8 @@
       "prose": "Keep ATTRIBUTION.md accurate as the Compass and Lawbook modules evolve.",
       "verification": { "kind": "path" },
       "enforcement": "feedback",
-      "source": { "file": "LAWS.md" }
+      "source": { "file": "LAWS.md" },
+      "requires": ["ATTRIBUTION.md"]
     },
     {
       "id": "law~shared-stays-inner~1",
@@ -62,7 +65,8 @@
         }
       },
       "enforcement": "gate",
-      "source": { "file": "docs/standards/architecture.md" }
+      "source": { "file": "docs/standards/architecture.md" },
+      "requires": ["src/shared", "src/modules", "src/cli"]
     },
     {
       "id": "law~compass-does-not-import-foundation~1",
@@ -81,7 +85,8 @@
         }
       },
       "enforcement": "gate",
-      "source": { "file": "docs/standards/architecture.md" }
+      "source": { "file": "docs/standards/architecture.md" },
+      "requires": ["src/modules/compass", "src/modules/foundation"]
     },
     {
       "id": "law~no-module-cycles~1",
@@ -90,9 +95,13 @@
       "severity": "error",
       "scope": ["src/modules/**"],
       "prose": "There are no circular dependencies between modules.",
-      "verification": { "kind": "graph", "rule": { "circular": true } },
+      "verification": {
+        "kind": "graph",
+        "rule": { "circular": true, "edgeKinds": ["import"] }
+      },
       "enforcement": "gate",
-      "source": { "file": "docs/standards/architecture.md" }
+      "source": { "file": "docs/standards/architecture.md" },
+      "adaptScope": "source-roots"
     }
   ]
 }

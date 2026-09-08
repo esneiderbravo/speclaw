@@ -98,6 +98,46 @@ test("cycle detection survives a deep import chain without overflowing", (t) => 
   assert.equal(res.findings.length, 0, "a chain has no cycle");
 });
 
+test("a graph law scoped to src/modules still reports a cycle inside that tree", (t) => {
+  const root = tmpRepo(t);
+  const db = openDb(root);
+  const edge = seed(db, ["src/modules/a.ts", "src/modules/b.ts"]);
+  edge("src/modules/a.ts", "src/modules/b.ts");
+  edge("src/modules/b.ts", "src/modules/a.ts");
+  const law = graphLaw({ circular: true });
+  law.scope = ["src/modules/**"];
+  const res = runGraphLaw(db, law);
+  db.close();
+  assert.equal(res.findings.length, 1);
+});
+
+test("a graph law scoped to src/modules ignores a cycle in src/shared", (t) => {
+  // Covers: req~graph-honours-scope~1
+  const root = tmpRepo(t);
+  const db = openDb(root);
+  const edge = seed(db, ["src/modules/a.ts", "src/shared/x.ts", "src/shared/y.ts"]);
+  edge("src/shared/x.ts", "src/shared/y.ts");
+  edge("src/shared/y.ts", "src/shared/x.ts");
+  const law = graphLaw({ circular: true });
+  law.scope = ["src/modules/**"];
+  const res = runGraphLaw(db, law);
+  db.close();
+  assert.equal(res.findings.length, 0);
+});
+
+test("a spec excluded from scope is not a module cycle", (t) => {
+  const root = tmpRepo(t);
+  const db = openDb(root);
+  const edge = seed(db, ["src/modules/root.ts", "src/modules/root.spec.ts"]);
+  edge("src/modules/root.spec.ts", "src/modules/root.ts");
+  edge("src/modules/root.ts", "src/modules/root.spec.ts");
+  const law = graphLaw({ circular: true });
+  law.scope = ["src/modules/**", "!**/*.spec.ts"];
+  const res = runGraphLaw(db, law);
+  db.close();
+  assert.equal(res.findings.length, 0);
+});
+
 test("reachable forbids a transitive path from `from` to `to`", (t) => {
   const root = tmpRepo(t);
   const db = openDb(root);

@@ -238,7 +238,10 @@ regenerate `ai-specs/` locally. Optional **`team.owners`** in
 **Enforcement artifacts.** For agents that support hooks, speclaw merges its law
 hooks into that agent's settings **by identity** — it never touches hooks you
 added yourself. The compiled law manifest lives in `.speclaw/laws-manifest.json`
-(gitignored), and a context-coverage log feeds `speclaw doctor`.
+(gitignored) and is **adapted to the target tree** on `init`/`update` — speclaw's
+own architecture laws are seeded only when those paths exist, and the cycle law
+follows `apps/*/src`, `packages/*/src`, or `src/` rather than copying
+`src/modules/**` from this package. A context-coverage log feeds `speclaw doctor`.
 
 <br/>
 

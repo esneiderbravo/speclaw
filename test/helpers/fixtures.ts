@@ -84,3 +84,15 @@ export function sampleProfile(overrides: Partial<Profile> = {}): Profile {
     ...overrides,
   };
 }
+
+/**
+ * Directories and files that make the shipped dogfood catalog applicable
+ * (compass, foundation assets, shared, cli, ATTRIBUTION.md).
+ */
+export function speclawLayout(root: string): void {
+  write(root, "src/modules/compass/x.ts", "export {};\n");
+  write(root, "src/modules/foundation/assets/x.txt", "x\n");
+  write(root, "src/shared/x.ts", "export {};\n");
+  write(root, "src/cli/x.ts", "export {};\n");
+  write(root, "ATTRIBUTION.md", "x\n");
+}

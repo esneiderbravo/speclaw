@@ -211,6 +211,18 @@ const MIGRATIONS: Migration[] = [
       "`npx @esneiderbravo/speclaw@latest init`. CI consumers use `esneiderbravo/speclaw@v1`.\n" +
       "- Preserve all project-specific wording; only apply these speclaw-authored changes.",
   },
+  {
+    version: "1.0.1",
+    describe: "Seed laws match the target repository layout",
+    agentPrompt:
+      "- After this update, speclaw rewrites `.speclaw/laws-manifest.json` from the " +
+      "target tree: dogfood laws (compass/foundation, ATTRIBUTION.md, local-first, " +
+      "protect-templates, shared-stays-inner) are dropped when those paths do not exist; " +
+      "the cycle law is scoped to detected source roots (`apps/*/src`, `packages/*/src`, " +
+      "`src/`, `lib/`) excluding test files, and considers import edges only. Run " +
+      "`speclaw laws compile` if agent rule files look stale, then `speclaw index`.\n" +
+      "- Preserve all project-specific wording; only apply these speclaw-authored changes.",
+  },
 ];
 
 /**
