@@ -2,8 +2,9 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import type { DatabaseSync } from "node:sqlite";
 import { tmpRepo } from "../helpers/env.js";
+import { speclawLayout } from "../helpers/fixtures.js";
 import { openDb } from "../../src/modules/compass/db.js";
-import { seedManifest, writeLawManifest, type Law } from "../../src/modules/foundation/laws.js";
+import { seedManifestFor, writeLawManifest, type Law } from "../../src/modules/foundation/laws.js";
 import { verifyLaws } from "../../src/modules/foundation/verify.js";
 
 /** Seed files + one node each, and return an edge-adder (dst null = unresolved). */
@@ -139,10 +140,11 @@ test("a law with an unimplemented backend is inert — not counted at all", (t) 
   assert.ok(!report.findings.some((f) => f.lawId === "law~ast~1"));
 });
 
-test("no manifest falls back to the seed (batch laws skip without an index)", (t) => {
+test("no manifest falls back to the adapted seed (batch laws skip without an index)", (t) => {
   const root = tmpRepo(t);
+  speclawLayout(root);
   const report = verifyLaws({ projectPath: root });
-  const seedBatch = seedManifest().laws.filter(
+  const seedBatch = seedManifestFor(root).laws.filter(
     (l) => l.verification.kind === "deps" || l.verification.kind === "graph",
   );
   assert.ok(seedBatch.length >= 1);
@@ -150,4 +152,11 @@ test("no manifest falls back to the seed (batch laws skip without an index)", (t
   assert.equal(report.summary.skipped, seedBatch.length);
   assert.ok(report.skipped.every((s) => s.reason === "no-index"));
   assert.ok(report.skipped[0]?.detail?.includes("compass_index"));
+});
+
+test("no manifest on a foreign layout does not evaluate speclaw dogfood batch laws", (t) => {
+  const root = tmpRepo(t);
+  const report = verifyLaws({ projectPath: root });
+  assert.ok(!report.skipped.some((s) => s.lawId === "law~compass-does-not-import-foundation~1"));
+  assert.ok(!report.skipped.some((s) => s.lawId === "law~shared-stays-inner~1"));
 });

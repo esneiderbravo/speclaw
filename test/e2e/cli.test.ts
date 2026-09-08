@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { tmpRepo, write, read, has } from "../helpers/env.js";
-import { seedSampleRepo, sampleProfile } from "../helpers/fixtures.js";
+import { seedSampleRepo, sampleProfile, speclawLayout } from "../helpers/fixtures.js";
 import { runCli, cliBuilt } from "../helpers/cli.js";
 import { scaffold } from "../../src/modules/foundation/scaffold.js";
 import { gitInit, commit } from "../helpers/git.js";
@@ -206,6 +206,7 @@ test("verify --format with an unknown value exits 2", { skip }, (t) => {
 
 test("verify without an index exits 0; --strict-engines exits 4", { skip }, (t) => {
   const root = tmpRepo(t);
+  speclawLayout(root);
   const soft = runCli(["verify"], { cwd: root });
   assert.equal(soft.code, 0);
   const strict = runCli(["verify", "--strict-engines"], { cwd: root });

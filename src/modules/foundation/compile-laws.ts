@@ -6,7 +6,8 @@ import {
   globError,
   isActiveLaw,
   readLawManifest,
-  seedManifest,
+  seedManifestFor,
+  mergeSeedLaws,
   writeLawManifest,
 } from "./laws.js";
 import { parseLawsFromStandards } from "./laws-parse.js";
@@ -45,6 +46,7 @@ const DIALECTS: Dialect[] = [
  * Throws if standards declare duplicate ids.
  */
 export function mergeLawSources(projectPath: string): Law[] {
+  // Covers: req~adapt-seed-to-repo~1
   const parsed = parseLawsFromStandards(projectPath);
   if (parsed.duplicates.size > 0) {
     const detail = [...parsed.duplicates.entries()]
@@ -53,14 +55,12 @@ export function mergeLawSources(projectPath: string): Law[] {
     throw new Error(`duplicate law id(s) in docs/standards: ${detail}`);
   }
 
+  const disk = readLawManifest(projectPath);
+  const base = disk ? mergeSeedLaws(disk, projectPath).manifest : seedManifestFor(projectPath);
   const byId = new Map<string, Law>();
-  for (const law of seedManifest().laws) byId.set(law.id, law);
+  for (const law of base.laws) byId.set(law.id, law);
   for (const law of parsed.laws) {
     if (!byId.has(law.id)) byId.set(law.id, law);
-  }
-  const disk = readLawManifest(projectPath);
-  if (disk) {
-    for (const law of disk.laws) byId.set(law.id, law);
   }
   return [...byId.values()].sort((a, b) => a.id.localeCompare(b.id));
 }

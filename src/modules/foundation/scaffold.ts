@@ -12,7 +12,7 @@ import {
   LawManifest,
   mergeSeedLaws,
   readLawManifest,
-  seedManifest,
+  seedManifestFor,
   writeLawManifest,
 } from "./laws.js";
 import { HookInstallResult, installHooks } from "./hooks.js";
@@ -71,19 +71,24 @@ export interface ScaffoldReport extends InstallReport {
 }
 
 /**
- * Ensure the project has a law manifest. Missing → seed. Present → append any
- * shipped seed law whose `id` is absent (never overwrite a curated entry).
+ * Ensure the project has a law manifest. Missing → adapted seed for this tree.
+ * Present → merge the adapted catalog (never overwrite a curated entry; prune
+ * unmodified dogfood laws whose required paths are absent).
  */
 function ensureLawManifest(projectPath: string, report: InstallReport): LawManifest {
   const existing = readLawManifest(projectPath);
   if (!existing) {
-    const seed = seedManifest();
+    const seed = seedManifestFor(projectPath);
     writeLawManifest(projectPath, seed);
     report.written.push(path.join(projectPath, ".speclaw", "laws-manifest.json"));
     return seed;
   }
-  const { manifest, added } = mergeSeedLaws(existing);
-  if (added.length > 0) {
+  const { manifest, added, removed } = mergeSeedLaws(existing, projectPath);
+  if (
+    added.length > 0 ||
+    removed.length > 0 ||
+    JSON.stringify(manifest.laws) !== JSON.stringify(existing.laws)
+  ) {
     writeLawManifest(projectPath, manifest);
     report.written.push(path.join(projectPath, ".speclaw", "laws-manifest.json"));
   }

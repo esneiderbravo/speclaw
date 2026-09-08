@@ -1,6 +1,9 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { tmpRepo, read, has } from "../helpers/env.js";
+import fs from "node:fs";
+import path from "node:path";
+import { tmpRepo, read, has, write } from "../helpers/env.js";
+import { speclawLayout } from "../helpers/fixtures.js";
 import {
   compileGlob,
   globError,
@@ -12,6 +15,7 @@ import {
   readLawManifest,
   regexError,
   seedManifest,
+  seedManifestFor,
   writeLawManifest,
   type Law,
 } from "../../src/modules/foundation/laws.js";
@@ -131,15 +135,22 @@ test("the shipped seed manifest is valid and includes path plus batch laws", () 
   if (shared?.verification.kind === "deps") {
     assert.deepEqual(shared.verification.rule.edgeKinds, ["import"]);
   }
+  const cycle = seed.laws.find((l) => l.id === "law~no-module-cycles~1");
+  assert.equal(cycle?.verification.kind, "graph");
+  if (cycle?.verification.kind === "graph") {
+    assert.deepEqual(cycle.verification.rule.edgeKinds, ["import"]);
+  }
 });
 
-test("mergeSeedLaws appends missing seed ids and never overwrites existing entries", () => {
+test("mergeSeedLaws appends missing seed ids on a speclaw-shaped tree", (t) => {
+  const root = tmpRepo(t);
+  speclawLayout(root);
   const custom = lawOf({
     id: "law~no-secrets-in-repo~1",
     title: "CUSTOM TITLE",
     prose: "keep this",
   });
-  const { manifest, added } = mergeSeedLaws({ version: 1, laws: [custom] });
+  const { manifest, added } = mergeSeedLaws({ version: 1, laws: [custom] }, root);
   const kept = manifest.laws.find((l) => l.id === "law~no-secrets-in-repo~1");
   assert.equal(kept?.title, "CUSTOM TITLE");
   assert.equal(kept?.prose, "keep this");
@@ -147,10 +158,49 @@ test("mergeSeedLaws appends missing seed ids and never overwrites existing entri
   assert.ok(!added.includes("law~no-secrets-in-repo~1"));
 });
 
-test("loadManifestForVerify falls back to the seed when the file is missing", (t) => {
+test("mergeSeedLaws does not append dogfood laws when their paths are absent", (t) => {
+  const root = tmpRepo(t);
+  const custom = lawOf({
+    id: "law~no-secrets-in-repo~1",
+    title: "CUSTOM TITLE",
+    prose: "keep this",
+  });
+  const { manifest, added } = mergeSeedLaws({ version: 1, laws: [custom] }, root);
+  assert.ok(!added.includes("law~shared-stays-inner~1"));
+  assert.ok(!manifest.laws.some((l) => l.id === "law~compass-does-not-import-foundation~1"));
+  assert.ok(!manifest.laws.some((l) => l.id === "law~honest-attribution~1"));
+});
+
+test("mergeSeedLaws prunes unmodified inapplicable catalog laws", (t) => {
+  const root = tmpRepo(t);
+  const { manifest, removed } = mergeSeedLaws(seedManifest(), root);
+  assert.ok(removed.includes("law~compass-does-not-import-foundation~1"));
+  assert.ok(manifest.laws.some((l) => l.id === "law~no-secrets-in-repo~1"));
+  assert.ok(!manifest.laws.some((l) => l.id === "law~compass-does-not-import-foundation~1"));
+});
+
+test("seedManifestFor scopes the cycle law to apps/*/src and drops dogfood", (t) => {
+  // Covers: req~adapt-seed-to-repo~1
+  const root = tmpRepo(t);
+  write(root, "apps/backend/src/main.ts", "export {};\n");
+  const adapted = seedManifestFor(root);
+  const cycle = adapted.laws.find((l) => l.id === "law~no-module-cycles~1");
+  assert.ok(cycle);
+  assert.ok(cycle!.scope.includes("apps/*/src/**"));
+  assert.ok(cycle!.scope.some((s) => s.startsWith("!")));
+  if (cycle!.verification.kind === "graph") {
+    assert.deepEqual(cycle!.verification.rule.edgeKinds, ["import"]);
+  }
+  assert.ok(!adapted.laws.some((l) => l.id === "law~compass-does-not-import-foundation~1"));
+  assert.ok(!adapted.laws.some((l) => l.id === "law~local-first~1"));
+  assert.ok(adapted.laws.some((l) => l.id === "law~no-secrets-in-repo~1"));
+});
+
+test("loadManifestForVerify falls back to the adapted seed when the file is missing", (t) => {
   const root = tmpRepo(t);
   const loaded = loadManifestForVerify(root);
   assert.ok(loaded.laws.some((l) => l.id === "law~no-secrets-in-repo~1"));
+  assert.ok(!loaded.laws.some((l) => l.id === "law~compass-does-not-import-foundation~1"));
   assert.equal(readLawManifest(root), null, "fallback must not write the file");
 });
 
@@ -174,4 +224,9 @@ test("write/read round-trips a manifest and validation rejects a bad law", (t) =
 test("readLawManifest returns null for a missing or corrupt manifest", (t) => {
   const root = tmpRepo(t);
   assert.equal(readLawManifest(root), null);
+});
+
+test("seed-laws does not import laws.ts", () => {
+  const src = fs.readFileSync(path.join("src", "modules", "foundation", "seed-laws.ts"), "utf8");
+  assert.doesNotMatch(src, /from ["']\.\/laws\.js["']/);
 });

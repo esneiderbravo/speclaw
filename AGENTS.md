@@ -127,6 +127,10 @@ _Edit `docs/standards/*.md` or `.speclaw/laws-manifest.json`; do not edit this b
 
 ## Scoped rules
 
+### No circular module dependencies (`law~no-module-cycles~1`)
+
+In files that match `src/modules/**`, `!**/*.{spec,test}.{ts,tsx,js,jsx}`, `!**/test/**`, `!**/__tests__/**`, There are no circular dependencies between modules.
+
 ### No secrets in the repository (`law~no-secrets-in-repo~1`)
 
 In files that match `**/.env`, `**/.env.*`, `**/*.env`, Never write a .env file into the repository. Secrets live in the environment, not in version control.
@@ -146,12 +150,6 @@ In files that match `ATTRIBUTION.md`, Keep ATTRIBUTION.md accurate as the Compas
 ### Local-first is non-negotiable (`law~local-first~1`)
 
 In files that match `package.json`, Justify any new dependency in the PR: it must not break 'runs offline with no API keys'.
-
-## Rules for `src/modules`
-
-### No circular module dependencies (`law~no-module-cycles~1`)
-
-In files that match `src/modules/**`, There are no circular dependencies between modules.
 
 ## Rules for `src/modules/compass`
 

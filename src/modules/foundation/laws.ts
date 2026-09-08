@@ -1,15 +1,13 @@
 import fs from "node:fs";
 import path from "node:path";
 import { z } from "zod";
-import { assetsDir } from "../../shared/paths.js";
+import { adaptedLaws, catalogLaws, mergeAdaptedSeed, type PersistableLaw } from "./seed-laws.js";
 
 // The machine-readable law model and its manifest. This is the contract seam
 // (`.speclaw/laws-manifest.json`) between where laws come from and how they are
 // enforced: check-dispatcher owns the schema and the single `path` verification
 // backend; executable-laws extends the same model with `ast`/`deps`/`process`
 // backends by filling in more `verification.kind` cases — it never rewrites it.
-
-const ASSETS = assetsDir(import.meta.url);
 
 /** Severity of a law violation, mirrored into the check verdict. */
 export type Severity = "error" | "warn" | "info";
@@ -269,47 +267,59 @@ export function writeLawManifest(projectPath: string, manifest: LawManifest): vo
 }
 
 /**
- * The starter law manifest shipped with speclaw, seeded from a speclaw-style
- * project's own `path`-verifiable Project-specific laws. It is the source the
- * MVP compiles into `.speclaw/laws-manifest.json`; once executable-laws lands,
- * laws are authored in `docs/standards/*` and compiled here instead. Laws whose
- * scope does not match a given repo are simply inert there.
+ * The full shipped catalog as persistable laws (adapter metadata stripped).
+ * Prefer {@link seedManifestFor} at init/verify time so consumer repos do not
+ * inherit speclaw-dogfood paths that do not exist there.
  *
- * @returns The validated seed manifest read from the module's assets.
- * @throws If the seed asset is missing or fails validation.
+ * @returns The validated catalog.
+ * @throws If the catalog fails the law schema.
  */
 export function seedManifest(): LawManifest {
-  const raw = JSON.parse(fs.readFileSync(path.join(ASSETS, "laws", "laws-manifest.json"), "utf8"));
-  return manifestSchema.parse(raw);
+  return manifestSchema.parse({ version: 1, laws: catalogLaws() });
+}
+
+/**
+ * Catalog laws adapted to `projectPath`: only laws whose `requires` paths exist,
+ * with the cycle law scoped to detected source roots.
+ *
+ * @param projectPath - Project root whose tree is inspected.
+ * @returns The validated adapted manifest.
+ */
+export function seedManifestFor(projectPath: string): LawManifest {
+  // Covers: req~adapt-seed-to-repo~1
+  return manifestSchema.parse({ version: 1, laws: adaptedLaws(projectPath) });
 }
 
 /**
  * The manifest the batch verifier should use: the project's file when present,
- * otherwise the shipped seed (so a clean CI clone does not silently pass).
+ * otherwise the **adapted** seed (so a clean CI clone does not silently pass,
+ * and does not evaluate inapplicable dogfood laws).
  *
  * @param projectPath - Project root to read from.
  */
 export function loadManifestForVerify(projectPath: string): LawManifest {
-  return readLawManifest(projectPath) ?? seedManifest();
+  return readLawManifest(projectPath) ?? seedManifestFor(projectPath);
 }
 
 /**
- * Append shipped seed laws whose `id` is not already in `existing`. Existing
- * entries are never overwritten — a curated law keeps its prose, scope, and
- * enforcement across `update`.
+ * Merge an on-disk manifest with the adapted catalog. Existing curated entries
+ * (title or prose differs from the catalog) are never overwritten. Unmodified
+ * shipped laws whose required paths are absent are removed; unmodified cycle
+ * laws are replaced with the adapted scope.
  *
  * @param existing - The project's current manifest.
- * @returns The merged manifest and the ids that were added.
+ * @param projectPath - Project root used to adapt the catalog.
+ * @returns The merged manifest and the ids that were added or removed.
  */
-export function mergeSeedLaws(existing: LawManifest): { manifest: LawManifest; added: string[] } {
-  const seed = seedManifest();
-  const have = new Set(existing.laws.map((l) => l.id));
-  const extra = seed.laws.filter((l) => !have.has(l.id));
-  if (extra.length === 0) return { manifest: existing, added: [] };
-  return {
-    manifest: { ...existing, laws: [...existing.laws, ...extra] },
-    added: extra.map((l) => l.id),
-  };
+export function mergeSeedLaws(
+  existing: LawManifest,
+  projectPath: string,
+): { manifest: LawManifest; added: string[]; removed: string[] } {
+  const { manifest, added, removed } = mergeAdaptedSeed(
+    { version: existing.version, laws: existing.laws as PersistableLaw[] },
+    projectPath,
+  );
+  return { manifest: manifestSchema.parse(manifest), added, removed };
 }
 
 // ─── Glob matching (the `path` backend) ──────────────────────────────────────

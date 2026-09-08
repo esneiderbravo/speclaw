@@ -1,0 +1,22 @@
+{
+  "level": 0,
+  "score": 0,
+  "signals": {
+    "filesTouched": 0,
+    "modulesTouched": 0,
+    "blastRadiusNodes": 0,
+    "affectedTests": 0,
+    "touchesPublicApi": false,
+    "maxHotspotScore": 0,
+    "touchesGlobalFile": false,
+    "onlyDocs": false,
+    "degraded": []
+  },
+  "rationale": "0 file(s), 0 module(s), 0 affected test(s), 0 blast node(s), no public API, no global file, hotspot=0.00 → score 0 → level 0 (cuts 3/8/15)",
+  "degraded": [],
+  "confirmedLevel": 2,
+  "confirmedBy": "human",
+  "confirmedAt": "2026-09-08T15:58:42.040Z",
+  "overrideReason": "Confirmed: seed laws must match the target repo layout (portable vs dogfood, adapted scopes). Level 2 — proposal + tasks + delta spec; design included because prune/adapt is a policy change.",
+  "promotions": []
+}

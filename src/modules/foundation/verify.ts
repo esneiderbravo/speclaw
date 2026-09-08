@@ -36,8 +36,8 @@ export { underPaths } from "./verify-model.js";
  *
  * When the project has no index, every selected batch law is reported as
  * `skipped` with reason `no-index` (never silently passed). When the gitignored
- * manifest file is missing, the shipped seed is used so a clean clone does not
- * report an empty pass. Each evaluated law lands in exactly one of `passed` /
+ * manifest file is missing, the adapted seed is used so a clean clone does not
+ * report an empty pass or inherit inapplicable dogfood laws. Each evaluated law lands in exactly one of `passed` /
  * `failed` / `unknown`: it fails when the engine produced a finding, is
  * `unknown` when it produced none but rests on unresolved edges (which could
  * hide a violation), and passes otherwise.
