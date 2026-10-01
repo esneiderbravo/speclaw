@@ -255,6 +255,17 @@ const MIGRATIONS: Migration[] = [
       "`esneiderbravo/speclaw@v2`. See `docs/cortex.md`.\n" +
       "- Preserve all project-specific wording; only apply these speclaw-authored changes.",
   },
+  {
+    version: "2.0.1",
+    describe: "speclaw update no longer upgrades the global npm package",
+    agentPrompt:
+      "- `speclaw update` applies **project** migrations only — it does **not** run " +
+      "`npm install -g`. If a newer binary exists on npm it prints an advisory; " +
+      "upgrade the CLI separately (`npm i -g @esneiderbravo/speclaw@latest` or " +
+      "`npx @esneiderbravo/speclaw@latest update`). Prefer `npx @…@latest` when the " +
+      "installed binary is stale so migrations match the latest package.\n" +
+      "- Preserve all project-specific wording; only apply these speclaw-authored changes.",
+  },
 ];
 
 /**

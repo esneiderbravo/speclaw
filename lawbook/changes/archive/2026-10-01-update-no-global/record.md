@@ -25,5 +25,5 @@ still migrates. `--check` is version-only; `--migrate-only` is a silent alias.
 
 ## Notes
 
-- Left `package.json` at **2.0.0** — release bump to 2.0.1 is a separate publish
+- Package bumped to **2.0.1** so npm Trusted Publishing ships this fix
   step per conventions; coordinator/release owner should bump when shipping.
