@@ -1,6 +1,6 @@
 {
   "lockfileVersion": 1,
-  "generator": "@esneiderbravo/speclaw@2.0.0",
+  "generator": "@esneiderbravo/speclaw@2.0.1",
   "algorithm": "sha256",
   "root": "sha256:97d130ac526e5f43116d7e43bb668432a75c4747c0042c8421097e8d9449363b",
   "files": {
@@ -81,10 +81,6 @@
       "ownership": "advisory"
     }
   },
-  "symlinks": {
-    ".claude/rules/speclaw": {
-      "target": "../../ai-specs/rules"
-    }
-  },
+  "symlinks": {},
   "accepted": []
 }
