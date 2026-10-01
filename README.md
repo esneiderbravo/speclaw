@@ -332,14 +332,19 @@ review from Code Owners* when you declare `team.owners`.
 ## <img src="https://raw.githubusercontent.com/esneiderbravo/speclaw/main/brand/diamond.png" height="20" alt="◆" align="absmiddle">&nbsp; Staying up to date
 
 speclaw checks for new releases in the background (at most once a day) and nudges
-you when one lands. To upgrade:
+you when one lands. To bring a project up to date (migrations only — never runs
+`npm install -g`):
 
 ```bash
 speclaw update
 ```
 
-`update` upgrades the global package **and** brings the current project up to date
-without a re-init, splitting files by who owns them:
+If a newer binary is on npm, `update` prints an advisory (`current → latest`) and
+how to upgrade the binary separately (`npm i -g @esneiderbravo/speclaw@latest`, or
+prefer `npx @esneiderbravo/speclaw@latest update`), then still migrates the project.
+
+`update` brings the current project up to date without a re-init, splitting files
+by who owns them:
 
 - **Managed files** (skills/commands/rules under `ai-specs/`) are **refreshed**.
   Pass `--backup` to keep a `<file>.bak` before overwrite.
@@ -348,7 +353,8 @@ without a re-init, splitting files by who owns them:
   prints a prompt for the agent you're using.
 - **`speclaw.lock`** and the CODEOWNERS owners block are refreshed when configured.
 
-- `speclaw update --check` — report whether an update exists, change nothing.
+- `speclaw update --check` — report version status only; do not migrate.
+- `speclaw update --migrate-only` — silent no-op alias of the default (compat).
 - `NO_UPDATE_NOTIFIER=1` — silence the reminder.
 
 <br/>

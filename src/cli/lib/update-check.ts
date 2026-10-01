@@ -106,15 +106,16 @@ export function npmPackageUrl(name: string): string {
 /**
  * Build the two-line "update available" notice. The latest version is rendered
  * as a clickable link to the package's npm page, so a capable terminal lets the
- * user open the release with a single click while `speclaw update` remains the
- * command that performs the upgrade.
+ * user open the release with a single click. Project migrations stay
+ * `speclaw update`; the binary is upgraded separately (prefer npx).
  *
  * @param current - The installed version.
  * @param latest - The newest published version.
  * @returns The formatted, styled notice (no leading/trailing blank lines).
  */
 export function upgradeNotice(current: string, latest: string): string {
-  const latestLink = c.cyan(link(latest, npmPackageUrl(pkgName())));
+  const name = pkgName();
+  const latestLink = c.cyan(link(latest, npmPackageUrl(name)));
   return (
     "  " +
     c.amber("⬆ speclaw ") +
@@ -123,9 +124,11 @@ export function upgradeNotice(current: string, latest: string): string {
     c.muted(" available") +
     "\n" +
     "  " +
-    c.muted("run ") +
+    c.muted("prefer ") +
+    c.cyan(`npx ${name}@latest update`) +
+    c.muted(" — or ") +
     c.cyan("speclaw update") +
-    c.muted(" — upgrades and applies only what's new")
+    c.muted(" to migrate this project")
   );
 }
 

@@ -5,6 +5,14 @@ All notable changes to this project are documented here. Speclaw follows
 
 ## [Unreleased]
 
+## [2.0.1] — 2026-10-01
+
+### Fixed
+
+- `speclaw update` no longer runs `npm install -g`. It only applies project
+  migrations and prints an advisory if a newer binary exists on npm (upgrade
+  the CLI separately via `npm i -g` or `npx @esneiderbravo/speclaw@latest`).
+
 ## [2.0.0] — 2026-10-01
 
 ### Added
