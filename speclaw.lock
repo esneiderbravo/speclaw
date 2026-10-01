@@ -1,8 +1,8 @@
 {
   "lockfileVersion": 1,
-  "generator": "@esneiderbravo/speclaw@1.0.1",
+  "generator": "@esneiderbravo/speclaw@2.0.0",
   "algorithm": "sha256",
-  "root": "sha256:308ba53c75cdbe7e2d67d886a2aba48a18f15e3be05e084d81c94d1136aa0c7d",
+  "root": "sha256:97d130ac526e5f43116d7e43bb668432a75c4747c0042c8421097e8d9449363b",
   "files": {
     ".github/instructions/law-compass-does-not-import-foundation-1.instructions.md": {
       "digest": "sha256:e97bcfe4c51adfb84d9cf9260de14d7fabe6f32ba36a88f7741b380ad162ab85",
@@ -33,11 +33,11 @@
       "ownership": "strict"
     },
     "AGENTS.md": {
-      "digest": "sha256:cde59b5b42ee40b2e7034a40e02dbcfbebc33cc703663ed4dfffdc77012d857c",
+      "digest": "sha256:7dbf1f0697a4d79d231c31d4a7b4dfb7eb525076070b3007a50896642f3bb65d",
       "ownership": "strict"
     },
     "CLAUDE.md": {
-      "digest": "sha256:89622ce82395a8539c5538293f48329c1879b3b85e55d0c3320b3d221ff53b36",
+      "digest": "sha256:4b769bf5660205c1ae195eaba4fd681d34b5d1d402536d8e56802940776c452e",
       "ownership": "strict"
     },
     "LAWS.md": {
@@ -45,11 +45,11 @@
       "ownership": "advisory"
     },
     "docs/compass.md": {
-      "digest": "sha256:e57689190ea0202825de285d2188329f6c814234a8871837b0d6e42a70f1bb59",
+      "digest": "sha256:a656fd58a610e63672edb7351f1e4b2cf1d6bc621ef0b995f99c977aa4500697",
       "ownership": "advisory"
     },
     "docs/standards/architecture.md": {
-      "digest": "sha256:c57cd71dc9e2401b093782be6565673ba6abec57c7834312b95802a95d931125",
+      "digest": "sha256:f56e17726588d2ca6e89803de41ba1a7d2ba017546c94ac6cf5a68bb82963dde",
       "ownership": "advisory"
     },
     "docs/standards/backend-standards.md": {
@@ -61,7 +61,7 @@
       "ownership": "advisory"
     },
     "docs/standards/conventions.md": {
-      "digest": "sha256:bf59e90a6f0ed7f723cba5c4b6b940aef023a19a7c19a0c142cfdcd4731670e1",
+      "digest": "sha256:142d80a22b13ab474d721e2a429fede78c9491e69631d7a2812c466474634511",
       "ownership": "advisory"
     },
     "docs/standards/documentation.md": {
@@ -73,11 +73,11 @@
       "ownership": "advisory"
     },
     "docs/standards/lawbook.md": {
-      "digest": "sha256:fc4979cf7be23b1a25b782768d08e8efed824a6b3b5b1b8eab47927c75f0e260",
+      "digest": "sha256:bf495aceb8e8fc9ade03312efe318d84552f1a3577b4cc01d1d2788f26ee9299",
       "ownership": "advisory"
     },
     "docs/standards/testing-standards.md": {
-      "digest": "sha256:ea67972e0e051c7363066ed3a0f3b9584c54acad4c3e1b1a19067a01d42f75e9",
+      "digest": "sha256:f38dd6904a90764e40aed47bf4373027fa6ebb9992be243c71101d3815640b04",
       "ownership": "advisory"
     }
   },
