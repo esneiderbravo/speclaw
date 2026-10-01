@@ -19,4 +19,4 @@ and proceed only after explicit authorization. A backup is not a substitute for
 authorization. Record in the report how verification stayed isolated (or the
 authorization you obtained).
 
-Next: read `steps/06-discipline-reports.md` and do only what it says.
+Next: read `steps/03-discipline-reports.md` and do only what it says.

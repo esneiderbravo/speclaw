@@ -9,16 +9,17 @@
 &nbsp;<a href="https://www.npmjs.com/package/@esneiderbravo/speclaw?activeTab=versions"><img src="https://img.shields.io/badge/provenance-SLSA-0E8E8E?labelColor=0B0F10&style=flat-square" alt="npm provenance"></a>
 &nbsp;<a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-0E8E8E?labelColor=0B0F10&style=flat-square" alt="MIT"></a>
 &nbsp;<img src="https://img.shields.io/badge/node-%E2%89%A522.16-0E8E8E?labelColor=0B0F10&style=flat-square" alt="Node >= 22.16">
-&nbsp;<img src="https://img.shields.io/badge/v1.0-0E8E8E?labelColor=0B0F10&style=flat-square" alt="v1.0">
+&nbsp;<img src="https://img.shields.io/badge/v2.0-0E8E8E?labelColor=0B0F10&style=flat-square" alt="v2.0">
 
 <br/><br/>
 
 <p align="center">
 <b>AI agents are brilliant and blind</b> — brilliant at writing code, blind to <i>your</i>
-project's rules. <b>speclaw 1.0</b> hands them what they're missing: the codebase's
-<b>written laws</b> (a constitution built from your real code), a <b>local map</b> to
-navigate it without burning tokens, a <b>disciplined workflow</b> for every change,
-and the <b>gates</b> that make those laws hold in the editor, in CI, and in the PR.
+project's rules. <b>speclaw 2.0</b> hands them what they're missing: the codebase's
+<b>written laws</b> (Foundation), a <b>local map</b> (Compass), a <b>spec-driven lawbook</b>,
+and <b>Cortex</b> — <i>One brain. Many agents.</i> — the multi-agent loop that plans,
+builds, reviews, and archives every non-trivial change. Plus the <b>gates</b> that make
+those laws hold in the editor, in CI, and in the PR.
 <br/>
 One command. No cloud, no LLM, no API keys — <b>everything runs on your machine.</b>
 </p>
@@ -26,7 +27,8 @@ One command. No cloud, no LLM, no API keys — <b>everything runs on your machin
 <img src="https://img.shields.io/badge/100%25_local-0E8E8E?labelColor=0B0F10&style=flat-square" alt="100% local">
 &nbsp;<img src="https://img.shields.io/badge/no_LLM_·_no_cloud-0E8E8E?labelColor=0B0F10&style=flat-square" alt="no LLM">
 &nbsp;<img src="https://img.shields.io/badge/CLI_+_MCP-0E8E8E?labelColor=0B0F10&style=flat-square" alt="CLI + MCP">
-&nbsp;<img src="https://img.shields.io/badge/8_canonical_tools-0E8E8E?labelColor=0B0F10&style=flat-square" alt="8 tools">
+&nbsp;<img src="https://img.shields.io/badge/9_canonical_tools-0E8E8E?labelColor=0B0F10&style=flat-square" alt="9 tools">
+&nbsp;<img src="https://img.shields.io/badge/Cortex-One_brain._Many_agents.-0E8E8E?labelColor=0B0F10&style=flat-square" alt="Cortex">
 &nbsp;<img src="https://img.shields.io/badge/any_agent-0E8E8E?labelColor=0B0F10&style=flat-square" alt="any agent">
 
 </div>
@@ -37,10 +39,10 @@ One command. No cloud, no LLM, no API keys — <b>everything runs on your machin
 > **One command. Detects your agents and wires only those.** Paste
 > `npx @esneiderbravo/speclaw@latest init` — speclaw detects Claude Code, Cursor,
 > Codex, Windsurf, and generic `AGENTS.md` surfaces, scaffolds the constitution +
-> lawbook, indexes your code, and registers the local MCP server — only for the
-> agents you pick. This one-liner is a **stable contract** (see
-> [CONTRIBUTING.md](CONTRIBUTING.md)); do not invent alternate install commands in
-> directories or newsletters.
+> lawbook + Cortex roles, indexes your code, and registers the local MCP server
+> (nine tools including `cortex`) — only for the agents you pick. This one-liner
+> is a **stable contract** (see [CONTRIBUTING.md](CONTRIBUTING.md)); do not invent
+> alternate install commands in directories or newsletters.
 
 <br/>
 
@@ -74,7 +76,7 @@ The `speclaw` command is then available everywhere — run `speclaw index`,
    **`speclaw.lock`** baseline for rule-file integrity.
 3. **Index your code** with a live progress bar and a summary of what it found.
 4. Register the speclaw **MCP server** in each chosen agent's config
-   (eight canonical tools; use `--minimal` to omit setup/lifecycle tools).
+   (nine canonical tools; use `--minimal` to omit setup/lifecycle tools).
 5. Print a prompt to paste into your agent so it fills the constitution with your
    project's real architecture and conventions.
 
@@ -109,15 +111,16 @@ gh attestation verify <tarball> --owner esneiderbravo
 
 <br/>
 
-## <img src="https://raw.githubusercontent.com/esneiderbravo/speclaw/main/brand/diamond.png" height="20" alt="◆" align="absmiddle">&nbsp; The suite — five modules
+## <img src="https://raw.githubusercontent.com/esneiderbravo/speclaw/main/brand/diamond.png" height="20" alt="◆" align="absmiddle">&nbsp; The suite — six modules
 
 | Module | What it does |
 | :-- | :-- |
 | **Foundation** | The project's constitution: `LAWS.md` binding granular standards under `docs/standards/`, plus `CLAUDE.md` / `AGENTS.md`. **Enforced** via agent hooks (`speclaw check`), deterministic graph laws (`speclaw verify` / `laws verify`), multidialect compile (`laws compile`), and committed **`speclaw.lock`** digests + injection scan (`laws lock` / `accept` / `scan`). |
 | **Compass** | Local code graph (tree-sitter → `node:sqlite`): hybrid find (FTS5 + vectors + RRF + PageRank), impact, affected-tests, hotspots, coupling, visualize. Schema **10**. No LLM — lives in `.speclaw/` (gitignored). |
-| **Lawbook** | Spec-driven workflow with **adaptive ceremony** (levels 0–3), bugfix changes + `lawbook_investigate`, EARS linting, requirement **coverage**, and sealed **drift** anchors. Loop: `explore → draft → build → sync → archive`. |
+| **Lawbook** | Spec-driven workflow with **adaptive ceremony** (levels 0–3), EARS linting, requirement **coverage**, sealed **drift** anchors, bugfix + `lawbook_investigate`. Artifacts under `lawbook/`. |
+| **Cortex** | **One brain. Many agents.** The multi-agent loop: durable `harness.json`, MCP tool `cortex` (`status`/`start`/`advance`/`rework`/`brief`), CLI `speclaw cortex`, skill `/lawbook/cortex`. Dispatches explorer → planner → implementer → reviewer → tester → archiver. |
 | **Team** | Declare `team.owners` in `lawbook/config.yaml`; `speclaw owners --write` compiles a managed trailing block in `.github/CODEOWNERS` (GitHub: last match wins). Doctor checks the posture. CLI-only — no MCP tool. |
-| **Tools** | Opt-in packs of skills and subagents (currently the dev-agents). |
+| **Tools** | Opt-in pack catalog (empty by default). Role agents (explorer/planner/implementer/reviewer/tester/archiver) ship with Lawbook + Cortex. |
 
 Compass is inspired by [CodeGraph](https://github.com/colbymchenry/codegraph) and the Lawbook module by [OpenSpec](https://github.com/Fission-AI/openspec) — both MIT. speclaw reimplements the ideas as its own code and gives full credit; see [ATTRIBUTION.md](ATTRIBUTION.md).
 
@@ -131,7 +134,7 @@ tokenizer on this corpus — not a BPE dependency):
 
 | | Tokens |
 | :-- | --: |
-| **speclaw budget (always-on)** | **~13.7k** (8 MCP tools · ceiling **14.0k**) |
+| **speclaw budget (always-on)** | **~13.7k** (9 MCP tools · ceiling **14.6k**) |
 | Spec Kit commands alone | ~18.6k ([spec-kit#1401](https://github.com/github/spec-kit/issues/1401)) |
 
 ```bash
@@ -150,28 +153,45 @@ definitions, omitted registration (`--minimal`), and JIT skill steps.
 
 <br/>
 
-## <img src="https://raw.githubusercontent.com/esneiderbravo/speclaw/main/brand/diamond.png" height="20" alt="◆" align="absmiddle">&nbsp; The spec-driven workflow (Lawbook)
+## <img src="https://raw.githubusercontent.com/esneiderbravo/speclaw/main/brand/diamond.png" height="20" alt="◆" align="absmiddle">&nbsp; Cortex — One brain. Many agents.
 
-Lawbook is speclaw's answer to the biggest risk with AI agents: **code that
-drifts from intent.** The intent is written first, the code is made to match it,
-and the spec is promoted to the project's canonical record — so nothing
-non-trivial lands without a spec change. It's a loop of five steps:
+The biggest risk with AI agents isn't capability — it's **one session doing
+everything**: explore, code, "review," test, and archive with no durable state
+and no role boundaries. **Cortex** is speclaw's answer: a coordinator brain that
+dispatches specialized roles through a durable harness. Lawbook holds the specs;
+Cortex runs the loop. Cheat sheet: [`docs/cortex.md`](docs/cortex.md).
 
-```
-   ┌─────────┐    ┌───────┐    ┌───────┐    ┌──────┐    ┌─────────┐
-   │ explore │ ─▶ │ draft │ ─▶ │ build │ ─▶ │ sync │ ─▶ │ archive │
-   └─────────┘    └───────┘    └───────┘    └──────┘    └─────────┘
-```
+<p align="center">
+  <img src="https://raw.githubusercontent.com/esneiderbravo/speclaw/main/brand/cortex-loop.png" width="800" alt="Cortex — One brain. Many agents.">
+</p>
 
-| Step | What happens |
-| :-- | :-- |
-| **explore** | Think an idea through *before* committing to it — should we do this, and how. Writes nothing. |
-| **draft** | Propose a **ceremony level** (0–3) from graph signals, confirm it, then scaffold only what that level needs under `lawbook/changes/<name>/`. |
-| **build** | Implement the tasks in order, keeping code and spec in agreement, and record test results under `reports/`. |
-| **sync** | Reconcile the delta specs against what was actually built, then promote them into the canonical `lawbook/specs/`. |
-| **archive** | Reconcile, then validate, promote, and move the change to `lawbook/changes/archive/` — **in the same PR**. Gated on tasks, reports, synced specs, and coverage. |
+| Role | Stage | Owns |
+| :-- | :-- | :-- |
+| **explorer** | exploring | Compass-first investigation; writes nothing under `lawbook/` / `src/` |
+| **planner** | planning | Ceremony level + change artifacts; questions always go to the human |
+| **implementer** | implementing | Code + tests; stops at hand-off (no final gates, no archive) |
+| **reviewer** | reviewing | `reports/review.md` PASS/FAIL; no code patches (skipped at level 0) |
+| **tester** | testing | Quality gates, manual verification, discipline reports |
+| **archiver** | archiving | Sync + `lawbook_archive` **in the same PR** |
 
-**Ceremony levels** (confirmed in `change.json`; missing ⇒ level 3):
+State lives in `lawbook/changes/<name>/harness.json`. Archive is gated on
+harness verdicts (test PASS; review PASS when level ≥ 1) plus tasks, reports,
+sync, and coverage. Max 3 reworks; then the coordinator asks you.
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/esneiderbravo/speclaw/main/brand/terminal-cortex.png" width="800" alt="speclaw cortex brief">
+</p>
+
+**Drive it three ways — same engine:**
+
+- **In your agent** — `/lawbook/cortex` (coordinator) plus per-role skills
+- **MCP** — canonical tool `cortex` (`status` / `start` / `advance` / `rework` / `brief`)
+- **CLI** — `speclaw cortex …`
+
+### Lawbook — the specs Cortex runs
+
+Lawbook is the **artifact layer**: adaptive ceremony (levels 0–3), EARS linting,
+requirement **coverage**, sealed **drift** anchors, bugfix + investigate.
 
 | Level | When | Artifacts |
 | :-- | :-- | :-- |
@@ -181,25 +201,15 @@ non-trivial lands without a spec change. It's a loop of five steps:
 | **3** | Full ceremony | proposal + design + tasks + deltas + `reports/` |
 | **bug** | Regression / RCA | `speclaw lawbook draft --bug` → `bugfix.md` + investigate first |
 
-Plus a **`reports/`** folder — scaffolded at draft, filled at build with one report
-per discipline (`backend.md`, `frontend.md`, `api.md`, …). `lawbook_archive`
-refuses to archive without it.
-
 > [!NOTE]
 > **Delta specs are normative and testable.** Requirements use `SHALL`/`MUST`
 > under `### Requirement:` headers (EARS-friendly), each with `#### Scenario:`
 > blocks. `lawbook_validate` checks structure; `speclaw coverage` tracks
 > `req~…~N` → impl/test via `// Covers:` comments.
 
-**Three ways to drive it — same engine, no external CLI:**
-
-- **In your agent** — `/lawbook:explore`, `/lawbook:draft`, `/lawbook:build`, `/lawbook:sync`, `/lawbook:archive` (and `/lawbook:quick`, investigate).
-- **MCP tools** — eight canonical: `compass_explore`, `compass_find`, `compass_diff_context`, `compass_index`, `lawbook_change`, `lawbook_investigate`, `speclaw_setup`, `speclaw_check`.
-- **CLI** — `speclaw lawbook …`, `speclaw quick`, `speclaw coverage`, `speclaw drift`.
-
-The workspace is committed under `lawbook/`: `specs/`, `changes/`,
-`changes/archive/`, `anchors/` (drift photographs), and `config.yaml`
-(mandatory tasks, ceremony cuts, `team.owners`, EARS knobs).
+The workspace is committed under `lawbook/`: `specs/`, `changes/` (with
+`harness.json` per active change), `changes/archive/`, `anchors/`, and
+`config.yaml`.
 
 <br/>
 
@@ -208,12 +218,12 @@ The workspace is committed under `lawbook/`: `specs/`, `changes/`,
 speclaw meets you where you are. Everything works through the **CLI** — so no one
 is blocked by MCP setup — and the same capabilities are exposed as **MCP tools**
 for a smoother, integrated experience once configured. An agent without MCP can
-still use Compass and the lawbook engine by calling the CLI from its shell.
+still use Compass, Cortex, and the lawbook engine by calling the CLI from its shell.
 
 <p align="center"><b>CLI</b> — the installer &amp; operator, runs anywhere <code>node</code> does</p>
 <p align="center"><img src="https://raw.githubusercontent.com/esneiderbravo/speclaw/main/brand/terminal-cli.png" width="800" alt="speclaw CLI commands"></p>
 
-<p align="center"><b>MCP</b> — eight canonical tools, auto-registered by <code>init</code></p>
+<p align="center"><b>MCP</b> — nine canonical tools (incl. <code>cortex</code>), auto-registered by <code>init</code></p>
 <p align="center"><img src="https://raw.githubusercontent.com/esneiderbravo/speclaw/main/brand/terminal-mcp.png" width="800" alt="speclaw MCP tools"></p>
 
 <br/>
@@ -225,10 +235,10 @@ still use Compass and the lawbook engine by calling the CLI from its shell.
 </p>
 
 **Committed vs. local.** Your **personalized source** is committed — `LAWS.md`,
-`CLAUDE.md`, `AGENTS.md`, `docs/standards/*`, `docs/compass.md`, the `lawbook/`
-workspace, and **`speclaw.lock`** (rule digests at the repo root). speclaw's
-**regenerable workflow content is local, not committed**: only `ai-specs/`
-(skills, commands, rules, agent packs, and its `.speclaw.json` manifest) is
+`CLAUDE.md`, `AGENTS.md`, `docs/standards/*`, `docs/compass.md`, `docs/cortex.md`,
+the `lawbook/` workspace, and **`speclaw.lock`** (rule digests at the repo root).
+speclaw's **regenerable workflow content is local, not committed**: only `ai-specs/`
+(skills, commands, rules, role agents, and its `.speclaw.json` manifest) is
 gitignored, because `init`/`update` reconstruct it from the package. So **after
 cloning a speclaw project, run `speclaw init` (or `speclaw update`)** to
 regenerate `ai-specs/` locally. Optional **`team.owners`** in
@@ -252,7 +262,8 @@ follows `apps/*/src`, `packages/*/src`, or `src/` rather than copying
 > of AI coding agents isn't lack of capability — it's working without the project's
 > tacit knowledge: the rules the team actually lives by. speclaw makes that
 > knowledge explicit, executable, and binding, and gives agents a local map
-> (Compass) and a disciplined workflow (Lawbook) to act on it — without burning tokens.
+> (Compass), a lawbook of specs, and **Cortex** to run the multi-agent loop —
+> without burning tokens.
 
 This is why "enforced" is literal, not a metaphor. Anthropic's own guidance puts
 it plainly:
@@ -308,7 +319,7 @@ of the lock in this release. Regenerable IDE mirrors (e.g. `.cursor/rules` →
 On GitHub:
 
 ```yaml
-- uses: esneiderbravo/speclaw@v1
+- uses: esneiderbravo/speclaw@v2
 ```
 
 `init` / `update` write `.github/workflows/speclaw.yml` only when that path is
@@ -357,6 +368,6 @@ without a re-init, splitting files by who owns them:
 [CodeGraph](https://github.com/colbymchenry/codegraph) &nbsp;·&nbsp;
 see [ATTRIBUTION.md](ATTRIBUTION.md)
 
-<i>speclaw 1.0 · where specs become law</i>
+<i>speclaw 2.0 · where specs become law</i>
 
 </div>

@@ -22,23 +22,30 @@ Claude-specific notes: [`CLAUDE.md`](CLAUDE.md). The law: [`LAWS.md`](LAWS.md).
    after Compass returns nothing useful, the graph is missing (`compass_index`
    first), or the target isn't indexed code (stylesheets, config, logs). Cheat
    sheet: [`docs/compass.md`](docs/compass.md).
-3. **Follow the lawbook workflow** for every non-trivial change; archive
-   within the same PR. Rules:
+3. **Follow Cortex** (*One brain. Many agents.*) for every non-trivial change;
+   archive within the same PR. The primary agent is the **coordinator**
+   (`cortex` skill / `/lawbook/cortex`) — it MUST NOT implement
+   product code itself. It dispatches explorer → planner → implementer →
+   reviewer → tester → archiver (or adopts each role while obeying that
+   role's permission profile). Drive state with the `cortex` MCP tool or
+   `speclaw cortex`. Rules:
    [`docs/standards/lawbook.md`](docs/standards/lawbook.md).
 4. **Run the quality gates yourself** before declaring anything done — see
-   [`docs/standards/testing-standards.md`](docs/standards/testing-standards.md):
+   [`docs/standards/testing-standards.md`](docs/standards/testing-standards.md)
+   (owned by the **tester** role under Cortex):
    - Tests: `{{test_commands}}`
    - Lint / type-check: `{{lint_commands}}`
 5. **Respect the conventions** — branches `{{branch_pattern}}`, commits
    {{commit_style}}, code that reads like its neighbors. See
    [`docs/standards/base-standards.md`](docs/standards/base-standards.md) and
    [`docs/standards/conventions.md`](docs/standards/conventions.md).
-6. **Use the skills.** `ai-specs/` is the canonical home for skills, commands,
-   and subagents, mirrored to each IDE directory via symlinks.
+6. **Use the skills and role agents.** `ai-specs/` is the canonical home for
+   skills, commands, rules, and agents, mirrored to each IDE directory via
+   symlinks.
 7. **Ask before irreversible or outward-facing actions** — destructive commands;
    writing to a real data store (DB rows or files with real user data, including
    for tests — verify against an isolated/throwaway store); publishing
-   reviews/tickets/comments.
+   reviews/tickets/comments. Planner questions always go to the human.
 
 ## The standards (the law, in detail)
 

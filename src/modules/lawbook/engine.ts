@@ -23,6 +23,7 @@ import {
   type CeremonyTargets,
 } from "./levels.js";
 import { inferBugResolution, preventionRequiresDelta, validateBugfixContent } from "./bugfix.js";
+import { harnessArchiveBlockers } from "../cortex/harness.js";
 
 export type { CeremonyLevel, CeremonyTargets };
 
@@ -522,6 +523,10 @@ export function specArchivePreconditions(projectPath: string, change: string): s
 
   // 4. Opt-in coverage gate: only when the change's delta specs declare ids.
   blockers.push(...coverageArchiveBlockers(projectPath, change));
+
+  // 5. Multi-agent harness: review/test PASS and stage archiving|done.
+  // Covers: req~harness-archive-gate~1
+  blockers.push(...harnessArchiveBlockers(projectPath, change));
 
   return blockers;
 }

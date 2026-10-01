@@ -6,7 +6,7 @@ real code before editing.
 
 - **Overall shape**: a single TypeScript package with **two transports — a CLI
   and an MCP server — over one shared core**. Feature modules
-  (`foundation`, `compass`, `lawbook`, `tools`) each self-register their tools;
+  (`foundation`, `compass`, `lawbook`, `cortex`, `tools`) each self-register their tools;
   adding a module is one line in `buildServer` (`src/server.ts`).
 - **Stack**: TypeScript (ES2022, ESM, Node16 resolution) on Node.js ≥22 · MCP
   server (`@modelcontextprotocol/sdk`) + Clack CLI · tree-sitter (WASM) parsing ·
@@ -22,10 +22,11 @@ live under `src/modules/*`; the CLI (`src/cli/*`) and shared core
 |--------|------|----------------|
 | foundation | `src/modules/foundation/` | Analyze a repo and scaffold its constitution: `LAWS.md`, `docs/standards/*`, `CLAUDE.md`/`AGENTS.md`, `docs/compass.md`, plus `doctor` health checks, deterministic law verification (`deps`/`graph`), and rule-file integrity (`speclaw.lock` digests + injection scan via `verifyIntegrity`). Tools: `init_project`, `scaffold`, `configure_agent`, `doctor`, `speclaw_check`, `law_verify`. |
 | compass | `src/modules/compass/` | The local code graph: tree-sitter parse → extract → `node:sqlite` index, semantic recall, impact/trace, interactive visualize, and a file watcher. Tools: `compass_index`/`explore`/`search`/`recall`/`impact`/`trace`/`watch`. |
-| lawbook | `src/modules/lawbook/` | The spec-driven workflow engine over `lawbook/`: init, validate, sync, archive, list. Tools: `lawbook_init`/`validate`/`sync`/`archive`/`list`. |
+| lawbook | `src/modules/lawbook/` | The spec-driven workflow engine over `lawbook/`: init, validate, sync, archive, list, ceremony, coverage, drift. Tools: `lawbook_change`, `lawbook_investigate`. |
+| cortex | `src/modules/cortex/` | **Cortex** — One brain. Many agents. Durable multi-agent loop (`harness.json`), stage briefs, archive verdict gates. Tool: `cortex`. CLI: `speclaw cortex`. Must not import lawbook (reads `change.json` locally). |
 | team | `src/modules/team/` | Team-mode surfaces that stay local: compile declared `team.owners` into a managed trailing `CODEOWNERS` block (`speclaw owners`). CLI-only in this release (no MCP tool). |
-| tools | `src/modules/tools/` | Opt-in skill/agent packs (currently the dev-agents). Tools: `list_packs`, `add_pack`. |
-| cli | `src/cli/` | The terminal surface over the same capabilities: `init`, `update`, `agent`, `index`/`watch`, `explore`/`search`/`recall`/`impact`/`trace`, `visualize`, `lawbook …`, `doctor`, `owners`, `check`, `laws verify|lock|accept|scan`, `verify`, `mcp`. |
+| tools | `src/modules/tools/` | Opt-in skill/agent packs (catalog may be empty). Setup via `speclaw_setup` list-packs / add-pack. Role agents ship with Lawbook, not tools. |
+| cli | `src/cli/` | The terminal surface over the same capabilities: `init`, `update`, `agent`, `index`/`watch`, `explore`/`search`/`recall`/`impact`/`trace`, `visualize`, `cortex …`, `lawbook …`, `doctor`, `owners`, `check`, `laws verify|lock|accept|scan`, `verify`, `mcp`. |
 | shared | `src/shared/` | Cross-cutting core: filesystem install, path resolution, template render, agent configuration + symlinks, manifest, version/update check, the MCP `text()` result helper. |
 
 ## Layering — strictly enforced

@@ -7,6 +7,8 @@ const names = [
   "terminal-cli",
   "terminal-mcp",
   "terminal-tree",
+  "terminal-cortex",
+  "cortex-loop",
   "diamond",
 ];
 for (const n of names) {

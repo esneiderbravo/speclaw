@@ -1,0 +1,49 @@
+{
+  "version": 1,
+  "change": "docs-cortex-brand",
+  "stage": "done",
+  "level": 0,
+  "iteration": 0,
+  "maxRework": 3,
+  "verdicts": {
+    "review": null,
+    "test": "PASS"
+  },
+  "openQuestions": [],
+  "history": [
+    {
+      "at": "2026-10-01T18:46:15.847Z",
+      "from": "exploring",
+      "to": "exploring",
+      "op": "start"
+    },
+    {
+      "at": "2026-10-01T18:46:15.887Z",
+      "from": "exploring",
+      "to": "implementing",
+      "op": "advance",
+      "note": "docs-only level 0"
+    },
+    {
+      "at": "2026-10-01T18:46:15.925Z",
+      "from": "implementing",
+      "to": "testing",
+      "op": "advance",
+      "note": "skip to test (level 0)"
+    },
+    {
+      "at": "2026-10-01T18:46:19.249Z",
+      "from": "testing",
+      "to": "archiving",
+      "op": "advance",
+      "note": "docs/brand PASS"
+    },
+    {
+      "at": "2026-10-01T18:46:24.307Z",
+      "from": "archiving",
+      "to": "done",
+      "op": "advance",
+      "note": "archived"
+    }
+  ]
+}

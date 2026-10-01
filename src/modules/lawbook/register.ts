@@ -1,3 +1,4 @@
+import fs from "node:fs";
 import path from "node:path";
 import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
@@ -31,6 +32,12 @@ export function installWorkflow(
     opts,
   );
   copyRendered(path.join(ASSETS, "rules"), path.join(aiSpecs, "rules"), vars, report, opts);
+  // Role agents (explorer/planner/implementer/reviewer/tester/archiver) — always on.
+  // Covers: req~role-agents-default~1
+  const agentsSrc = path.join(ASSETS, "agents");
+  if (fs.existsSync(agentsSrc)) {
+    copyRendered(agentsSrc, path.join(aiSpecs, "agents"), vars, report, opts);
+  }
 }
 
 /** Register the spec workflow MCP tools. */

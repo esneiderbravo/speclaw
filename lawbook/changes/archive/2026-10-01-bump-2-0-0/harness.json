@@ -1,0 +1,49 @@
+{
+  "version": 1,
+  "change": "bump-2-0-0",
+  "stage": "done",
+  "level": 0,
+  "iteration": 0,
+  "maxRework": 3,
+  "verdicts": {
+    "review": null,
+    "test": "PASS"
+  },
+  "openQuestions": [],
+  "history": [
+    {
+      "at": "2026-10-01T18:47:58.837Z",
+      "from": "exploring",
+      "to": "exploring",
+      "op": "start"
+    },
+    {
+      "at": "2026-10-01T18:47:58.877Z",
+      "from": "exploring",
+      "to": "implementing",
+      "op": "advance",
+      "note": "l0"
+    },
+    {
+      "at": "2026-10-01T18:47:58.919Z",
+      "from": "implementing",
+      "to": "testing",
+      "op": "advance",
+      "note": "to-test"
+    },
+    {
+      "at": "2026-10-01T18:47:58.957Z",
+      "from": "testing",
+      "to": "archiving",
+      "op": "advance",
+      "note": "pass"
+    },
+    {
+      "at": "2026-10-01T18:47:59.242Z",
+      "from": "archiving",
+      "to": "done",
+      "op": "advance",
+      "note": "archived"
+    }
+  ]
+}

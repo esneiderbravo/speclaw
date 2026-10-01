@@ -6,10 +6,10 @@ mandatory_task_steps:
   - "Step 0: Create the feature branch (must be first)."
   - "Review and update the affected tests."
   - "Run the quality gates and verify they pass (see docs/standards/testing-standards.md)."
-  - "Perform manual verification of the behavior — the agent executes this itself, never the user."
+  - "Perform manual verification of the behavior — the tester role executes this itself, never the user."
   - "Produce the discipline reports under reports/ — one per discipline touched, from an open set (e.g. backend.md, frontend.md, api.md, database.md, infra.md, security.md; api.md is required whenever the change touches an API surface) — with the unit/integration/e2e results for what the feature touched."
   - "Update the technical documentation touched by the change."
-  - "Archive the change within the same PR (lawbook:archive)."
+  - "Archive the change within the same PR (lawbook:archive) after harness review/test PASS."
 
 # A change is required for new behavior, endpoints, schema changes, or UI flows;
 # one-line fixes need not have one.

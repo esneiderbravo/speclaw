@@ -2,18 +2,18 @@
   "schemaVersion": 1,
   "estimator": "speclaw/estimate-v1",
   "surfaces": {
-    "tools": 1800,
-    "skillsAndCommands": 3000,
-    "alwaysOnInstructions": 7500
+    "tools": 2200,
+    "skillsAndCommands": 3800,
+    "alwaysOnInstructions": 8000
   },
-  "total": 14000,
+  "total": 16000,
   "perTool": 600,
   "maxDescriptionWords": 25,
   "dispatcher": 500,
   "map": 300,
   "minimal": {
-    "tools": 1100,
-    "total": 13500
+    "tools": 1500,
+    "total": 16500
   },
-  "note": "Measured baseline after hybrid-retrieval compass_find schema (focus/maxTokens): ~1.73k tools / ~13.7k always-on."
+  "note": "Raised for Cortex MCP tool + cortex/test skills (9 canonical tools). Minimal measured ~1414 tools / ~16026 total with cortex kept in profile."
 }

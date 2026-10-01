@@ -25,7 +25,7 @@ is nothing extra to install.
 The point is token economy: the agent gets exactly the code it needs to answer
 a request, not whole files.
 
-## The tools (eight canonical MCP tools)
+## The tools (nine canonical MCP tools across the suite)
 
 | Tool | Use it to |
 |------|-----------|
@@ -33,6 +33,7 @@ a request, not whole files.
 | `compass_explore` | Read a node's source plus callers, callees, blast radius, affected tests, and hotspot — in one call. Use `to:` for trace-style paths. |
 | `compass_find` | **Hybrid** search always: BM25 + vectors + name match → RRF → task-relative rank. `mode: exact|concept` only adjusts fusion weights. Optional `focus` / `maxTokens`. |
 | `compass_diff_context` | Graph context for a change set (working tree, git rev, or explicit paths): symbols touched, blast radius, tests, hotspots. |
+| `cortex` | CORTEX — multi-agent loop brain (*One brain. Many agents.*). Actions: `status` \| `start` \| `advance` \| `rework` \| `brief`. Also CLI `speclaw cortex`. |
 | `lawbook_change` | Lawbook lifecycle: init, list, validate, sync, archive, level, coverage, drift. |
 | `lawbook_investigate` | Graph-backed bug RCA (stack trace or symptom). |
 | `speclaw_setup` | Project setup: init, configure-agent, add-pack, list-packs. |
@@ -50,9 +51,9 @@ to Grep/Read: a Compass call returned nothing useful for your query, or the
 target isn't indexed code (stylesheets, JSON/config, markdown, logs).
 
 <!-- speclaw:map:start -->
-speclaw · 213 files · 827 nodes
-src/ (112)  test/ (96)  scripts/ (4)  eslint.config.js/ (1)
-hubs: tmpRepo 304 · write 251 · has 121 · openDb 77 · buildIndex 76 · parse 71 · run 63 · commit 52 · read 42 · runCli 33 · gitInit 33 · text 32
+speclaw · 218 files · 853 nodes
+src/ (116)  test/ (97)  scripts/ (4)  eslint.config.js/ (1)
+hubs: tmpRepo 307 · write 259 · has 129 · openDb 77 · buildIndex 76 · parse 74 · run 63 · commit 52 · read 43 · text 34 · runCli 33 · gitInit 33
 entry: src/server.ts (mcp) · src/cli/index.ts (bin)
 <!-- speclaw:map:end -->
 

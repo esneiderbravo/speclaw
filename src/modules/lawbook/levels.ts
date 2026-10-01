@@ -610,7 +610,11 @@ export function countUncheckedTasks(markdown: string): number {
 export function hasDisciplineReport(changeDir: string): boolean {
   const reportsDir = path.join(changeDir, "reports");
   if (!fs.existsSync(reportsDir)) return false;
-  return fs
-    .readdirSync(reportsDir)
-    .some((n) => n.endsWith(".md") && n.toLowerCase() !== "readme.md");
+  return fs.readdirSync(reportsDir).some((n) => {
+    if (!n.endsWith(".md")) return false;
+    const lower = n.toLowerCase();
+    // README scaffold and reviewer harness verdict are not discipline evidence.
+    if (lower === "readme.md" || lower === "review.md") return false;
+    return true;
+  });
 }

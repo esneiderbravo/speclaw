@@ -5,6 +5,7 @@ import { seedSampleRepo } from "../helpers/fixtures.js";
 import { captureTools, schemaOf, isTextResult } from "../helpers/contracts.js";
 import { registerFoundation } from "../../src/modules/foundation/register.js";
 import { registerCompass } from "../../src/modules/compass/register.js";
+import { registerCortex } from "../../src/modules/cortex/register.js";
 import { registerSpec } from "../../src/modules/lawbook/register.js";
 import { registerTools } from "../../src/modules/tools/register.js";
 import { CANONICAL_TOOLS } from "../../src/shared/tool-catalog.js";
@@ -22,6 +23,7 @@ test("canonical MCP tools match the consolidated surface", () => {
   const names = new Set([
     ...captureCanonical(registerFoundation).keys(),
     ...captureCanonical(registerCompass).keys(),
+    ...captureCanonical(registerCortex).keys(),
     ...captureCanonical(registerSpec).keys(),
     ...captureCanonical(registerTools).keys(),
   ]);
@@ -91,6 +93,22 @@ test("lawbook handlers run the workflow end to end through the transport", async
     "# Cap\n\n### Requirement: R\nThe system SHALL x.\n\n#### Scenario: s\n- Given\n- When\n- Then\n",
   );
   write(root, `${base}/reports/backend.md`, "verdict: pass");
+  write(root, `${base}/reports/review.md`, "Verdict: PASS\n");
+  write(
+    root,
+    `${base}/harness.json`,
+    JSON.stringify({
+      version: 1,
+      change: "demo",
+      stage: "archiving",
+      level: 3,
+      iteration: 0,
+      maxRework: 3,
+      verdicts: { review: "PASS", test: "PASS" },
+      openQuestions: [],
+      history: [],
+    }),
+  );
 
   assert.ok(
     isTextResult(

@@ -166,23 +166,23 @@ SHALL NOT report a deferred-loading best case that the server cannot enforce.
 
 ### Requirement: Bounded MCP tool surface
 
-speclaw SHALL register at most **8 canonical MCP tools** in the full exposure
+speclaw SHALL register at most **9 canonical MCP tools** in the full exposure
 profile, excluding deprecation aliases. A committed integration test SHALL fail
-when the canonical count exceeds 8. Retired tool names MAY register as aliases
+when the canonical count exceeds 9. Retired tool names MAY register as aliases
 but SHALL NOT count toward the limit and SHALL NOT accept a query language as
 input.
 
 #### Scenario: Canonical tool count is gated
 - Given a fully configured speclaw MCP server in full profile
 - When the integration surface test lists registered tools
-- Then the canonical tool count SHALL be at most 8
+- Then the canonical tool count SHALL be at most 9
 - And no canonical tool input schema SHALL accept SQL, Cypher, or free-form query
   strings
 
 #### Scenario: Aliases are excluded from the canonical count
 - Given deprecation aliases are enabled
 - When the surface test runs
-- Then aliases SHALL be reported separately from the canonical eight
+- Then aliases SHALL be reported separately from the canonical nine
 
 ### Requirement: Output token budget on tool responses
 

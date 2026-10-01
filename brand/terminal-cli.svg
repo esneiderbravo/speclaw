@@ -1,12 +1,12 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 780" width="800" height="780" role="img" aria-label="speclaw CLI commands">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 820" width="800" height="820" role="img" aria-label="speclaw CLI commands">
   <defs>
     <linearGradient id="win" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0C1113"/><stop offset="1" stop-color="#0A0E0F"/></linearGradient>
     <style>text{font-family:'SF Mono','JetBrains Mono','Fira Code',Menlo,Consolas,monospace;font-size:17px;}.cy{fill:#17C1C1;}.cr{fill:#F4F1EA;}.mu{fill:#6E7B80;}.hd{fill:#8B989E;font-weight:700;}</style>
   </defs>
-  <rect x="1" y="1" width="798" height="778" rx="16" fill="url(#win)" stroke="#232A2D" stroke-width="1.5"/>
+  <rect x="1" y="1" width="798" height="818" rx="16" fill="url(#win)" stroke="#232A2D" stroke-width="1.5"/>
   <line x1="1" y1="50" x2="799" y2="50" stroke="#1B2225"/>
   <circle cx="32" cy="26" r="7" fill="#EB5A5A"/><circle cx="56" cy="26" r="7" fill="#E3B341"/><circle cx="80" cy="26" r="7" fill="#3FB950"/>
-  <text x="400" y="31" text-anchor="middle" class="mu" font-size="14">speclaw 1.0 — commands</text>
+  <text x="400" y="31" text-anchor="middle" class="mu" font-size="14">speclaw 2.0 — commands</text>
 
   <text x="34" y="88" class="hd">SETUP</text>
   <text x="34" y="116"><tspan class="cy">  speclaw </tspan><tspan class="cr">init / update   </tspan><tspan class="mu">scaffold · upgrade · migrations</tspan></text>
@@ -19,19 +19,22 @@
   <text x="34" y="288"><tspan class="cy">  speclaw </tspan><tspan class="cr">hotspots / coupling</tspan><tspan class="mu"> churn × complexity</tspan></text>
   <text x="34" y="314"><tspan class="cy">  speclaw </tspan><tspan class="cr">visualize       </tspan><tspan class="mu">interactive HTML graph</tspan></text>
 
-  <text x="34" y="354" class="hd">LAWBOOK <tspan class="mu" font-weight="400">— spec-driven workflow</tspan></text>
-  <text x="34" y="382"><tspan class="cy">  speclaw </tspan><tspan class="cr">quick / lawbook </tspan><tspan class="mu">levels 0–3 · draft · sync · archive</tspan></text>
-  <text x="34" y="408"><tspan class="cy">  speclaw </tspan><tspan class="cr">coverage / drift</tspan><tspan class="mu">  req↔code · sealed anchors</tspan></text>
+  <text x="34" y="354" class="hd">CORTEX <tspan class="mu" font-weight="400">— One brain. Many agents.</tspan></text>
+  <text x="34" y="382"><tspan class="cy">  speclaw </tspan><tspan class="cr">cortex          </tspan><tspan class="mu">status · start · advance · rework · brief</tspan></text>
 
-  <text x="34" y="448" class="hd">ENFORCEMENT</text>
-  <text x="34" y="476"><tspan class="cy">  speclaw </tspan><tspan class="cr">check / verify  </tspan><tspan class="mu">hooks · CI · SARIF · integrity</tspan></text>
-  <text x="34" y="502"><tspan class="cy">  speclaw </tspan><tspan class="cr">laws lock|accept|scan|compile</tspan></text>
-  <text x="34" y="528"><tspan class="cy">  speclaw </tspan><tspan class="cr">owners --write  </tspan><tspan class="mu">team.owners → CODEOWNERS</tspan></text>
+  <text x="34" y="422" class="hd">LAWBOOK <tspan class="mu" font-weight="400">— specs · ceremony · coverage</tspan></text>
+  <text x="34" y="450"><tspan class="cy">  speclaw </tspan><tspan class="cr">quick / lawbook </tspan><tspan class="mu">levels 0–3 · draft · sync · archive</tspan></text>
+  <text x="34" y="476"><tspan class="cy">  speclaw </tspan><tspan class="cr">coverage / drift</tspan><tspan class="mu">  req↔code · sealed anchors</tspan></text>
 
-  <text x="34" y="568" class="hd">OTHER</text>
-  <text x="34" y="596"><tspan class="cy">  speclaw </tspan><tspan class="cr">doctor / budget </tspan><tspan class="mu">diagnostics · context cost</tspan></text>
-  <text x="34" y="622"><tspan class="cy">  speclaw </tspan><tspan class="cr">mcp             </tspan><tspan class="mu">start the MCP server</tspan></text>
+  <text x="34" y="516" class="hd">ENFORCEMENT</text>
+  <text x="34" y="544"><tspan class="cy">  speclaw </tspan><tspan class="cr">check / verify  </tspan><tspan class="mu">hooks · CI · SARIF · integrity</tspan></text>
+  <text x="34" y="570"><tspan class="cy">  speclaw </tspan><tspan class="cr">laws lock|accept|scan|compile</tspan></text>
+  <text x="34" y="596"><tspan class="cy">  speclaw </tspan><tspan class="cr">owners --write  </tspan><tspan class="mu">team.owners → CODEOWNERS</tspan></text>
 
-  <text x="34" y="680" class="mu" font-size="14">100% local · no LLM · no cloud · Node ≥ 22.16</text>
-  <text x="34" y="710" class="mu" font-size="14">Foundation · Compass · Lawbook · Team · Tools</text>
+  <text x="34" y="636" class="hd">OTHER</text>
+  <text x="34" y="664"><tspan class="cy">  speclaw </tspan><tspan class="cr">doctor / budget </tspan><tspan class="mu">diagnostics · context cost</tspan></text>
+  <text x="34" y="690"><tspan class="cy">  speclaw </tspan><tspan class="cr">mcp             </tspan><tspan class="mu">start the MCP server</tspan></text>
+
+  <text x="34" y="748" class="mu" font-size="14">100% local · no LLM · no cloud · Node ≥ 22.16</text>
+  <text x="34" y="778" class="mu" font-size="14">Foundation · Compass · Lawbook · Cortex · Team · Tools</text>
 </svg>

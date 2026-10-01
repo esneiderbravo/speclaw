@@ -18,7 +18,7 @@ jobs:
         with:
           fetch-depth: 0
       - name: ⚖️ Verify
-        uses: esneiderbravo/speclaw@v1
+        uses: esneiderbravo/speclaw@v2
       - name: 🛡️ Upload SARIF
         uses: github/codeql-action/upload-sarif@v4
         if: always()

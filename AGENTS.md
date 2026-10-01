@@ -6,7 +6,7 @@ Claude-specific notes: [`CLAUDE.md`](CLAUDE.md). The law: [`LAWS.md`](LAWS.md).
 
 ## Project
 
-- **What it is**: a self-contained MCP suite + CLI that turns any repo into a spec-driven, agent-ready project — its own constitution (Foundation), local code graph (Compass), and spec-driven workflow (Lawbook). 100% local: no LLM, no cloud, no API keys.
+- **What it is**: a self-contained MCP suite + CLI that turns any repo into a spec-driven, agent-ready project — its own constitution (Foundation), local code graph (Compass), spec-driven workflow (Lawbook), and multi-agent brain (Cortex). 100% local: no LLM, no cloud, no API keys.
 - **Organization**: Esneider Bravo · open source (MIT)
 - **Stack**: TypeScript (ES2022, ESM, Node16 resolution) on Node.js ≥22.16 · MCP server (`@modelcontextprotocol/sdk`) + Clack CLI · tree-sitter (WASM) parsing · `node:sqlite` code graph · Zod schemas. No frontend, no service, no LLM.
 
@@ -29,18 +29,20 @@ Claude-specific notes: [`CLAUDE.md`](CLAUDE.md). The law: [`LAWS.md`](LAWS.md).
    Merkle `dir_hashes`, `node_metrics`) — reindex with `speclaw index` after a
    schema bump (8→9 migrates embeddings). Cheat sheet:
    [`docs/compass.md`](docs/compass.md).
-3. **Follow the lawbook workflow** for every non-trivial change; archive
-   within the same PR. Artifact volume follows the confirmed ceremony level in
-   `change.json` (0=quick … 3=full); missing `change.json` is level 3. Propose,
-   set, or promote with `lawbook_level` / `speclaw lawbook level`; level 0 via
-   `speclaw quick`. Bugs: `speclaw lawbook draft --bug`, `bugfix.md` (repro +
-   regression + prevention), `changeType: bug`; RCA first with
-   `lawbook_investigate` / the investigate skill. Feature ceremony unchanged;
-   security-withheld mode is not shipped. Rules:
-   [`docs/standards/lawbook.md`](docs/standards/lawbook.md).
-   Coverage: `speclaw coverage` / `lawbook_coverage` (ids like `req~name~1`,
-   `// Covers:` comments). Drift: `speclaw drift` / `lawbook_drift` (committed
-   `lawbook/anchors/*.json`, dual body/norm hashes).
+3. **Follow Cortex** (*One brain. Many agents.*) for every non-trivial change;
+   archive within the same PR. The primary agent is the **coordinator**
+   (`cortex` / `/lawbook/cortex`) — it MUST NOT implement product
+   code itself. It dispatches explorer → planner → implementer → reviewer →
+   tester → archiver (or adopts each role while obeying that role's
+   permission profile). Drive state with the `cortex` MCP tool or
+   `speclaw cortex`. Artifact volume follows the confirmed ceremony level
+   in `change.json` (0=quick … 3=full); missing `change.json` is level 3.
+   Propose, set, or promote with `lawbook_level` / `speclaw lawbook level`;
+   level 0 via `speclaw quick`. Bugs: `speclaw lawbook draft --bug`,
+   `bugfix.md`, `changeType: bug`; RCA first with `lawbook_investigate`.
+   Rules: [`docs/standards/lawbook.md`](docs/standards/lawbook.md).
+   Coverage: `speclaw coverage` / `lawbook_coverage`. Drift: `speclaw drift` /
+   `lawbook_drift`.
 4. **Run the quality gates yourself** before declaring anything done — see
    [`docs/standards/testing-standards.md`](docs/standards/testing-standards.md):
    - Lint + format: `npm run check` (Prettier `--check` + ESLint); `npm run format` to fix
@@ -53,12 +55,13 @@ Claude-specific notes: [`CLAUDE.md`](CLAUDE.md). The law: [`LAWS.md`](LAWS.md).
    lowercase), code that reads like its neighbors. See
    [`docs/standards/base-standards.md`](docs/standards/base-standards.md) and
    [`docs/standards/conventions.md`](docs/standards/conventions.md).
-6. **Use the skills.** `ai-specs/` is the canonical home for skills, commands,
-   and subagents, mirrored to each IDE directory via symlinks.
+6. **Use the skills and role agents.** `ai-specs/` is the canonical home for
+   skills, commands, rules, and agents, mirrored to each IDE directory via
+   symlinks.
 7. **Ask before irreversible or outward-facing actions** — destructive commands;
    writing to a real data store (DB rows or files with real user data, including
    for tests — verify against an isolated/throwaway store); publishing
-   reviews/tickets/comments.
+   reviews/tickets/comments. Planner questions always go to the human.
 
 ## The standards (the law, in detail)
 
@@ -73,6 +76,7 @@ Claude-specific notes: [`CLAUDE.md`](CLAUDE.md). The law: [`LAWS.md`](LAWS.md).
 | [`docs/standards/conventions.md`](docs/standards/conventions.md) | Branches, PRs, tracker, versioning |
 | [`docs/standards/lawbook.md`](docs/standards/lawbook.md) | Spec-driven workflow, archiving |
 | [`docs/compass.md`](docs/compass.md) | Compass usage |
+| [`docs/cortex.md`](docs/cortex.md) | Cortex multi-agent loop |
 
 ## Directory map for agents
 
@@ -80,6 +84,8 @@ Claude-specific notes: [`CLAUDE.md`](CLAUDE.md). The law: [`LAWS.md`](LAWS.md).
 | --- | --- |
 | `LAWS.md` | The constitution — binds the standards |
 | `docs/standards/` | The individual laws (one file per standard) |
+| `docs/compass.md` | Compass cheat sheet |
+| `docs/cortex.md` | Cortex multi-agent loop cheat sheet |
 | `AGENTS.md` / `CLAUDE.md` | Agent entry points (this contract) |
 | `ai-specs/` | Canonical skills, commands, rules, agents |
 | `.claude/` `.cursor/` `.codex/` `.agents/` | IDE mirrors (symlinks into `ai-specs/`) |
@@ -114,11 +120,12 @@ Claude-specific notes: [`CLAUDE.md`](CLAUDE.md). The law: [`LAWS.md`](LAWS.md).
   block at the **end** of `.github/CODEOWNERS` (GitHub: last match wins; CLI
   only — no MCP tool). `speclaw doctor` errors if content appears after the end
   marker. `deriveFromTraceability` is not enabled in this release.
-- speclaw **1.0** is the official release: Foundation (hooks + `speclaw.lock`),
-  Compass (schema 10, eight canonical MCP tools), Lawbook (ceremony 0–3,
-  coverage, drift, bugfix), Team (`team.owners` → `speclaw owners --write`).
+- speclaw **2.0** is the official release: Foundation (hooks + `speclaw.lock`),
+  Compass (schema 10), Lawbook (ceremony 0–3, coverage, drift, bugfix),
+  Cortex (multi-agent loop; nine canonical MCP tools including `cortex`),
+  Team (`team.owners` → `speclaw owners --write`).
   Install: `npx @esneiderbravo/speclaw@latest init`. CI consumers:
-  `esneiderbravo/speclaw@v1`.
+  `esneiderbravo/speclaw@v2`.
 
 <!-- speclaw:laws:start -->
 ## speclaw laws (generated)

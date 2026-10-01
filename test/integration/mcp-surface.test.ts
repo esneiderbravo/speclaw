@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { captureTools } from "../helpers/contracts.js";
 import { registerFoundation } from "../../src/modules/foundation/register.js";
 import { registerCompass } from "../../src/modules/compass/register.js";
+import { registerCortex } from "../../src/modules/cortex/register.js";
 import { registerSpec } from "../../src/modules/lawbook/register.js";
 import { registerTools } from "../../src/modules/tools/register.js";
 import {
@@ -11,11 +12,12 @@ import {
   MAX_CANONICAL_TOOLS,
 } from "../../src/shared/tool-catalog.js";
 
-test("full profile registers exactly eight canonical MCP tools", () => {
+test("full profile registers exactly nine canonical MCP tools", () => {
   process.env.SPECLAW_NO_ALIASES = "1";
   const all = new Set([
     ...captureTools(registerFoundation).keys(),
     ...captureTools(registerCompass).keys(),
+    ...captureTools(registerCortex).keys(),
     ...captureTools(registerSpec).keys(),
     ...captureTools(registerTools).keys(),
   ]);

@@ -48,21 +48,24 @@ target is not indexed code — stylesheets, JSON/config, markdown, logs,
 generated files, lockfiles. Never skip Compass because grep "feels faster."
 See [`docs/compass.md`](docs/compass.md).
 
-## Rule 2 — Spec-driven, always
+## Rule 2 — Spec-driven Cortex loop, always
 
-No non-trivial change lands without a spec change (propose → implement →
-verify → archive). The rules are in
+No non-trivial change lands without a lawbook change (propose → implement →
+verify → archive) run through **Cortex** (*One brain. Many agents.*). You are the
+**coordinator** unless you were spawned as a role agent: use the `cortex`
+skill / `/lawbook/cortex` and the `cortex` MCP tool; do **not** implement product code yourself.
+Role agents live in `ai-specs/agents/`. The rules are in
 [`docs/standards/lawbook.md`](docs/standards/lawbook.md);
-the workflow skills live in `ai-specs/skills/` and the `/lawbook` commands wrap
-them. A change is not done until it is archived — archiving belongs in the PR.
+workflow skills live in `ai-specs/skills/` and `/lawbook` commands wrap them.
+A change is not done until it is archived — archiving belongs in the PR.
 
 ## Rule 3 — Quality gates are non-negotiable
 
 - Tests: `{{test_commands}}`
 - Lint / type-check: `{{lint_commands}}`
 
-Run them yourself and report real output. Never claim success you did not
-observe. Full rules:
+The **tester** role runs them and reports real output. Never claim success you
+did not observe. Full rules:
 [`docs/standards/testing-standards.md`](docs/standards/testing-standards.md).
 
 ## Rule 4 — Conventions
@@ -72,11 +75,11 @@ its neighbors, comments that carry constraints (never ticket IDs). Full rules:
 [`docs/standards/base-standards.md`](docs/standards/base-standards.md) and
 [`docs/standards/conventions.md`](docs/standards/conventions.md).
 
-## Rule 5 — Skills are law-adjacent
+## Rule 5 — Skills and role agents are law-adjacent
 
-Skills, commands, and subagents live in `ai-specs/` (symlinked into
-`.claude/`, `.cursor/`, `.codex/`, `.agents/`). When a skill matches the
-task, use it — do not improvise a parallel process.
+Skills, commands, rules, and agents live in `ai-specs/` (symlinked into
+`.claude/`, `.cursor/`, `.codex/`, `.agents/`). When a skill or role matches
+the task, use it — do not improvise a parallel process.
 
 ## Rule 6 — Stop conditions
 
@@ -85,3 +88,4 @@ schema drops), writing to a real data store (DB rows or files holding real user
 data — including to set up or tear down test data; verification runs against an
 isolated/throwaway store instead), publishing anything outward-facing (PR
 reviews, tickets, comments), or any action that contradicts a standard.
+Planner clarifying questions always go to the human via the coordinator.

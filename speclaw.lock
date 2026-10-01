@@ -2,8 +2,36 @@
   "lockfileVersion": 1,
   "generator": "@esneiderbravo/speclaw@1.0.1",
   "algorithm": "sha256",
-  "root": "sha256:b447e487e78a7c6a1c7708fbaabca9b8574302bb8eda4f966203ced2b5d8feac",
+  "root": "sha256:308ba53c75cdbe7e2d67d886a2aba48a18f15e3be05e084d81c94d1136aa0c7d",
   "files": {
+    ".github/instructions/law-compass-does-not-import-foundation-1.instructions.md": {
+      "digest": "sha256:e97bcfe4c51adfb84d9cf9260de14d7fabe6f32ba36a88f7741b380ad162ab85",
+      "ownership": "strict"
+    },
+    ".github/instructions/law-honest-attribution-1.instructions.md": {
+      "digest": "sha256:6851f7134924d829bf451f52e42cd481044eec44b4fd07005a5bfc7285c4e77c",
+      "ownership": "strict"
+    },
+    ".github/instructions/law-local-first-1.instructions.md": {
+      "digest": "sha256:f45e519ddd195ac5e2a6a3c9b8585d00b0223e52bcbbea698f55ac68e64040c4",
+      "ownership": "strict"
+    },
+    ".github/instructions/law-no-module-cycles-1.instructions.md": {
+      "digest": "sha256:38a1a42143b5040bb8637fc2d64891e9c55f872eadb2418c20bc0ead5260f5da",
+      "ownership": "strict"
+    },
+    ".github/instructions/law-no-secrets-in-repo-1.instructions.md": {
+      "digest": "sha256:b52ce9f9a77fb503babeed8da12e66c0cd3987b25429f8421431011f89bd46a1",
+      "ownership": "strict"
+    },
+    ".github/instructions/law-protect-templates-1.instructions.md": {
+      "digest": "sha256:c9cc307bb2644611abdab8cf34c65ec476848c1bbd6d6fe7b3dd56dd3cafb6f9",
+      "ownership": "strict"
+    },
+    ".github/instructions/law-shared-stays-inner-1.instructions.md": {
+      "digest": "sha256:249910f9bc30dbe3d83a30920e790077267b07c9907eaaae3b399662617da001",
+      "ownership": "strict"
+    },
     "AGENTS.md": {
       "digest": "sha256:cde59b5b42ee40b2e7034a40e02dbcfbebc33cc703663ed4dfffdc77012d857c",
       "ownership": "strict"
@@ -53,6 +81,10 @@
       "ownership": "advisory"
     }
   },
-  "symlinks": {},
+  "symlinks": {
+    ".claude/rules/speclaw": {
+      "target": "../../ai-specs/rules"
+    }
+  },
   "accepted": []
 }

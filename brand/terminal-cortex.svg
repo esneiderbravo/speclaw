@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 400" width="800" height="400" role="img" aria-label="speclaw cortex brief">
+  <defs>
+    <linearGradient id="win" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0C1113"/><stop offset="1" stop-color="#0A0E0F"/></linearGradient>
+    <style>text{font-family:'SF Mono','JetBrains Mono','Fira Code',Menlo,Consolas,monospace;font-size:16px;}.cy{fill:#17C1C1;}.cr{fill:#F4F1EA;}.mu{fill:#6E7B80;}.ok{fill:#3FB950;}.hd{font-weight:700;}</style>
+  </defs>
+  <rect x="1" y="1" width="798" height="398" rx="16" fill="url(#win)" stroke="#232A2D" stroke-width="1.5"/>
+  <line x1="1" y1="50" x2="799" y2="50" stroke="#1B2225"/>
+  <circle cx="32" cy="26" r="7" fill="#EB5A5A"/><circle cx="56" cy="26" r="7" fill="#E3B341"/><circle cx="80" cy="26" r="7" fill="#3FB950"/>
+  <text x="400" y="31" text-anchor="middle" class="mu" font-size="14">$ speclaw cortex brief --change add-auth</text>
+
+  <text x="34" y="92"><tspan class="cy">stage</tspan><tspan class="mu">     </tspan><tspan class="cr">implementing</tspan></text>
+  <text x="34" y="122"><tspan class="cy">role</tspan><tspan class="mu">      </tspan><tspan class="cr">implementer</tspan><tspan class="mu">  -&gt; ai-specs/agents/implementer.md</tspan></text>
+  <text x="34" y="152"><tspan class="cy">skills</tspan><tspan class="mu">    </tspan><tspan class="cr">build</tspan><tspan class="mu"> (through hand-off)</tspan></text>
+  <text x="34" y="182"><tspan class="cy">level</tspan><tspan class="mu">     </tspan><tspan class="cr">2</tspan><tspan class="mu">  · iteration </tspan><tspan class="cr">0</tspan><tspan class="mu">/</tspan><tspan class="cr">3</tspan></text>
+  <text x="34" y="212"><tspan class="cy">verdicts</tspan><tspan class="mu">  review </tspan><tspan class="mu">-</tspan><tspan class="mu">  test </tspan><tspan class="mu">-</tspan></text>
+  <text x="34" y="252"><tspan class="cy">next</tspan><tspan class="mu">      </tspan><tspan class="cr">advance</tspan><tspan class="mu"> -&gt; reviewing (after build hand-off)</tspan></text>
+  <text x="34" y="292" class="mu">Cortex dispatches the role - coordinator never edits src/</text>
+  <text x="34" y="340"><tspan class="ok">OK </tspan><tspan class="cr">harness.json </tspan><tspan class="mu">durable · MCP </tspan><tspan class="cy">cortex</tspan><tspan class="mu"> · skill </tspan><tspan class="cy">/lawbook/cortex</tspan></text>
+  <text x="34" y="370" class="mu" font-size="13">One brain. Many agents. · 100% local · no LLM runtime</text>
+</svg>

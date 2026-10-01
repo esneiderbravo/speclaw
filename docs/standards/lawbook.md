@@ -10,8 +10,15 @@ No non-trivial change lands without a lawbook change. Artifact volume follows
 the **confirmed ceremony level** in `change.json` (0=quick … 3=full). Missing
 `change.json` means level 3 (today's full set).
 
-1. **explore** — think an idea through before committing (writes nothing).
-2. **draft** / **quick** — propose a ceremony level from graph signals
+The default execution model is **Cortex** (*One brain. Many agents.*): the host
+primary agent is the **coordinator** and dispatches (or role-plays) specialized
+roles via the `cortex` skill. State lives in `lawbook/changes/<name>/harness.json`
+(`speclaw cortex` / MCP tool `cortex`). Lawbook owns specs, ceremony, coverage,
+and drift; Cortex owns the multi-agent loop.
+
+1. **explore** (explorer) — think an idea through before committing (writes
+   nothing). Bugs use **investigate** first.
+2. **draft** / **quick** (planner) — propose a ceremony level from graph signals
    (`lawbook_level` / `speclaw lawbook level` **propose**), **set** or
    **promote** it, then scaffold only what that level needs:
    - **0** — `record.md` (inline checklist) + `reports/` (`speclaw quick`)
@@ -20,37 +27,44 @@ the **confirmed ceremony level** in `change.json` (0=quick … 3=full). Missing
      with justification)
    - **3** — proposal + design + tasks + delta specs + reports
    - **bug** — `bugfix.md` instead of proposal/design (`speclaw lawbook draft --bug`,
-     `changeType: bug` in `change.json`); feature ceremony is unchanged. Use
-     **`investigate`** / `lawbook_investigate` for graph-backed RCA first. Requires
-     reproduction, regression test, and prevention (§7); delta spec only when prevention
-     finds a missing requirement. Security-withheld mode is not in this release.
-3. **build** — implement the tasks in order, keeping code and spec in
-   agreement, and write the discipline reports under `reports/`.
-4. **sync** — reconcile the delta specs against what was actually built, then
-   promote them into the canonical `lawbook/specs/` (`lawbook_sync`) when the
-   level requires specs. The tool is a deterministic copy; the agent does the
-   code↔spec reconciliation first.
-5. **archive** — finalize: reconcile, sync when needed, then move the change to
-   `lawbook/changes/archive/` (`lawbook_archive`), **within the same PR** —
-   never a post-merge chore. The archive is gated (see below).
+     `changeType: bug` in `change.json`); feature ceremony is unchanged.
+   Planner questions always surface to the human via the coordinator.
+3. **build** (implementer) — implement the tasks in order, keeping code and
+   spec in agreement. Stops at implementation hand-off (does not own final
+   gates or archive).
+4. **review** (reviewer) — writes `reports/review.md` with PASS/FAIL; no code
+   patches. Skipped at ceremony level 0.
+5. **test** (tester) — quality gates, manual verification, discipline reports
+   under `reports/`. May add missing tests only.
+6. **sync** / **archive** (archiver) — reconcile delta specs, promote when
+   needed, then `lawbook_archive` **within the same PR**. Archive is gated on
+   harness verdicts (test PASS; review PASS when level ≥ 1) plus the existing
+   task/report/sync/coverage gates.
+
+Entry point: `/lawbook/cortex` (or the `cortex` skill). Per-stage commands
+remain available to force a single role. Full cheat sheet:
+[`docs/cortex.md`](../cortex.md).
 
 ## Mandatory task steps
 
 `tasks.md` MUST include the steps defined in `lawbook/config.yaml` and the
 `spec-tasks-mandatory-steps` rule: feature branch first, tests reviewed and
-run, manual verification executed by the agent, discipline reports produced,
-docs updated, archive within the PR. The agent performs the manual testing
-itself — never delegates it.
+run, manual verification executed by the **tester** role, discipline reports
+produced, docs updated, archive within the PR. The tester performs manual
+verification itself — never the user; the coordinator must not archive without
+a test PASS.
 
 ## Reports
 
-Every change carries a `reports/` folder. `build` writes one report per
-discipline it touched, named for that discipline — an open set (`backend.md`,
-`frontend.md`, `api.md`, `database.md`, `infra.md`, … — `api.md` required
-whenever the change touches an API surface) recording what was tested
-and the real results — unit, integration, and end-to-end as applicable — with
-the commands run and their output. It is evidence of testing that travels with
-the change; the archive is blocked until at least one discipline report exists.
+Every change carries a `reports/` folder. The **tester** writes one report per
+discipline the change touched, named for that discipline — an open set
+(`backend.md`, `frontend.md`, `api.md`, `database.md`, `infra.md`, … —
+`api.md` required whenever the change touches an API surface) recording what
+was tested and the real results — unit, integration, and end-to-end as
+applicable — with the commands run and their output. The **reviewer** writes
+`review.md` with a harness verdict. Evidence travels with the change; archive
+is blocked until at least one discipline report exists and harness verdicts
+pass.
 
 ## Delta specs
 
@@ -71,46 +85,16 @@ the change; the archive is blocked until at least one discipline report exists.
 Always archive with the `archive` command / `lawbook_archive` tool, never a manual
 `mv` — the tool performs the spec promotion and validation a manual move skips.
 
-Before archiving, the agent runs a reconciliation review: it compares what was
+Before archiving, the archiver runs a reconciliation review: it compares what was
 built against the delta specs and, when the code has drifted past the original
 contracts, shows short insights and reconciles the delta specs.
 
 `lawbook_archive` is then **gated in the engine** — it refuses to archive (and
 reports the reason) while any task is unchecked (or the level-0 checklist in
 `record.md`), while `reports/` holds no discipline report, while delta specs
-are required but not yet synced into the canonical specs, or while an
-identified requirement has a direct coverage defect (`speclaw coverage` /
-`lawbook_coverage`; disable with `coverage.gateArchive: false` in
-`lawbook/config.yaml`). Because the gate covers both the tool and the CLI, a
-change reaches the archive only when it is genuinely complete.
-
-## Coverage and drift
-
-- **Coverage** — identify requirements with ids (`req~name~1`) and link
-  implementations/tests with `// Covers:` (or `@covers`) comments.
-  `speclaw coverage` / `lawbook_coverage` reports requirement → impl → test.
-  Defaults live under `coverage.defaultNeeds` / `coverage.gateArchive` in
-  `lawbook/config.yaml`. Declare `Needs: ptest` (source of truth) when a
-  requirement needs a property test; optional `Verification: property` expands
-  effective needs to include `ptest`. speclaw recognizes runners (fast-check,
-  Hypothesis, …) near the `Covers:` line — it does **not** run or generate
-  property tests.
-- **EARS** — configure `ears.severity` (`strict` | `lenient`), `vagueWords`, and
-  `silentCodes` in `lawbook/config.yaml`.
-- **Drift** — sealed spec↔code snapshots live in committed
-  `lawbook/anchors/*.json` (dual body/norm hashes). `speclaw drift` /
-  `lawbook_drift` classifies change; after a Compass schema bump, reindex with
-  `speclaw index`, then `speclaw drift --reseal` once to photograph current
-  bodies.
-
-## Integrity and ownership
-
-- **`speclaw.lock`** is committed at the repo root (never under `.speclaw/`).
-  `speclaw laws lock` / `accept` / `scan`; digest acceptance is interactive TTY
-  only — never via MCP. `speclaw verify` folds integrity with deps/graph.
-- **`team.owners`** in `lawbook/config.yaml` maps capabilities (and `"*"`) to
-  owners. `speclaw owners --write` compiles a managed block at the **end** of
-  `.github/CODEOWNERS` (CLI only; `deriveFromTraceability` is not enabled).
+are out of sync when required, while coverage defects block (when enabled), or
+while harness review/test verdicts are not PASS (and stage is not
+`archiving`/`done`).
 
 ## Amendments to the law
 

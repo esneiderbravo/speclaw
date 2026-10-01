@@ -7,4 +7,4 @@ Run the repo's gates from `docs/standards/testing-standards.md`:
 
 Run them yourself and report real output. A red gate blocks completion.
 
-Next: read `steps/05-manual-verification.md` and do only what it says.
+Next: read `steps/02-manual-verification.md` and do only what it says.
