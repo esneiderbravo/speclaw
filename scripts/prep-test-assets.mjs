@@ -5,7 +5,7 @@
 //   2. each module's assets/ -> dist-test/src/modules/<mod>/assets, so scaffold,
 //      the pack loader, and the workflow installer find their bundled templates.
 // Run after `tsc -p tsconfig.test.json` and before `node --test`.
-import { cpSync, copyFileSync, existsSync, readdirSync } from "node:fs";
+import { cpSync, copyFileSync, existsSync, readdirSync, rmSync } from "node:fs";
 import { join } from "node:path";
 
 const SRC_MODULES = "src/modules";
@@ -18,7 +18,9 @@ let copied = 0;
 for (const mod of readdirSync(SRC_MODULES)) {
   const from = join(SRC_MODULES, mod, "assets");
   if (!existsSync(from)) continue;
-  cpSync(from, join(DEST_MODULES, mod, "assets"), { recursive: true });
+  const to = join(DEST_MODULES, mod, "assets");
+  rmSync(to, { recursive: true, force: true }); // deletions must propagate into dist-test
+  cpSync(from, to, { recursive: true });
   copied++;
 }
 console.log(`prep-test-assets: package.json + assets for ${copied} module(s)`);

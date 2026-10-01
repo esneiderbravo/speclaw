@@ -79,12 +79,13 @@ export function handleSpeclawSetup(args: SetupArgs): unknown {
       return {
         instructions: [
           "1. Analyze the repository at projectPath and fill profile fields from the real codebase.",
-          "2. Call speclaw_setup with action configure-agent / add-pack as needed.",
+          "2. Call speclaw_setup with action configure-agent as needed (packs catalog may be empty).",
           "3. Run lawbook_change action init and compass_index when scaffold completes via CLI if needed.",
+          "4. Non-trivial work uses Cortex: cortex skill / speclaw cortex (MCP tool cortex).",
         ],
         profileFields: profileFieldHelp,
         packs: loadPacks(),
-        note: "Full scaffold runs via CLI: speclaw init — not MCP.",
+        note: "Full scaffold runs via CLI: speclaw init — not MCP. Role agents install with the lawbook workflow.",
       };
     case "configure-agent": {
       if (!args.agent) throw new Error(`speclaw_setup: action 'configure-agent' requires 'agent'`);

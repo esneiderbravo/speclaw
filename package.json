@@ -1,10 +1,10 @@
 {
   "name": "@esneiderbravo/speclaw",
-  "version": "1.0.1",
+  "version": "2.0.0",
   "publishConfig": {
     "access": "public"
   },
-  "description": "Where specs become law. A self-contained MCP suite that turns any repo into a spec-driven, agent-ready project: its own constitution (foundation), its own local code graph (Compass), its own spec-driven workflow (Lawbook), and opt-in skill packs (Tools). No external CLIs, no LLM to install.",
+  "description": "Where specs become law. A self-contained MCP suite that turns any repo into a spec-driven, multi-agent-ready project: its own constitution (Foundation), local code graph (Compass), spec workflow (Lawbook), and multi-agent brain (Cortex). No external CLIs, no LLM to install.",
   "keywords": [
     "mcp",
     "mcp-server",

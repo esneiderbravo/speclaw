@@ -206,8 +206,9 @@ const MIGRATIONS: Migration[] = [
     describe: "speclaw 1.0 — official release (enforcement + graph + lawbook + owners)",
     agentPrompt:
       "- speclaw **1.0** is the official release: Foundation (hooks + `speclaw.lock` integrity), " +
-      "Compass (schema 10, eight canonical MCP tools), Lawbook (ceremony 0–3, coverage, drift, " +
-      "bugfix), and Team (`team.owners` → `speclaw owners --write`). Install remains " +
+      "Compass (schema 10), Lawbook (ceremony 0–3, coverage, drift, bugfix), " +
+      "Cortex (multi-agent loop; nine canonical MCP tools including `cortex`), " +
+      "and Team (`team.owners` → `speclaw owners --write`). Install remains " +
       "`npx @esneiderbravo/speclaw@latest init`. CI consumers use `esneiderbravo/speclaw@v1`.\n" +
       "- Preserve all project-specific wording; only apply these speclaw-authored changes.",
   },
@@ -221,6 +222,18 @@ const MIGRATIONS: Migration[] = [
       "the cycle law is scoped to detected source roots (`apps/*/src`, `packages/*/src`, " +
       "`src/`, `lib/`) excluding test files, and considers import edges only. Run " +
       "`speclaw laws compile` if agent rule files look stale, then `speclaw index`.\n" +
+      "- Preserve all project-specific wording; only apply these speclaw-authored changes.",
+  },
+  {
+    version: "2.0.0",
+    describe: "speclaw 2.0 — Cortex (One brain. Many agents.) + nine MCP tools",
+    agentPrompt:
+      "- speclaw **2.0** ships **Cortex**: durable multi-agent loop (`harness.json`), " +
+      "MCP tool `cortex` (`status`/`start`/`advance`/`rework`/`brief`), CLI " +
+      "`speclaw cortex`, skill `/lawbook/cortex`, and role agents " +
+      "(explorer → planner → implementer → reviewer → tester → archiver). " +
+      "Canonical MCP surface is **nine** tools. CI consumers: " +
+      "`esneiderbravo/speclaw@v2`. See `docs/cortex.md`.\n" +
       "- Preserve all project-specific wording; only apply these speclaw-authored changes.",
   },
 ];

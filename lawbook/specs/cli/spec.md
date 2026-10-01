@@ -385,7 +385,7 @@ flows but SHALL NOT register as an MCP tool after this change.
 ### Requirement: Doctor and law verify stay CLI-first
 
 Structured `doctor` diagnostics and `speclaw laws verify` SHALL remain available
-via CLI. They SHALL NOT count toward the eight canonical MCP tools.
+via CLI. They SHALL NOT count toward the nine canonical MCP tools.
 
 #### Scenario: MCP tool list excludes doctor
 - Given the MCP server in full profile

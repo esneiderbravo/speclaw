@@ -1,6 +1,6 @@
 # CLAUDE.md — speclaw Agent Operating Rules
 
-Agent rules for the **speclaw** repository (a self-contained MCP suite + CLI that turns any repo into a spec-driven, agent-ready project — Foundation, Compass, Lawbook; 100% local).
+Agent rules for the **speclaw** repository (a self-contained MCP suite + CLI that turns any repo into a spec-driven, agent-ready project — Foundation, Compass, Lawbook, Cortex; 100% local).
 These rules are STRICT. Read this file at the start of every session.
 Cross-agent context: [`AGENTS.md`](AGENTS.md) · The law: [`LAWS.md`](LAWS.md)
 
@@ -55,24 +55,23 @@ target is not indexed code — stylesheets, JSON/config, markdown, logs,
 generated files, lockfiles. Never skip Compass because grep "feels faster."
 See [`docs/compass.md`](docs/compass.md).
 
-## Rule 2 — Spec-driven, always
+## Rule 2 — Spec-driven Cortex loop, always
 
 No non-trivial change lands without a lawbook change (propose → implement →
-verify → archive). Artifact volume follows the **confirmed ceremony level** in
-`change.json` (0=quick … 3=full); missing `change.json` is still full ceremony
-(level 3). Propose/set/promote with `lawbook_level` / `speclaw lawbook level`;
-level 0 scaffolds via `speclaw quick`. Bugs use `speclaw lawbook draft --bug`
-and `bugfix.md` (repro + regression + prevention) with `changeType: bug`;
-`lawbook_investigate` / the investigate skill for graph-backed RCA first —
-feature ceremony is unchanged. Security-withheld mode is not in this release.
-The rules are in
-[`docs/standards/lawbook.md`](docs/standards/lawbook.md);
-the workflow skills live in `ai-specs/skills/` and the `/lawbook` commands wrap
-them. A change is not done until it is archived — archiving belongs in the PR.
-Requirement → impl → test coverage is `speclaw coverage` / `lawbook_coverage`
-(ids like `req~name~1`, `// Covers:` comments). Sealed spec↔code drift is
-`speclaw drift` / `lawbook_drift` (committed `lawbook/anchors/*.json`, dual
-body/norm hashes).
+verify → archive) run through **Cortex** (*One brain. Many agents.*). You are the
+**coordinator** unless you were spawned as a role agent: use the `cortex`
+skill / `/lawbook/cortex` and the `cortex` MCP tool; do **not** implement product code yourself.
+Role agents live in `ai-specs/agents/`. Artifact volume follows the
+**confirmed ceremony level** in `change.json` (0=quick … 3=full); missing
+`change.json` is still full ceremony (level 3). Propose/set/promote with
+`lawbook_level` / `speclaw lawbook level`; level 0 scaffolds via `speclaw
+quick`. Bugs use `speclaw lawbook draft --bug` and `bugfix.md` with
+`changeType: bug`; `lawbook_investigate` for graph-backed RCA first. The rules
+are in [`docs/standards/lawbook.md`](docs/standards/lawbook.md); workflow
+skills live in `ai-specs/skills/` and the `/lawbook` commands wrap them. A
+change is not done until it is archived — archiving belongs in the PR.
+Requirement → impl → test coverage is `speclaw coverage` / `lawbook_coverage`.
+Sealed spec↔code drift is `speclaw drift` / `lawbook_drift`.
 
 ## Rule 3 — Quality gates are non-negotiable
 
@@ -81,8 +80,8 @@ body/norm hashes).
 - Tests: no unit-test runner yet — the gates above are the compile-time gates;
   add `node:test` coverage with new behavior and verify runtime via the CLI.
 
-Run them yourself and report real output. Never claim success you did not
-observe. Full rules:
+The **tester** role runs them and reports real output under the harness. Never
+claim success you did not observe. Full rules:
 [`docs/standards/testing-standards.md`](docs/standards/testing-standards.md).
 
 ## Rule 4 — Conventions
@@ -93,11 +92,11 @@ reads like its neighbors, comments that carry constraints (never ticket IDs). Fu
 [`docs/standards/base-standards.md`](docs/standards/base-standards.md) and
 [`docs/standards/conventions.md`](docs/standards/conventions.md).
 
-## Rule 5 — Skills are law-adjacent
+## Rule 5 — Skills and role agents are law-adjacent
 
-Skills, commands, and subagents live in `ai-specs/` (symlinked into
-`.claude/`, `.cursor/`, `.codex/`, `.agents/`). When a skill matches the
-task, use it — do not improvise a parallel process.
+Skills, commands, rules, and agents live in `ai-specs/` (symlinked into
+`.claude/`, `.cursor/`, `.codex/`, `.agents/`). When a skill or role matches
+the task, use it — do not improvise a parallel process.
 
 ## Rule 6 — Stop conditions
 
@@ -106,6 +105,7 @@ schema drops), writing to a real data store (DB rows or files holding real user
 data — including to set up or tear down test data; verification runs against an
 isolated/throwaway store instead), publishing anything outward-facing (PR
 reviews, tickets, comments), or any action that contradicts a standard.
+Planner clarifying questions always go to the human via the coordinator.
 
 ## Operator notes
 
@@ -133,10 +133,10 @@ reviews, tickets, comments), or any action that contradicts a standard.
   block at the **end** of `.github/CODEOWNERS` (last match wins; CLI only).
   `speclaw doctor` errors if content follows the end marker.
   `deriveFromTraceability` is not enabled in this release.
-- speclaw **1.0**: Foundation (hooks + lock), Compass (schema 10, eight
-  canonical MCP tools), Lawbook (ceremony 0–3, coverage, drift, bugfix), Team
+- speclaw **2.0**: Foundation (hooks + lock), Compass (schema 10), Lawbook
+  (ceremony 0–3), Cortex (multi-agent loop; nine canonical MCP tools), Team
   (`owners --write`). Install: `npx @esneiderbravo/speclaw@latest init`. CI:
-  `esneiderbravo/speclaw@v1`.
+  `esneiderbravo/speclaw@v2`.
 
 <!-- speclaw:laws:start -->
 ## speclaw (generated)

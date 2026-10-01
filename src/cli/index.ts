@@ -3,7 +3,7 @@ import { parseFlags } from "./lib/args.js";
 import { ui, header } from "./lib/ui.js";
 import { maybeNotifyUpdate } from "./lib/update-check.js";
 
-const HELP = `speclaw — spec-driven, agent-ready projects (foundation + Compass + Lawbook)
+const HELP = `speclaw — spec-driven, agent-ready projects (Foundation + Compass + Lawbook + Cortex)
 
 Usage: speclaw <command> [options]
 
@@ -32,6 +32,9 @@ Compass (code intelligence — the same surface agents use via MCP)
   trace <from> <to>        A call path between two nodes
   visualize [node]         Interactive HTML graph → .speclaw/graph.html
 
+Cortex (One brain. Many agents. — multi-agent loop)
+  cortex <op>              status|start|advance|rework|brief — drive harness.json (--change)
+
 Lawbook (spec-driven workflow)
   quick <name>             Scaffold a level-0 change (record.md + reports)
   lawbook init             Create the lawbook/ workspace
@@ -42,6 +45,7 @@ Lawbook (spec-driven workflow)
   lawbook validate <c>     Validate a change's artifacts
   lawbook sync <c>         Promote delta specs to canonical
   lawbook archive <c>      Finalize and archive a change
+  lawbook harness <op>     Deprecated alias for \`speclaw cortex\` (compat)
 
 Other
   doctor                   Verify the installation (--json, --offline, --strict)
@@ -86,6 +90,7 @@ const HEADER_COMMANDS = new Set<string | undefined>([
   "index",
   "watch",
   "lawbook",
+  "cortex",
   "quick",
 ]);
 
@@ -109,6 +114,7 @@ function maybeHeader(cmd: string | undefined, flags: ReturnType<typeof parseFlag
   if (cmd === "lawbook" && flags.json && flags._[0] === "level") return;
   if (cmd === "lawbook" && flags.json && flags._[0] === "investigate") return;
   if (cmd === "lawbook" && flags.json && flags._[0] === "draft") return;
+  if (cmd === "cortex" && flags.json) return;
   header();
 }
 
@@ -157,6 +163,8 @@ async function dispatch(
       return (await import("./commands/visualize.js")).runVisualize(flags);
     case "quick":
       return (await import("./commands/quick.js")).runQuick(flags);
+    case "cortex":
+      return (await import("./commands/cortex.js")).runCortex(flags);
     case "lawbook":
       return (await import("./commands/lawbook.js")).runSpec(flags);
     case "doctor":

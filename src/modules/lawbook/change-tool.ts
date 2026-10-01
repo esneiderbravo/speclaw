@@ -3,6 +3,7 @@ import { specInit, specValidate, specSync, specArchive, specList } from "./engin
 import { handleLevel } from "./quick.js";
 import { buildCoverageReport, loadCoverageConfig, renderCoverageAgent } from "./coverage.js";
 import { buildDriftReport, renderDriftAgent } from "./drift.js";
+import { handleHarness, harnessOps } from "../cortex/harness.js";
 
 export const lawbookChangeActions = [
   "init",
@@ -13,6 +14,7 @@ export const lawbookChangeActions = [
   "level",
   "coverage",
   "drift",
+  "harness",
 ] as const;
 
 export type LawbookChangeAction = (typeof lawbookChangeActions)[number];
@@ -35,6 +37,11 @@ export const lawbookChangeSchema = {
   capability: z.string().optional(),
   includeReverse: z.boolean().optional(),
   maxItems: z.number().int().min(1).max(50).optional(),
+  harnessOp: z.enum(harnessOps).optional(),
+  verdict: z.enum(["PASS", "FAIL"]).optional(),
+  openQuestions: z.array(z.string()).optional(),
+  pauseForQuestions: z.boolean().optional(),
+  note: z.string().optional(),
 };
 
 type ChangeArgs = {
@@ -52,6 +59,11 @@ type ChangeArgs = {
   capability?: string;
   includeReverse?: boolean;
   maxItems?: number;
+  harnessOp?: (typeof harnessOps)[number];
+  verdict?: "PASS" | "FAIL";
+  openQuestions?: string[];
+  pauseForQuestions?: boolean;
+  note?: string;
 };
 
 function requireField(args: ChangeArgs, field: keyof ChangeArgs): string {
@@ -106,6 +118,21 @@ export function handleLawbookChange(args: ChangeArgs): unknown {
       });
       if (args.json) return report;
       return renderDriftAgent(report, args.maxItems ?? 10);
+    }
+    case "harness": {
+      // Deprecated alias — prefer MCP tool `cortex` / `speclaw cortex`.
+      if (!args.harnessOp) {
+        throw new Error(`lawbook_change: action 'harness' requires 'harnessOp'`);
+      }
+      return handleHarness({
+        projectPath: args.projectPath,
+        change: requireField(args, "change"),
+        harnessOp: args.harnessOp,
+        verdict: args.verdict ?? null,
+        openQuestions: args.openQuestions,
+        pauseForQuestions: args.pauseForQuestions,
+        note: args.note ?? args.reason,
+      });
     }
     default:
       throw new Error(`lawbook_change: unknown action '${String(args.action)}'`);

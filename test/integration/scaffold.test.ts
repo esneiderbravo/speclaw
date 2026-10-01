@@ -41,11 +41,24 @@ test("scaffold writes the foundation, the workflow, gitignore, manifest, and age
   assert.ok(report.nextSteps.length > 0);
 });
 
-test("scaffold installs a selected tool pack", (t) => {
+test("scaffold installs role agents without any tool pack", (t) => {
   const root = tmpRepo(t);
-  const [pack] = Object.keys(loadPacks());
-  scaffold(root, sampleProfile(), [pack!], []);
-  assert.ok(has(root, "ai-specs"));
+  scaffold(root, sampleProfile(), [], ["cursor"]);
+  assert.ok(has(root, "ai-specs/agents/explorer.md"));
+  assert.ok(has(root, "ai-specs/agents/planner.md"));
+  assert.ok(has(root, "ai-specs/agents/implementer.md"));
+  assert.ok(has(root, "ai-specs/agents/reviewer.md"));
+  assert.ok(has(root, "ai-specs/agents/tester.md"));
+  assert.ok(has(root, "ai-specs/agents/archiver.md"));
+  assert.ok(has(root, ".cursor/agents"));
+  assert.ok(has(root, "ai-specs/skills/cortex/SKILL.md"));
+  assert.ok(has(root, "ai-specs/commands/lawbook/cortex.md"));
+  assert.deepEqual(Object.keys(loadPacks()), []);
+});
+
+test("scaffold throws on an unknown pack", (t) => {
+  const root = tmpRepo(t);
+  assert.throws(() => scaffold(root, sampleProfile(), ["nope"], []), /Unknown packs/);
 });
 
 test("scaffold is additive by default — a second run keeps existing personalized files", (t) => {
@@ -77,11 +90,6 @@ test("scaffold throws when the project path does not exist", () => {
     () => scaffold("/no/such/path/speclaw-xyz", sampleProfile(), [], []),
     /does not exist/,
   );
-});
-
-test("scaffold throws on an unknown pack", (t) => {
-  const root = tmpRepo(t);
-  assert.throws(() => scaffold(root, sampleProfile(), ["nope"], []), /Unknown packs/);
 });
 
 test("scaffold writes the verify workflow when missing and never overwrites it", (t) => {

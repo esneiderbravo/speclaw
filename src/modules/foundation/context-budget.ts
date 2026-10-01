@@ -1,6 +1,7 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { registerCompass } from "../compass/register.js";
+import { registerCortex } from "../cortex/register.js";
 import { registerSpec } from "../lawbook/register.js";
 import { registerTools } from "../tools/register.js";
 import { registerFoundationCore } from "./register-core.js";
@@ -32,6 +33,7 @@ export function collectRegisteredTools(minimal: boolean): ToolDefForBudget[] {
   registerFoundationCore(stub, opts);
   registerSpec(stub, opts);
   registerCompass(stub, opts);
+  registerCortex(stub, opts);
   registerTools(stub, opts);
   return tools;
 }

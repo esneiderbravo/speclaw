@@ -36,6 +36,27 @@ function seedChange(root: string, name: string, opts: { tasksChecked?: boolean }
   );
   write(root, `${base}/specs/cap/spec.md`, VALID_SPEC);
   write(root, `${base}/reports/backend.md`, "# backend\nverdict: pass");
+  write(root, `${base}/reports/review.md`, "# review\nVerdict: PASS\n");
+  // Default harness ready for archive (level 3 needs review+test PASS).
+  write(
+    root,
+    `${base}/harness.json`,
+    JSON.stringify(
+      {
+        version: 1,
+        change: name,
+        stage: "archiving",
+        level: 3,
+        iteration: 0,
+        maxRework: 3,
+        verdicts: { review: "PASS", test: "PASS" },
+        openQuestions: [],
+        history: [],
+      },
+      null,
+      2,
+    ) + "\n",
+  );
 }
 
 test("specExists reflects whether lawbook/ is present", (t) => {
@@ -212,7 +233,7 @@ test("specArchivePreconditions reports each blocker", (t) => {
   assert.ok(blockers.some((b) => /unchecked task/.test(b)));
   assert.ok(blockers.some((b) => /not synced.*missing/.test(b)));
 
-  // check tasks + sync -> archivable
+  // check tasks + sync -> archivable (seedChange already ships a ready harness)
   write(root, "lawbook/changes/wip/tasks.md", "- [x] done\n");
   specSync(root, "wip");
   assert.deepEqual(specArchivePreconditions(root, "wip"), []);
@@ -288,6 +309,21 @@ test("level-0 change validates and archives without deltas", (t) => {
       confirmedBy: "human",
       confirmedAt: new Date().toISOString(),
       promotions: [],
+    }),
+  );
+  write(
+    root,
+    "lawbook/changes/tiny/harness.json",
+    JSON.stringify({
+      version: 1,
+      change: "tiny",
+      stage: "archiving",
+      level: 0,
+      iteration: 0,
+      maxRework: 3,
+      verdicts: { review: null, test: "PASS" },
+      openQuestions: [],
+      history: [],
     }),
   );
   const v = specValidate(root, "tiny");

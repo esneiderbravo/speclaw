@@ -13,7 +13,7 @@ import {
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 
-test("eight canonical tools stay under declared definition-token ceiling", () => {
+test("nine canonical tools stay under declared definition-token ceiling", () => {
   process.env.SPECLAW_NO_ALIASES = "1";
   const tools = collectRegisteredTools(false).filter((t) => isCanonicalTool(t.name));
   assert.equal(tools.length, MAX_CANONICAL_TOOLS);

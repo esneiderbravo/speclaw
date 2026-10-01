@@ -4,6 +4,7 @@ export const CANONICAL_TOOLS = [
   "compass_find",
   "compass_diff_context",
   "compass_index",
+  "cortex",
   "lawbook_change",
   "lawbook_investigate",
   "speclaw_setup",
@@ -12,7 +13,7 @@ export const CANONICAL_TOOLS = [
 
 export type CanonicalTool = (typeof CANONICAL_TOOLS)[number];
 
-export const MAX_CANONICAL_TOOLS = 8;
+export const MAX_CANONICAL_TOOLS = 9;
 
 /** Retired MCP names → canonical replacement hint for deprecation notices. */
 export const ALIAS_TARGETS: Record<string, string> = {
@@ -42,7 +43,7 @@ export const ALIAS_NAMES = Object.keys(ALIAS_TARGETS);
 
 const ALIAS_SET = new Set(ALIAS_NAMES);
 
-/** True when `name` is one of the eight canonical tools. */
+/** True when `name` is one of the nine canonical tools. */
 export function isCanonicalTool(name: string): name is CanonicalTool {
   return (CANONICAL_TOOLS as readonly string[]).includes(name);
 }

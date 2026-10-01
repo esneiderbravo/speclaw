@@ -35,10 +35,13 @@ the evidence trustworthy and reproducible, rather than left to improvisation:
    change, with proof it is pre-existing (e.g. it reproduces with the change
    stashed) — or state "none".
 6. **Pending manual steps** — anything not automated, stated plainly — or "none".
-7. **Verdict** — one line.
+7. **Verdict** — one line (`PASS` or `FAIL` for Cortex).
 
 If a test kind does not yet apply (e.g. no unit runner), the report says so in
 place of that evidence and records the gates and manual verification that stood
 in.
 
-Next: read `steps/07-hand-off.md` and do only what it says.
+Tell the coordinator the Cortex verdict so they can `advance` (PASS) or
+`rework` (FAIL).
+
+No further steps remain — test workflow complete.

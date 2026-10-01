@@ -11,9 +11,7 @@ import { ui, c, banner, renderProgress, clearProgress } from "../lib/ui.js";
 import { checkForUpdates } from "../lib/update-check.js";
 import { reportTrackedLocalContent } from "../lib/untrack.js";
 
-const PACK_LABELS: Record<string, string> = {
-  agents: "dev-agents (backend · frontend · product)",
-};
+const PACK_LABELS: Record<string, string> = {};
 
 /** Best-effort project name: the package.json name (unscoped) or the directory name. */
 export function detectProjectName(cwd: string): string {
@@ -27,7 +25,8 @@ export function detectProjectName(cwd: string): string {
 }
 
 /**
- * Interactive setup: pick agents and packs, scaffold, index, and print the handoff prompt.
+ * Interactive setup: pick agents (and packs when any exist), scaffold, index,
+ * and print the handoff prompt.
  *
  * @param flags - Parsed flags; runs interactively on a TTY unless `--agents`, `--yes`, or
  *   `-y` is set. Honors `--project-name`, `--packs`, and `--no-index`.
@@ -39,6 +38,8 @@ export async function runInit(flags: Flags): Promise<void> {
 
   let agents: string[];
   let packs: string[];
+  const availablePacks = loadPacks();
+  const packIds = Object.keys(availablePacks);
 
   banner();
 
@@ -55,34 +56,35 @@ export async function runInit(flags: Flags): Promise<void> {
   }
 
   if (interactive) {
-    const answers = await clack.group(
-      {
-        agents: () =>
-          clack.multiselect({
-            message: "Which agents do you use? (space to select)",
-            options: AGENTS.map((a) => ({ value: a.id, label: a.label })),
-            initialValues: ["claude"],
-            required: true,
-          }),
-        packs: () =>
-          clack.multiselect({
-            message: "Which tool packs to install?",
-            options: Object.entries(loadPacks()).map(([id, def]) => ({
-              value: id,
-              label: id,
-              hint: def.description.slice(0, 50),
-            })),
-            initialValues: ["agents"],
-            required: false,
-          }),
-      },
-      { onCancel: () => process.exit(1) },
-    );
+    // Covers: req~remove-agents-pack~1
+    const prompts: Record<string, () => Promise<unknown>> = {
+      agents: () =>
+        clack.multiselect({
+          message: "Which agents do you use? (space to select)",
+          options: AGENTS.map((a) => ({ value: a.id, label: a.label })),
+          initialValues: ["claude"],
+          required: true,
+        }),
+    };
+    if (packIds.length > 0) {
+      prompts.packs = () =>
+        clack.multiselect({
+          message: "Which tool packs to install?",
+          options: packIds.map((id) => ({
+            value: id,
+            label: id,
+            hint: availablePacks[id]!.description.slice(0, 50),
+          })),
+          initialValues: [],
+          required: false,
+        });
+    }
+    const answers = await clack.group(prompts, { onCancel: () => process.exit(1) });
     agents = answers.agents as string[];
-    packs = answers.packs as string[];
+    packs = (answers.packs as string[] | undefined) ?? [];
   } else {
     agents = list(flags.agents).length ? list(flags.agents) : ["claude"];
-    packs = list(flags.packs).length ? list(flags.packs) : ["agents"];
+    packs = list(flags.packs);
   }
 
   const unknownAgents = agents.filter((a) => !agentById(a));
@@ -109,7 +111,10 @@ export async function runInit(flags: Flags): Promise<void> {
     minimal: Boolean(flags.minimal),
   });
   ui.ok(`Foundation ${c.muted("— LAWS.md + 8 standards + CLAUDE.md/AGENTS.md")}`);
-  ui.ok(`Lawbook workflow ${c.muted("— draft · build · sync · archive · explore")}`);
+  ui.ok(`Lawbook workflow ${c.muted("— cortex · explore · draft · build · sync · archive")}`);
+  ui.ok(
+    `Role agents ${c.muted("— explorer · planner · implementer · reviewer · tester · archiver")}`,
+  );
   for (const p of packs) ui.ok(`${PACK_LABELS[p] ?? p + " pack"}`);
   specInit(cwd);
   ui.ok(`Lawbook workspace ${c.muted("— lawbook/")}`);
@@ -161,7 +166,7 @@ export async function runInit(flags: Flags): Promise<void> {
   );
   ui.plain();
   ui.info(
-    `The dev-agents read those standards for your stack — filling them well makes them stack-aware.`,
+    `Non-trivial work runs through Cortex — use ${ui.code("/lawbook/cortex")} (or the cortex skill).`,
   );
   ui.plain();
   ui.info(`Add an agent:   ${ui.code("speclaw agent add cursor")}`);

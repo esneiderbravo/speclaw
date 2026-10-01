@@ -1,5 +1,5 @@
 ---
-description: Enforce the mandatory steps from lawbook/config.yaml when creating tasks.md, and ensure the agent executes all manual verification itself.
+description: Enforce the mandatory steps from lawbook/config.yaml when creating tasks.md, and ensure the tester role executes all manual verification itself.
 alwaysApply: true
 ---
 
@@ -19,7 +19,7 @@ steps, branch convention, and testing/documentation requirements.
 - Review and update the affected tests.
 - Run the quality gates and verify they pass
   (see `docs/standards/testing-standards.md`).
-- Perform manual verification of the behavior — **the agent executes this
+- Perform manual verification of the behavior — **the tester role executes this
   itself, never the user.**
 - Produce the discipline reports under `reports/` — one per discipline the change
   touched, from an open set (`backend.md`, `frontend.md`, `api.md`, `database.md`,
@@ -28,13 +28,13 @@ steps, branch convention, and testing/documentation requirements.
   for what the feature touched.
 - Update the technical documentation the change touches.
 - Archive the change within the same PR (the `archive` command / `lawbook_archive`
-  tool).
+  tool) after Cortex review/test PASS.
 
-## 3. Manual verification — the agent must execute it
+## 3. Manual verification — the tester must execute it
 
-The coding agent performs all manual testing itself (exercise the endpoint, UI,
-or CLI). Never delegate it to the user. A task that requires verification is
-not complete until the agent has verified it.
+Under Cortex, the **tester** role performs all manual testing
+(exercise the endpoint, UI, or CLI). Never delegate it to the user. A task that
+requires verification is not complete until the tester has verified it.
 
 ## 4. Archiving is part of the change
 
@@ -42,6 +42,7 @@ A change is not done until it is archived with `lawbook_archive` (never a manual
 `mv`). The archive lands in the same PR that implements the change.
 
 `lawbook_archive` is gated: it refuses to archive while any task is unchecked,
-while `reports/` has no discipline report, or while the delta specs are not yet
-synced into the canonical specs. Resolve those first — the gate is enforced in
-the engine, so a manual `mv` only hides an incomplete change.
+while `reports/` has no discipline report, while the delta specs are not yet
+synced into the canonical specs, or while harness review/test verdicts are not
+PASS. Resolve those first — the gate is enforced in the engine, so a manual `mv`
+only hides an incomplete change.

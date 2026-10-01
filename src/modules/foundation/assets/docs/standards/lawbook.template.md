@@ -6,38 +6,35 @@ mechanical steps are speclaw MCP tools).
 
 ## The loop
 
-No non-trivial change lands without a spec change:
+No non-trivial change lands without a lawbook change. The default execution
+model is **Cortex** (*One brain. Many agents.*): the host primary agent is the
+**coordinator** (`cortex` skill / MCP `cortex`) and dispatches explorer → planner →
+implementer → reviewer → tester → archiver. State:
+`lawbook/changes/<name>/harness.json` (`speclaw cortex`). Lawbook owns specs
+and ceremony; Cortex owns the multi-agent loop.
 
-1. **explore** — think an idea through before committing (writes nothing).
-2. **draft** — create `lawbook/changes/<name>/`: `proposal.md`, delta specs under
-   `specs/<capability>/spec.md`, `design.md`, `tasks.md`, and a `reports/`
-   folder.
-3. **build** — implement the tasks in order, keeping code and spec in
-   agreement, and write the discipline reports under `reports/`.
-4. **sync** — reconcile the delta specs against what was actually built, then
-   promote them into the canonical `lawbook/specs/` (`lawbook_sync`). The tool
-   is a deterministic copy; the agent does the code↔spec reconciliation first.
-5. **archive** — finalize: reconcile, sync, then move the change to
-   `lawbook/changes/archive/` (`lawbook_archive`), **within the same PR** —
-   never a post-merge chore. The archive is gated (see below).
+1. **explore** (explorer) — think an idea through before committing (writes nothing).
+2. **draft** / **quick** (planner) — create `lawbook/changes/<name>/` artifacts
+   for the confirmed ceremony level; questions go to the human via the
+   coordinator.
+3. **build** (implementer) — implement tasks; hand off before final gates.
+4. **review** (reviewer) — `reports/review.md` PASS/FAIL (skipped at level 0).
+5. **test** (tester) — quality gates, manual verification, discipline reports.
+6. **sync** / **archive** (archiver) — reconcile, sync when needed, archive
+   within the same PR. Gated on Cortex verdicts plus tasks/reports/sync.
 
 ## Mandatory task steps
 
 `tasks.md` MUST include the steps defined in `lawbook/config.yaml` and the
-`spec-tasks-mandatory-steps` rule: feature branch first, tests reviewed and
-run, manual verification executed by the agent, discipline reports produced,
-docs updated, archive within the PR. The agent performs the manual testing
-itself — never delegates it.
+`spec-tasks-mandatory-steps` rule. The **tester** role performs manual
+verification — never the user; the coordinator must not archive without a
+test PASS.
 
 ## Reports
 
-Every change carries a `reports/` folder. `build` writes one report per
-discipline it touched, named for that discipline — an open set (`backend.md`,
-`frontend.md`, `api.md`, `database.md`, `infra.md`, … — `api.md` required
-whenever the change touches an API surface) recording what was tested
-and the real results — unit, integration, and end-to-end as applicable — with
-the commands run and their output. It is evidence of testing that travels with
-the change; the archive is blocked until at least one discipline report exists.
+Every change carries a `reports/` folder. The tester writes discipline reports;
+the reviewer writes `review.md`. Archive is blocked until evidence and harness
+verdicts are complete.
 
 ## Delta specs
 
@@ -51,18 +48,8 @@ the change; the archive is blocked until at least one discipline report exists.
 ## Archiving discipline
 
 Always archive with the `archive` command / `lawbook_archive` tool, never a manual
-`mv` — the tool performs the spec promotion and validation a manual move skips.
-
-Before archiving, the agent runs a reconciliation review: it compares what was
-built against the delta specs and, when the code has drifted past the original
-contracts, shows short insights and reconciles the delta specs.
-
-`lawbook_archive` is then **gated in the engine** — it refuses to archive (and
-reports the reason) while any task is unchecked, while `reports/` holds no
-discipline report, or while the delta specs are not yet synced into the
-canonical specs. Because the gate covers both the tool and the CLI, a change
-reaches the archive only when it is genuinely complete: reconcile, `sync`, then
-archive.
+`mv`. The engine refuses archive while tasks are unchecked, reports are missing,
+specs are out of sync when required, or harness review/test verdicts are not PASS.
 
 ## Amendments to the law
 

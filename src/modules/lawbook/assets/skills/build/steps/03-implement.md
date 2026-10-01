@@ -8,4 +8,4 @@
   spec, update the spec in the change (not silently) — the two must agree.
 - Check off each task in `tasks.md` as you complete it.
 
-Next: read `steps/04-quality-gates.md` and do only what it says.
+Next: read `steps/04-hand-off.md` and do only what it says.

@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 520" width="800" height="520" role="img" aria-label="Cortex - One brain. Many agents.">
+  <defs>
+    <linearGradient id="win" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0C1113"/><stop offset="1" stop-color="#0A0E0F"/></linearGradient>
+    <style>
+      text{font-family:'SF Mono','JetBrains Mono','Fira Code',Menlo,Consolas,monospace;}
+      .cy{fill:#17C1C1;}.cr{fill:#F4F1EA;}.mu{fill:#6E7B80;}.hd{font-weight:700;}
+    </style>
+  </defs>
+  <rect x="1" y="1" width="798" height="518" rx="16" fill="url(#win)" stroke="#232A2D" stroke-width="1.5"/>
+  <line x1="1" y1="50" x2="799" y2="50" stroke="#1B2225"/>
+  <circle cx="32" cy="26" r="7" fill="#EB5A5A"/><circle cx="56" cy="26" r="7" fill="#E3B341"/><circle cx="80" cy="26" r="7" fill="#3FB950"/>
+  <text x="400" y="31" text-anchor="middle" class="mu" font-size="14">CORTEX - One brain. Many agents.</text>
+
+  <rect x="280" y="78" width="240" height="72" rx="12" fill="#122024" stroke="#17C1C1" stroke-width="1.5"/>
+  <text x="400" y="108" text-anchor="middle" class="cy hd" font-size="18">CORTEX</text>
+  <text x="400" y="132" text-anchor="middle" class="mu" font-size="13">coordinator · cortex MCP · harness.json</text>
+
+  <rect x="28" y="190" width="170" height="56" rx="10" fill="#12181A" stroke="#232A2D"/>
+  <text x="113" y="214" text-anchor="middle" class="cy hd" font-size="14">explorer</text>
+  <text x="113" y="234" text-anchor="middle" class="mu" font-size="12">Compass · read-only</text>
+
+  <rect x="218" y="190" width="170" height="56" rx="10" fill="#12181A" stroke="#232A2D"/>
+  <text x="303" y="214" text-anchor="middle" class="cy hd" font-size="14">planner</text>
+  <text x="303" y="234" text-anchor="middle" class="mu" font-size="12">draft · ceremony</text>
+
+  <rect x="408" y="190" width="170" height="56" rx="10" fill="#12181A" stroke="#232A2D"/>
+  <text x="493" y="214" text-anchor="middle" class="cy hd" font-size="14">implementer</text>
+  <text x="493" y="234" text-anchor="middle" class="mu" font-size="12">build · hand-off</text>
+
+  <rect x="598" y="190" width="170" height="56" rx="10" fill="#12181A" stroke="#232A2D"/>
+  <text x="683" y="214" text-anchor="middle" class="cy hd" font-size="14">reviewer</text>
+  <text x="683" y="234" text-anchor="middle" class="mu" font-size="12">review.md · PASS/FAIL</text>
+
+  <rect x="218" y="270" width="170" height="56" rx="10" fill="#12181A" stroke="#232A2D"/>
+  <text x="303" y="294" text-anchor="middle" class="cy hd" font-size="14">tester</text>
+  <text x="303" y="314" text-anchor="middle" class="mu" font-size="12">gates · reports</text>
+
+  <rect x="408" y="270" width="170" height="56" rx="10" fill="#12181A" stroke="#232A2D"/>
+  <text x="493" y="294" text-anchor="middle" class="cy hd" font-size="14">archiver</text>
+  <text x="493" y="314" text-anchor="middle" class="mu" font-size="12">sync · archive</text>
+
+  <text x="400" y="370" text-anchor="middle" class="cr" font-size="14">explore -&gt; plan -&gt; implement -&gt; review -&gt; test -&gt; archive</text>
+  <text x="400" y="396" text-anchor="middle" class="mu" font-size="13">rework &lt;= 3 · verdicts gate archive · 100% local</text>
+
+  <text x="34" y="450" class="cy hd" font-size="14">MCP</text>
+  <text x="80" y="450" class="cr" font-size="14">cortex  status · start · advance · rework · brief</text>
+  <text x="34" y="480" class="cy hd" font-size="14">CLI</text>
+  <text x="80" y="480" class="cr" font-size="14">speclaw cortex ...</text>
+  <text x="34" y="504" class="mu" font-size="13">Skill /lawbook/cortex · Foundation · Compass · Lawbook · Cortex</text>
+</svg>
