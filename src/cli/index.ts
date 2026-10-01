@@ -13,8 +13,8 @@ Install globally so the command is always available:
 Setup
   init                     Interactive setup: pick agents, scaffold, index, get the prompt
                            (--minimal omits setup/lifecycle MCP tools)
-  update                   Upgrade speclaw and apply only what's new (no re-init)
-                           (--minimal persists minimal exposure; omit to keep prior)
+  update                   Apply project migrations (advisory if a newer binary exists)
+                           (--check reports version only; --minimal persists minimal exposure)
   agent list               Show which agents are configured
   agent add <id>           Configure another agent later (symlinks + MCP)
 

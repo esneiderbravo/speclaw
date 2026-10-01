@@ -50,7 +50,8 @@ export async function runInit(flags: Flags): Promise<void> {
   if (upd.updateAvailable && upd.latest) {
     ui.warn(`You're on ${c.muted(upd.current)} — latest is ${c.bold(c.cyan(upd.latest))}.`);
     ui.info(
-      `Recommended: run ${ui.code("speclaw update")} first, then ${ui.code("speclaw init")} again.`,
+      `Recommended: refresh the binary with ${ui.code("npx @esneiderbravo/speclaw@latest init")} ` +
+        `(or ${ui.code("npm i -g @esneiderbravo/speclaw@latest")}), then run ${ui.code("speclaw init")} again.`,
     );
     ui.plain();
   }

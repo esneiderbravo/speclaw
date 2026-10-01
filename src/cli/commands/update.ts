@@ -1,4 +1,3 @@
-import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { Flags } from "../lib/args.js";
@@ -13,6 +12,26 @@ import { loadPacks } from "../../modules/tools/packs.js";
 import { InstallReport } from "../../shared/install.js";
 import { detectProjectName } from "./init.js";
 import { reportTrackedLocalContent } from "../lib/untrack.js";
+
+/** Injectable seams for unit tests (never used to spawn a global npm install). */
+export type UpdateHooks = {
+  checkForUpdates?: typeof checkForUpdates;
+  applyProjectMigrations?: (cwd: string, backup: boolean, minimal?: boolean) => void;
+};
+
+/**
+ * How to upgrade the installed binary without this command spawning `npm install -g`.
+ *
+ * @param name - Package name on npm (usually `pkgName()`).
+ * @returns One-line advisory for the terminal.
+ */
+export function binaryUpgradeHint(name: string): string {
+  return (
+    `Upgrade the binary separately with ${ui.code(`npm i -g ${name}@latest`)} ` +
+    `(or prefer ${ui.code(`npx ${name}@latest update`)}). ` +
+    `This command only migrates the project.`
+  );
+}
 
 /**
  * A feature migration: a step a release needs beyond dropping new files (which
@@ -239,73 +258,46 @@ const MIGRATIONS: Migration[] = [
 ];
 
 /**
- * Update speclaw and bring the current project up to date without a full re-init:
- * upgrade the global package, then additively apply any new standards, skills,
- * commands, and feature steps this project is missing (existing files untouched).
+ * Bring the current project up to date without a full re-init: check whether a
+ * newer binary exists on npm (advisory only — never runs `npm install -g`), then
+ * additively apply any new standards, skills, commands, and feature steps this
+ * project is missing (existing files untouched).
  *
- * @param flags - `--check` reports without changing anything; `--migrate-only`
- *   skips the global upgrade and only applies project changes (used internally
- *   after the package is upgraded, so migrations run from the new version).
+ * @param flags - `--check` reports version status only (no migrate);
+ *   `--migrate-only` is a silent no-op alias of the default (compat).
+ * @param hooks - Optional test seams for the version check and migrate path.
  */
-export async function runUpdate(flags: Flags): Promise<void> {
+export async function runUpdate(flags: Flags, hooks: UpdateHooks = {}): Promise<void> {
   const cwd = process.cwd();
-  const migrateOnly = Boolean(flags["migrate-only"]);
+  // `--migrate-only` is accepted for compat but is a no-op alias of default
+  // (version check + project migrations). It no longer skips the version check.
   const checkOnly = Boolean(flags.check);
   const backup = Boolean(flags.backup);
-  const winShell = process.platform === "win32";
+  const check = hooks.checkForUpdates ?? checkForUpdates;
+  const migrate = hooks.applyProjectMigrations ?? applyProjectMigrations;
 
-  if (!migrateOnly) {
-    ui.step("Checking for updates");
-    const { current, latest, updateAvailable } = await checkForUpdates({ force: true });
+  ui.step("Checking for updates");
+  const { current, latest, updateAvailable } = await check({ force: true });
 
-    if (!latest) {
-      ui.warn("Could not reach the npm registry — skipping the version check.");
-    } else if (updateAvailable) {
-      ui.info(`${c.muted(current)} ${c.muted("→")} ${c.cyan(latest)}`);
-      if (checkOnly) {
-        ui.info(`Run ${ui.code("speclaw update")} to upgrade and apply what's new.`);
-        return;
-      }
-      ui.step(`Updating ${pkgName()} globally`);
-      const install = spawnSync("npm", ["install", "-g", `${pkgName()}@latest`], {
-        stdio: "inherit",
-        shell: winShell,
-      });
-      if (install.status !== 0) {
-        ui.err(
-          "Global update failed. Try again with elevated permissions (e.g. sudo), or check your npm setup.",
-        );
-        process.exit(1);
-      }
-      ui.ok(`Updated to ${latest}`);
-
-      // Re-exec the NEWLY installed binary so migrations run with the new assets
-      // and any new feature steps — not this (now-stale) process. Carry --backup
-      // through so the refresh honors it after the upgrade.
-      const reArgs = [
-        "update",
-        "--migrate-only",
-        ...(backup ? ["--backup"] : []),
-        ...(flags.minimal ? ["--minimal"] : []),
-      ];
-      const re = spawnSync("speclaw", reArgs, {
-        stdio: "inherit",
-        shell: winShell,
-      });
-      if (re.error) {
-        ui.warn(
-          `Upgraded — now run ${ui.code("speclaw update --migrate-only")} to apply project changes.`,
-        );
-        return;
-      }
-      process.exit(re.status ?? 0);
-    } else {
-      ui.ok(`Already on the latest version (${current}).`);
-      if (checkOnly) return;
+  if (!latest) {
+    ui.warn("Could not reach the npm registry — skipping the version check.");
+  } else if (updateAvailable) {
+    ui.info(`${c.muted(current)} ${c.muted("→")} ${c.cyan(latest)}`);
+    ui.info(binaryUpgradeHint(pkgName()));
+    if (checkOnly) {
+      ui.info(
+        `Run ${ui.code("speclaw update")} to apply project migrations with the binary you have.`,
+      );
+      return;
     }
+  } else {
+    ui.ok(`Already on the latest version (${current}).`);
+    if (checkOnly) return;
   }
 
-  applyProjectMigrations(cwd, backup, flags.minimal ? true : undefined);
+  if (checkOnly) return;
+
+  migrate(cwd, backup, flags.minimal ? true : undefined);
 }
 
 /**
