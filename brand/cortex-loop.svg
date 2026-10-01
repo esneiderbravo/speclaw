@@ -13,38 +13,38 @@
 
   <rect x="280" y="78" width="240" height="72" rx="12" fill="#122024" stroke="#17C1C1" stroke-width="1.5"/>
   <text x="400" y="108" text-anchor="middle" class="cy hd" font-size="18">CORTEX</text>
-  <text x="400" y="132" text-anchor="middle" class="mu" font-size="13">coordinator · cortex MCP · harness.json</text>
+  <text x="400" y="132" text-anchor="middle" class="mu" font-size="13">coordinator Â· cortex MCP Â· harness.json</text>
 
   <rect x="28" y="190" width="170" height="56" rx="10" fill="#12181A" stroke="#232A2D"/>
   <text x="113" y="214" text-anchor="middle" class="cy hd" font-size="14">explorer</text>
-  <text x="113" y="234" text-anchor="middle" class="mu" font-size="12">Compass · read-only</text>
+  <text x="113" y="234" text-anchor="middle" class="mu" font-size="12">Compass Â· read-only</text>
 
   <rect x="218" y="190" width="170" height="56" rx="10" fill="#12181A" stroke="#232A2D"/>
   <text x="303" y="214" text-anchor="middle" class="cy hd" font-size="14">planner</text>
-  <text x="303" y="234" text-anchor="middle" class="mu" font-size="12">draft · ceremony</text>
+  <text x="303" y="234" text-anchor="middle" class="mu" font-size="12">draft Â· ceremony</text>
 
   <rect x="408" y="190" width="170" height="56" rx="10" fill="#12181A" stroke="#232A2D"/>
   <text x="493" y="214" text-anchor="middle" class="cy hd" font-size="14">implementer</text>
-  <text x="493" y="234" text-anchor="middle" class="mu" font-size="12">build · hand-off</text>
+  <text x="493" y="234" text-anchor="middle" class="mu" font-size="12">build Â· hand-off</text>
 
   <rect x="598" y="190" width="170" height="56" rx="10" fill="#12181A" stroke="#232A2D"/>
   <text x="683" y="214" text-anchor="middle" class="cy hd" font-size="14">reviewer</text>
-  <text x="683" y="234" text-anchor="middle" class="mu" font-size="12">review.md · PASS/FAIL</text>
+  <text x="683" y="234" text-anchor="middle" class="mu" font-size="12">review.md Â· PASS/FAIL</text>
 
   <rect x="218" y="270" width="170" height="56" rx="10" fill="#12181A" stroke="#232A2D"/>
   <text x="303" y="294" text-anchor="middle" class="cy hd" font-size="14">tester</text>
-  <text x="303" y="314" text-anchor="middle" class="mu" font-size="12">gates · reports</text>
+  <text x="303" y="314" text-anchor="middle" class="mu" font-size="12">gates Â· reports</text>
 
   <rect x="408" y="270" width="170" height="56" rx="10" fill="#12181A" stroke="#232A2D"/>
   <text x="493" y="294" text-anchor="middle" class="cy hd" font-size="14">archiver</text>
-  <text x="493" y="314" text-anchor="middle" class="mu" font-size="12">sync · archive</text>
+  <text x="493" y="314" text-anchor="middle" class="mu" font-size="12">sync Â· archive</text>
 
   <text x="400" y="370" text-anchor="middle" class="cr" font-size="14">explore -&gt; plan -&gt; implement -&gt; review -&gt; test -&gt; archive</text>
-  <text x="400" y="396" text-anchor="middle" class="mu" font-size="13">rework &lt;= 3 · verdicts gate archive · 100% local</text>
+  <text x="400" y="396" text-anchor="middle" class="mu" font-size="13">rework &lt;= 3 Â· verdicts gate archive Â· 100% local</text>
 
   <text x="34" y="450" class="cy hd" font-size="14">MCP</text>
-  <text x="80" y="450" class="cr" font-size="14">cortex  status · start · advance · rework · brief</text>
+  <text x="80" y="450" class="cr" font-size="14">cortex  status Â· start Â· advance Â· rework Â· brief</text>
   <text x="34" y="480" class="cy hd" font-size="14">CLI</text>
   <text x="80" y="480" class="cr" font-size="14">speclaw cortex ...</text>
-  <text x="34" y="504" class="mu" font-size="13">Skill /lawbook/cortex · Foundation · Compass · Lawbook · Cortex</text>
+  <text x="34" y="504" class="mu" font-size="13">Skill /lawbook/cortex Â· Foundation Â· Compass Â· Lawbook Â· Cortex</text>
 </svg>

@@ -11,10 +11,10 @@
   <text x="34" y="92"><tspan class="cy">stage</tspan><tspan class="mu">     </tspan><tspan class="cr">implementing</tspan></text>
   <text x="34" y="122"><tspan class="cy">role</tspan><tspan class="mu">      </tspan><tspan class="cr">implementer</tspan><tspan class="mu">  -&gt; ai-specs/agents/implementer.md</tspan></text>
   <text x="34" y="152"><tspan class="cy">skills</tspan><tspan class="mu">    </tspan><tspan class="cr">build</tspan><tspan class="mu"> (through hand-off)</tspan></text>
-  <text x="34" y="182"><tspan class="cy">level</tspan><tspan class="mu">     </tspan><tspan class="cr">2</tspan><tspan class="mu">  · iteration </tspan><tspan class="cr">0</tspan><tspan class="mu">/</tspan><tspan class="cr">3</tspan></text>
+  <text x="34" y="182"><tspan class="cy">level</tspan><tspan class="mu">     </tspan><tspan class="cr">2</tspan><tspan class="mu">  Â· iteration </tspan><tspan class="cr">0</tspan><tspan class="mu">/</tspan><tspan class="cr">3</tspan></text>
   <text x="34" y="212"><tspan class="cy">verdicts</tspan><tspan class="mu">  review </tspan><tspan class="mu">-</tspan><tspan class="mu">  test </tspan><tspan class="mu">-</tspan></text>
   <text x="34" y="252"><tspan class="cy">next</tspan><tspan class="mu">      </tspan><tspan class="cr">advance</tspan><tspan class="mu"> -&gt; reviewing (after build hand-off)</tspan></text>
   <text x="34" y="292" class="mu">Cortex dispatches the role - coordinator never edits src/</text>
-  <text x="34" y="340"><tspan class="ok">OK </tspan><tspan class="cr">harness.json </tspan><tspan class="mu">durable · MCP </tspan><tspan class="cy">cortex</tspan><tspan class="mu"> · skill </tspan><tspan class="cy">/lawbook/cortex</tspan></text>
-  <text x="34" y="370" class="mu" font-size="13">One brain. Many agents. · 100% local · no LLM runtime</text>
+  <text x="34" y="340"><tspan class="ok">OK </tspan><tspan class="cr">harness.json </tspan><tspan class="mu">durable Â· MCP </tspan><tspan class="cy">cortex</tspan><tspan class="mu"> Â· skill </tspan><tspan class="cy">/lawbook/cortex</tspan></text>
+  <text x="34" y="370" class="mu" font-size="13">One brain. Many agents. Â· 100% local Â· no LLM runtime</text>
 </svg>
