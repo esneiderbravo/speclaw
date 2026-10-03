@@ -30,7 +30,7 @@ a request, not whole files.
 | Tool | Use it to |
 |------|-----------|
 | `compass_index` | Build/refresh the graph (`.speclaw/index.db`); optional watch actions (`start`/`stop`/`status`). Schema **10** adds FTS5 `nodes_fts` + `node_text` + `pagerank` (9→10 migrates; reindex populates text, embedding cache reused). Also: `embedding_cache`, Merkle, `node_metrics`, test/module flags. |
-| `compass_explore` | Read a node's source plus callers, callees, blast radius, affected tests, and hotspot — in one call. Use `to:` for trace-style paths. |
+| `compass_explore` | Read a node's source plus callers, callees, blast radius, affected tests, and hotspot — in one call. `node` may be a symbol name or a repo-relative file path. Use `to:` for trace-style paths. |
 | `compass_find` | **Hybrid** search always: BM25 + vectors + name match → RRF → task-relative rank. `mode: exact|concept` only adjusts fusion weights. Optional `focus` / `maxTokens`. |
 | `compass_diff_context` | Graph context for a change set (working tree, git rev, or explicit paths): symbols touched, blast radius, tests, hotspots. |
 | `cortex` | CORTEX — multi-agent loop brain (*One brain. Many agents.*). Actions: `status` \| `start` \| `advance` \| `rework` \| `brief`. Also CLI `speclaw cortex`. |
@@ -51,9 +51,9 @@ to Grep/Read: a Compass call returned nothing useful for your query, or the
 target isn't indexed code (stylesheets, JSON/config, markdown, logs).
 
 <!-- speclaw:map:start -->
-speclaw · 218 files · 853 nodes
-src/ (116)  test/ (97)  scripts/ (4)  eslint.config.js/ (1)
-hubs: tmpRepo 307 · write 259 · has 129 · openDb 77 · buildIndex 76 · parse 74 · run 63 · commit 52 · read 43 · text 34 · runCli 33 · gitInit 33
+speclaw · 220 files · 868 nodes
+src/ (116)  test/ (99)  scripts/ (4)  eslint.config.js/ (1)
+hubs: tmpRepo 308 · write 265 · has 129 · buildIndex 77 · openDb 77 · parse 75 · run 63 · commit 52 · read 43 · text 34 · runCli 33 · gitInit 33
 entry: src/server.ts (mcp) · src/cli/index.ts (bin)
 <!-- speclaw:map:end -->
 

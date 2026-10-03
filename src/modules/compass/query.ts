@@ -40,11 +40,16 @@ function requireIndex(projectPath: string): void {
 }
 
 /**
- * Structural search: find nodes whose name contains `query` (substring match),
- * ranking exact matches and shorter names first.
+ * Structural search: find nodes whose name contains `query`, or whose indexed
+ * file path contains `query`. Exact name matches and shorter names rank first.
+ *
+ * LIKE metacharacters `%` and `_` in `query` are escaped so they match
+ * literally. Name matching stays a substring of the caller's original text;
+ * the path comparison uses a repo-relative normalization (trim, slashes, a
+ * leading `./`, absolute paths under the project root).
  *
  * @param projectPath - Absolute path to the indexed project.
- * @param query - Name or keyword to match as a substring.
+ * @param query - Name substring or file path to match.
  * @param limit - Maximum number of hits to return.
  * @returns Matching nodes ordered by relevance.
  * @throws If no index exists for the project.
@@ -53,15 +58,24 @@ export function search(projectPath: string, query: string, limit = 25): SearchHi
   requireIndex(projectPath);
   const db = openDb(projectPath);
   try {
+    const normalized = normalizePathQuery(projectPath, query);
+    const pathPattern = normalized ? `%${escapeLike(normalized)}%` : "";
     const rows = db
       .prepare(
         `SELECT s.name, s.kind, f.path AS file, s.start_line AS line, s.signature
          FROM nodes s JOIN files f ON f.id = s.file_id
-         WHERE s.name LIKE ?
-         ORDER BY (s.name = ?) DESC, length(s.name) ASC
+         WHERE s.name LIKE ? ESCAPE '\\'
+            OR (? != '' AND f.path LIKE ? ESCAPE '\\')
+         ORDER BY (s.name = ?) DESC, length(s.name) ASC, f.path ASC, s.start_line ASC
          LIMIT ?`,
       )
-      .all(`%${query}%`, query, limit) as unknown as SearchHit[];
+      .all(
+        `%${escapeLike(query)}%`,
+        normalized,
+        pathPattern,
+        query,
+        limit,
+      ) as unknown as SearchHit[];
     return rows;
   } finally {
     db.close();
@@ -77,18 +91,252 @@ function readSource(projectPath: string, file: string, startByte: number, endByt
   }
 }
 
+/** One indexed definition row, joined to its repo-relative file path. */
+interface SymbolRow {
+  id: number;
+  name: string;
+  kind: string;
+  start_line: number;
+  end_line: number;
+  start_byte: number;
+  end_byte: number;
+  signature: string | null;
+  file: string;
+}
+
+type CompassDb = ReturnType<typeof openDb>;
+
+/**
+ * Escape SQL `LIKE` metacharacters so `%` and `_` match literally under
+ * `ESCAPE '\'`.
+ */
+function escapeLike(value: string): string {
+  return value.replace(/[\\%_]/g, (ch) => `\\${ch}`);
+}
+
+/**
+ * Normalize a path-shaped query to a repo-relative slash path.
+ *
+ * Trims, turns backslashes into slashes, and strips one leading `./`. An
+ * absolute path that lies under `projectPath` becomes repo-relative; a path
+ * outside the project is left absolute so it will not match `files.path`.
+ *
+ * @param projectPath - Absolute path to the indexed project.
+ * @param query - Caller-supplied name or path.
+ * @returns The normalized path, or `""` when the query is only the project root.
+ */
+function normalizePathQuery(projectPath: string, query: string): string {
+  let q = query.trim().split("\\").join("/");
+  if (q.startsWith("./")) q = q.slice(2);
+  if (path.isAbsolute(q)) {
+    const rel = path.relative(path.resolve(projectPath), q).split("\\").join("/");
+    if (rel === "" || (!rel.startsWith("..") && !path.isAbsolute(rel))) return rel;
+  }
+  return q;
+}
+
+/** Indexed paths that equal `query` or end with `/${query}`. Exact row first. */
+function matchingFiles(db: CompassDb, query: string): { exact: string | null; suffix: string[] } {
+  const exact = db.prepare("SELECT path FROM files WHERE path = ?").get(query) as
+    { path: string } | undefined;
+  const suffix = db
+    .prepare("SELECT path FROM files WHERE path LIKE ? ESCAPE '\\' ORDER BY path")
+    .all(`%/${escapeLike(query)}`) as Array<{ path: string }>;
+  return { exact: exact?.path ?? null, suffix: suffix.map((row) => row.path) };
+}
+
+/**
+ * Resolve `query` to indexed files after a symbol-name miss.
+ *
+ * Exact `files.path` wins. Otherwise a query that contains `/` must match
+ * exactly one suffix (`path` ends with `/${query}`). A query with no slash
+ * uses the same suffix rule as a basename; more than one file is ambiguous.
+ */
+function resolveIndexedFile(
+  db: CompassDb,
+  projectPath: string,
+  query: string,
+):
+  | { status: "one"; file: string }
+  | { status: "ambiguous"; basename: string; files: string[] }
+  | { status: "none" } {
+  const normalized = normalizePathQuery(projectPath, query);
+  if (!normalized) return { status: "none" };
+  const { exact, suffix } = matchingFiles(db, normalized);
+  if (exact) return { status: "one", file: exact };
+  if (normalized.includes("/")) {
+    if (suffix.length === 1) return { status: "one", file: suffix[0]! };
+    return { status: "none" };
+  }
+  if (suffix.length === 1) return { status: "one", file: suffix[0]! };
+  if (suffix.length > 1) return { status: "ambiguous", basename: normalized, files: suffix };
+  return { status: "none" };
+}
+
+/** Definitions in one indexed file, ordered by source position. */
+function fileSymbols(db: CompassDb, file: string): SymbolRow[] {
+  return db
+    .prepare(
+      `SELECT s.id, s.name, s.kind, s.start_line, s.end_line, s.start_byte, s.end_byte,
+              s.signature, f.path AS file
+       FROM nodes s JOIN files f ON f.id = s.file_id
+       WHERE f.path = ?
+       ORDER BY s.start_line ASC, s.id ASC`,
+    )
+    .all(file) as unknown as SymbolRow[];
+}
+
+/** Symbols defined in `files`, stable across files. Empty when none exist. */
+function symbolsInFiles(db: CompassDb, files: string[]): SearchHit[] {
+  if (files.length === 0) return [];
+  const placeholders = files.map(() => "?").join(", ");
+  return db
+    .prepare(
+      `SELECT s.name, s.kind, f.path AS file, s.start_line AS line, s.signature
+       FROM nodes s JOIN files f ON f.id = s.file_id
+       WHERE f.path IN (${placeholders})
+       ORDER BY f.path ASC, s.start_line ASC, s.name ASC`,
+    )
+    .all(...files) as unknown as SearchHit[];
+}
+
+/**
+ * Choose the symbol a file-path explore returns.
+ *
+ * Prefer a symbol whose name equals the file stem, function before class,
+ * then any other kind. Otherwise the first function by `start_line`, then
+ * the first symbol. `symbols` must be non-empty and ordered by `start_line`.
+ */
+function pickPrimary(symbols: SymbolRow[]): SymbolRow {
+  const stem = path.parse(symbols[0]!.file).name;
+  const named = symbols.filter((s) => s.name === stem);
+  if (named.length > 0) {
+    return (
+      named.find((s) => s.kind === "function") ?? named.find((s) => s.kind === "class") ?? named[0]!
+    );
+  }
+  return symbols.find((s) => s.kind === "function") ?? symbols[0]!;
+}
+
+/**
+ * Source, callers, and callees for one definition. `others` are the
+ * `otherMatches` (same-name siblings, or the rest of a file).
+ */
+function assembleExplore(
+  db: CompassDb,
+  projectPath: string,
+  best: SymbolRow,
+  others: SymbolRow[],
+): ExploreResult {
+  const callees = db
+    .prepare(
+      `SELECT e.dst_name AS name, e.line, f.path AS file
+       FROM edges e LEFT JOIN nodes s ON s.id = e.dst_node_id
+       LEFT JOIN files f ON f.id = s.file_id
+       WHERE e.src_node_id = ? AND e.kind = 'call'
+       ORDER BY e.line`,
+    )
+    .all(best.id) as Array<{ name: string; line: number; file: string | null }>;
+
+  // Callers: match both the resolved edge AND any call by this name, so
+  // dynamic dispatch (a method/function called by name across sites) is not
+  // missed. Over-approximates conservatively — the point of a blast radius.
+  const callers = db
+    .prepare(
+      `SELECT DISTINCT owner.name AS name, owner.kind AS kind, f.path AS file, e.line
+       FROM edges e
+       JOIN nodes owner ON owner.id = e.src_node_id
+       JOIN files f ON f.id = owner.file_id
+       WHERE (e.dst_node_id = ? OR e.dst_name = ?) AND e.kind = 'call'
+       ORDER BY f.path, e.line`,
+    )
+    .all(best.id, best.name) as Array<{ name: string; kind: string; file: string; line: number }>;
+
+  return {
+    found: true,
+    symbol: {
+      name: best.name,
+      kind: best.kind,
+      file: best.file,
+      startLine: best.start_line,
+      endLine: best.end_line,
+      signature: best.signature,
+      source: readSource(projectPath, best.file, best.start_byte, best.end_byte),
+    },
+    callees: callees.map((c) => ({ name: c.name, file: c.file ?? undefined, line: c.line })),
+    callers,
+    otherMatches:
+      others.length > 0
+        ? others.map((m) => ({
+            name: m.name,
+            kind: m.kind,
+            file: m.file,
+            line: m.start_line,
+            signature: m.signature,
+          }))
+        : undefined,
+  };
+}
+
+/**
+ * Name miss: resolve a file path to one symbol, or list symbols when the
+ * basename is ambiguous or the file defines nothing. A non-unique suffix
+ * falls through to {@link search}, which also matches `files.path`.
+ */
+function exploreWhenNameMisses(db: CompassDb, projectPath: string, query: string): ExploreResult {
+  // Covers: req~explore-file-path~1
+  const resolved = resolveIndexedFile(db, projectPath, query);
+  if (resolved.status === "one") {
+    const symbols = fileSymbols(db, resolved.file);
+    if (symbols.length === 0) {
+      const near = search(projectPath, query, 10);
+      return {
+        found: false,
+        message: `Indexed file "${resolved.file}" has no symbols.`,
+        otherMatches: near,
+      };
+    }
+    const primary = pickPrimary(symbols);
+    const result = assembleExplore(
+      db,
+      projectPath,
+      primary,
+      symbols.filter((s) => s.id !== primary.id),
+    );
+    return {
+      ...result,
+      message: `Path "${resolved.file}" resolved to ${primary.name}.`,
+    };
+  }
+  if (resolved.status === "ambiguous") {
+    return {
+      found: false,
+      message: `Basename "${resolved.basename}" is ambiguous.`,
+      otherMatches: symbolsInFiles(db, resolved.files),
+    };
+  }
+  const near = search(projectPath, query, 10);
+  return {
+    found: false,
+    message: `No exact symbol named "${query}". ${near.length} similar symbol(s) below.`,
+    otherMatches: near,
+  };
+}
+
 /**
  * Explore an exact node by name: return its verbatim source, callees, and
  * callers (its blast radius).
  *
  * When several nodes share the name, functions and classes are preferred as the
- * primary result and the rest are surfaced under `otherMatches`. When no exact
- * match exists, falls back to a fuzzy {@link search} so the caller still gets
- * useful candidates.
+ * primary result and the rest are surfaced under `otherMatches`. When the name
+ * misses, a normalized file path (exact, unique suffix, or unique basename)
+ * resolves to one symbol in that file — stem name first (function, then
+ * class), otherwise the first function, otherwise the first symbol. Anything
+ * still unresolved falls back to a fuzzy {@link search}.
  *
  * @param projectPath - Absolute path to the indexed project.
- * @param query - Exact node name to explore.
- * @returns The explore result; `found` is `false` when no exact match exists.
+ * @param query - Exact node name, or a file path when no symbol has that name.
+ * @returns The explore result; `found` is `false` when no single symbol is selected.
  * @throws If no index exists for the project.
  */
 export function explore(projectPath: string, query: string): ExploreResult {
@@ -104,77 +352,10 @@ export function explore(projectPath: string, query: string): ExploreResult {
          ORDER BY s.kind = 'function' DESC, s.kind = 'class' DESC
          LIMIT 10`,
       )
-      .all(query) as Array<{
-      id: number;
-      name: string;
-      kind: string;
-      start_line: number;
-      end_line: number;
-      start_byte: number;
-      end_byte: number;
-      signature: string | null;
-      file: string;
-    }>;
+      .all(query) as unknown as SymbolRow[];
 
-    if (matches.length === 0) {
-      // fall back to fuzzy search so the caller gets something useful
-      const near = search(projectPath, query, 10);
-      return {
-        found: false,
-        message: `No exact symbol named "${query}". ${near.length} similar symbol(s) below.`,
-        otherMatches: near,
-      };
-    }
-
-    const best = matches[0]!;
-    const callees = db
-      .prepare(
-        `SELECT e.dst_name AS name, e.line, f.path AS file
-         FROM edges e LEFT JOIN nodes s ON s.id = e.dst_node_id
-         LEFT JOIN files f ON f.id = s.file_id
-         WHERE e.src_node_id = ? AND e.kind = 'call'
-         ORDER BY e.line`,
-      )
-      .all(best.id) as Array<{ name: string; line: number; file: string | null }>;
-
-    // Callers: match both the resolved edge AND any call by this name, so
-    // dynamic dispatch (a method/function called by name across sites) is not
-    // missed. Over-approximates conservatively — the point of a blast radius.
-    const callers = db
-      .prepare(
-        `SELECT DISTINCT owner.name AS name, owner.kind AS kind, f.path AS file, e.line
-         FROM edges e
-         JOIN nodes owner ON owner.id = e.src_node_id
-         JOIN files f ON f.id = owner.file_id
-         WHERE (e.dst_node_id = ? OR e.dst_name = ?) AND e.kind = 'call'
-         ORDER BY f.path, e.line`,
-      )
-      .all(best.id, best.name) as Array<{ name: string; kind: string; file: string; line: number }>;
-
-    return {
-      found: true,
-      symbol: {
-        name: best.name,
-        kind: best.kind,
-        file: best.file,
-        startLine: best.start_line,
-        endLine: best.end_line,
-        signature: best.signature,
-        source: readSource(projectPath, best.file, best.start_byte, best.end_byte),
-      },
-      callees: callees.map((c) => ({ name: c.name, file: c.file ?? undefined, line: c.line })),
-      callers,
-      otherMatches:
-        matches.length > 1
-          ? matches.slice(1).map((m) => ({
-              name: m.name,
-              kind: m.kind,
-              file: m.file,
-              line: m.start_line,
-              signature: m.signature,
-            }))
-          : undefined,
-    };
+    if (matches.length === 0) return exploreWhenNameMisses(db, projectPath, query);
+    return assembleExplore(db, projectPath, matches[0]!, matches.slice(1));
   } finally {
     db.close();
   }
