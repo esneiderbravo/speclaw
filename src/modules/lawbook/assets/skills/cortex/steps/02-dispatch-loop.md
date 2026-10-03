@@ -3,6 +3,9 @@
 For the current Cortex stage (`cortex` action `brief` or `status`):
 
 1. Dispatch (spawn or adopt) the matching role with a clear handoff brief.
+   When the role is the planner, paste the explorer brief into the prompt
+   unchanged: symbols with files, callers and callees, blast radius, standards
+   already read, recommended approach, open questions, and gaps.
 2. On role completion, call the matching Cortex op:
    - exploring → `advance`
    - planning with questions → `advance` + `pauseForQuestions` + `openQuestions`
