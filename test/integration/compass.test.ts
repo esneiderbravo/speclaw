@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
-import { tmpRepo, has } from "../helpers/env.js";
+import { tmpRepo, has, write } from "../helpers/env.js";
 import { seedSampleRepo } from "../helpers/fixtures.js";
 import { buildIndex } from "../../src/modules/compass/indexer.js";
 import { search, explore, recall, impact, trace } from "../../src/modules/compass/query.js";
@@ -51,6 +51,101 @@ test("explore falls back to fuzzy matches when no exact node exists", async (t) 
   const res = explore(root, "alph");
   assert.equal(res.found, false);
   assert.ok(res.otherMatches!.some((m) => m.name === "alpha"));
+});
+
+// Covers: req~explore-file-path~1
+// Unique basename: `main.ts` occurs once in the seed fixture (only `src/main.ts`).
+test("explore resolves a repo-relative path or unique basename to a file symbol", async (t) => {
+  const root = tmpRepo(t);
+  seedSampleRepo(root);
+  // Stem `scroll` is not the first function; stem `onlyclass` is a class after a function;
+  // stem `Marker` is an interface after another symbol. `blank.ts` defines nothing.
+  // `dup.ts` is shared by two directories, so the basename is ambiguous and the
+  // suffix `src/dup.ts` is not unique.
+  write(
+    root,
+    "src/scroll.ts",
+    "export function other(): number { return 0; }\nexport function scroll(): number { return 1; }\n",
+  );
+  write(
+    root,
+    "src/onlyclass.ts",
+    "export function nope(): number { return 0; }\nexport class onlyclass {}\n",
+  );
+  write(
+    root,
+    "src/Marker.ts",
+    "export type Other = string;\nexport interface Marker { x: number; }\n",
+  );
+  write(root, "src/blank.ts", "\n");
+  write(root, "lib/src/dup.ts", "export function fromA(): number { return 1; }\n");
+  write(root, "pkg/src/dup.ts", "export function fromB(): number { return 2; }\n");
+  await buildIndex(root);
+
+  const main = explore(root, "src/main.ts");
+  assert.equal(main.found, true);
+  assert.equal(main.symbol!.name, "gamma");
+  assert.equal(main.symbol!.kind, "function");
+  assert.equal(main.symbol!.file, "src/main.ts");
+  assert.match(main.symbol!.source, /function gamma/);
+  assert.ok(main.otherMatches!.some((m) => m.name === "alpha"));
+  assert.match(main.message ?? "", /resolved to gamma/);
+
+  // `src/util.ts` stem is `util`, which matches no symbol, so the primary is `helper`.
+  const util = explore(root, "src/util.ts");
+  const helper = explore(root, "helper");
+  assert.equal(util.found, true);
+  assert.equal(util.symbol!.name, "helper");
+  assert.equal(util.symbol!.file, "src/util.ts");
+  assert.deepEqual(util.callees, helper.callees);
+  assert.deepEqual(util.callers, helper.callers);
+
+  const byBasename = explore(root, "main.ts");
+  assert.equal(byBasename.found, true);
+  assert.equal(byBasename.symbol!.name, "gamma");
+  assert.equal(byBasename.symbol!.file, "src/main.ts");
+
+  assert.equal(explore(root, "./src/main.ts").symbol!.name, "gamma");
+  assert.equal(explore(root, "src\\main.ts").symbol!.name, "gamma");
+  assert.equal(explore(root, path.join(root, "src", "util.ts")).symbol!.name, "helper");
+
+  const stem = explore(root, "src/scroll.ts");
+  assert.equal(stem.found, true);
+  assert.equal(stem.symbol!.name, "scroll");
+  assert.equal(stem.symbol!.kind, "function");
+  assert.ok(stem.otherMatches!.some((m) => m.name === "other"));
+
+  const asClass = explore(root, "src/onlyclass.ts");
+  assert.equal(asClass.found, true);
+  assert.equal(asClass.symbol!.name, "onlyclass");
+  assert.equal(asClass.symbol!.kind, "class");
+
+  const asInterface = explore(root, "src/Marker.ts");
+  assert.equal(asInterface.found, true);
+  assert.equal(asInterface.symbol!.name, "Marker");
+  assert.equal(asInterface.symbol!.kind, "interface");
+
+  const blank = explore(root, "src/blank.ts");
+  assert.equal(blank.found, false);
+  assert.match(blank.message ?? "", /no symbols/i);
+  assert.doesNotMatch(blank.message ?? "", /0 similar/);
+
+  const ambiguous = explore(root, "dup.ts");
+  assert.equal(ambiguous.found, false);
+  assert.match(ambiguous.message ?? "", /ambiguous/i);
+  assert.ok(ambiguous.otherMatches!.some((m) => m.name === "fromA" && m.file === "lib/src/dup.ts"));
+  assert.ok(ambiguous.otherMatches!.some((m) => m.name === "fromB" && m.file === "pkg/src/dup.ts"));
+
+  const sharedSuffix = explore(root, "src/dup.ts");
+  assert.equal(sharedSuffix.found, false);
+  assert.ok(sharedSuffix.otherMatches!.some((m) => m.name === "fromA"));
+  assert.ok(sharedSuffix.otherMatches!.some((m) => m.name === "fromB"));
+
+  const pathHits = search(root, "src/util.ts");
+  assert.ok(pathHits.some((h) => h.name === "helper" && h.file === "src/util.ts"));
+  // `%` and `_` must stay literal: unescaped `%a%a%` and `%alp_a%` would match `alpha`.
+  assert.ok(!search(root, "a%a").some((h) => h.name === "alpha"));
+  assert.ok(!search(root, "alp_a").some((h) => h.name === "alpha"));
 });
 
 test("recall ranks nodes by semantic similarity", async (t) => {
