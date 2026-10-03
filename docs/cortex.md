@@ -29,8 +29,8 @@ Lawbook owns **specs, ceremony, coverage, and drift**. Cortex owns the
 
 | Stage | Role | Owns |
 |-------|------|------|
-| exploring | explorer | Compass-first investigation; writes nothing under `lawbook/` / `src/` |
-| planning / questions | planner | Ceremony level + change artifacts; questions always go to the human |
+| exploring | explorer | Compass-first investigation; a complete brief for the planner; writes nothing under `lawbook/` / `src/` |
+| planning / questions | planner | Ceremony level + change artifacts from that brief; Compass only for a gap the brief names; questions always go to the human |
 | implementing | implementer | Code + tests + task checkboxes; stops before final gates |
 | reviewing | reviewer | `reports/review.md` PASS/FAIL; no code patches (skipped at level 0) |
 | testing | tester | Quality gates, manual verification, discipline reports |

@@ -13,6 +13,9 @@ Turn the explorer brief + user intent into a reviewable change under
 `lawbook/changes/<name>/` at the confirmed ceremony level. Prefer `draft` /
 `quick` skills.
 
+A complete explorer brief is the code map. Do not re-investigate it. Call
+Compass only for a gap the brief names.
+
 ## Questions
 
 If anything material is ambiguous, **stop**. Return numbered questions to the

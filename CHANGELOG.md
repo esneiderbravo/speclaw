@@ -5,6 +5,16 @@ All notable changes to this project are documented here. Speclaw follows
 
 ## [Unreleased]
 
+## [2.0.2] — 2026-10-02
+
+### Changed
+
+- Cortex planning reuses a complete explorer brief. The packaged explore,
+  cortex, and draft skills, and the planner agent, no longer tell the planner
+  to re-locate the code or re-read standards the brief already covered.
+  `speclaw update` refreshes `ai-specs/skills` and `ai-specs/agents` from this
+  package.
+
 ## [2.0.1] — 2026-10-01
 
 ### Fixed
