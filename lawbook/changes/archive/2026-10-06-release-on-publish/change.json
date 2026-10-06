@@ -1,0 +1,22 @@
+{
+  "level": 1,
+  "score": 5,
+  "signals": {
+    "filesTouched": 1,
+    "modulesTouched": 1,
+    "blastRadiusNodes": 0,
+    "affectedTests": 0,
+    "touchesPublicApi": false,
+    "maxHotspotScore": 0.006072874493927126,
+    "touchesGlobalFile": true,
+    "onlyDocs": false,
+    "degraded": []
+  },
+  "rationale": "1 file(s), 1 module(s), 0 affected test(s), 0 blast node(s), no public API, global file, hotspot=0.01 → score 5 → level 1 (cuts 3/8/15) — quick forced level 0; promote if scope grows",
+  "degraded": [],
+  "confirmedLevel": 0,
+  "confirmedBy": "human",
+  "confirmedAt": "2026-10-06T20:24:35.760Z",
+  "overrideReason": "speclaw quick",
+  "promotions": []
+}

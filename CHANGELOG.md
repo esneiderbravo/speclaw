@@ -5,6 +5,13 @@ All notable changes to this project are documented here. Speclaw follows
 
 ## [Unreleased]
 
+### Changed
+
+- The **Publish to npm** workflow also pushes the `v<version>` tag and creates
+  the GitHub release from the version's `CHANGELOG.md` section. It skips a tag
+  or release that already exists and fails before tagging if the section is
+  missing.
+
 ## [2.0.4] — 2026-10-06
 
 ### Added

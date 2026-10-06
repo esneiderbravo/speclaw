@@ -3,7 +3,9 @@ name: Publish to npm
 # Publishes automatically when a NEW version reaches main, using npm
 # Trusted Publishing (OIDC) — no token, nothing to rotate. Bump the version
 # in package.json, merge to main, and this publishes it. If the version is
-# already on npm, it skips. Can also be run manually.
+# already on npm, it skips. It then tags v<version> and creates the GitHub
+# release from that version's CHANGELOG.md section, skipping either if it
+# already exists. Can also be run manually.
 # Provenance attestations are produced automatically for trusted publishes.
 on:
   push:
@@ -14,7 +16,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write # push the v<version> tag and create the GitHub release
   id-token: write # lets npm authenticate this workflow via OIDC
 
 jobs:
@@ -50,3 +52,44 @@ jobs:
             echo "→ Publishing $NAME@$VER via OIDC"
             npm publish --access public
           fi
+
+      # Idempotent: a re-run (or a version already tagged by hand) skips
+      # whatever already exists, so it never moves a published tag. The notes
+      # are checked before tagging so a missing CHANGELOG entry leaves no tag.
+      - name: Tag and release the version
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VER=$(node -p "require('./package.json').version")
+          TAG="v$VER"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "→ release $TAG already exists — nothing to release."
+            exit 0
+          fi
+          # The CHANGELOG section for this version, without its heading.
+          awk -v ver="$VER" '
+            /^## \[/ { if (found) exit; if (index($0, "[" ver "]")) { found = 1; next } }
+            found { print }
+          ' CHANGELOG.md > notes.md
+          if [ ! -s notes.md ]; then
+            echo "::error::CHANGELOG.md has no [$VER] section"
+            exit 1
+          fi
+          cat >> notes.md <<EOF
+
+          ### Install
+          \`\`\`bash
+          npx @esneiderbravo/speclaw@latest init
+          \`\`\`
+
+          npm: [\`@esneiderbravo/speclaw@$VER\`](https://www.npmjs.com/package/@esneiderbravo/speclaw/v/$VER)
+          EOF
+          if git ls-remote --exit-code --tags origin "refs/tags/$TAG" >/dev/null; then
+            echo "→ $TAG already exists — not tagging."
+          else
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git tag -a "$TAG" -m "speclaw $VER"
+            git push origin "$TAG"
+          fi
+          gh release create "$TAG" --title "speclaw $VER" --notes-file notes.md --latest

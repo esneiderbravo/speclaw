@@ -1,0 +1,42 @@
+{
+  "version": 1,
+  "change": "release-on-publish",
+  "stage": "archiving",
+  "level": 0,
+  "iteration": 0,
+  "maxRework": 3,
+  "verdicts": {
+    "review": null,
+    "test": "PASS"
+  },
+  "openQuestions": [],
+  "history": [
+    {
+      "at": "2026-10-06T20:26:28.615Z",
+      "from": "exploring",
+      "to": "exploring",
+      "op": "start"
+    },
+    {
+      "at": "2026-10-06T20:26:33.978Z",
+      "from": "exploring",
+      "to": "implementing",
+      "op": "advance",
+      "note": "level 0 CI fix; implementation and local simulation done"
+    },
+    {
+      "at": "2026-10-06T20:26:34.283Z",
+      "from": "implementing",
+      "to": "testing",
+      "op": "advance",
+      "note": "level 0 CI fix; implementation and local simulation done"
+    },
+    {
+      "at": "2026-10-06T20:28:00.567Z",
+      "from": "testing",
+      "to": "archiving",
+      "op": "advance",
+      "note": "gates green; step simulated with stubbed git/gh: fresh, released, tag-only, missing-section (no tag), awk boundary, heredoc footer all correct"
+    }
+  ]
+}
