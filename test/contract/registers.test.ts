@@ -136,6 +136,29 @@ test("lawbook handlers run the workflow end to end through the transport", async
   );
 });
 
+test("lawbook_change accepts action draft without adding a tool", async (t) => {
+  const root = tmpRepo(t);
+  const tools = captureCanonical(registerSpec);
+  assert.equal(tools.has("lawbook_draft"), false);
+  const change = schemaOf(tools.get("lawbook_change")!);
+  assert.doesNotThrow(() =>
+    change.parse({ projectPath: "/x", action: "draft", change: "c", level: 2, bug: true }),
+  );
+  assert.throws(() => change.parse({ projectPath: "/x", action: "draft", bug: "yes" }), /bug/);
+
+  await tools.get("lawbook_change")!.handler({ projectPath: root, action: "init" });
+  const res = await tools
+    .get("lawbook_change")!
+    .handler({ projectPath: root, action: "draft", change: "add-widget", level: 2 });
+  assert.ok(isTextResult(res));
+  const body = JSON.parse((res as { content: { text: string }[] }).content[0]!.text) as {
+    change: string;
+    level: number;
+    changeType: string;
+  };
+  assert.deepEqual([body.change, body.level, body.changeType], ["add-widget", 2, "feature"]);
+});
+
 test("compass handlers wrap their results as MCP text", async (t) => {
   const root = tmpRepo(t);
   seedSampleRepo(root);

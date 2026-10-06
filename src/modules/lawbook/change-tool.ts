@@ -1,6 +1,8 @@
 import { z } from "zod";
 import { specInit, specValidate, specSync, specArchive, specList } from "./engine.js";
 import { handleLevel } from "./quick.js";
+import { scaffoldBugfix } from "./bugfix.js";
+import { scaffoldFeature } from "./scaffold-change.js";
 import { buildCoverageReport, loadCoverageConfig, renderCoverageAgent } from "./coverage.js";
 import { buildDriftReport, renderDriftAgent } from "./drift.js";
 import { handleHarness, harnessOps } from "../cortex/harness.js";
@@ -8,6 +10,7 @@ import { handleHarness, harnessOps } from "../cortex/harness.js";
 export const lawbookChangeActions = [
   "init",
   "list",
+  "draft",
   "validate",
   "sync",
   "archive",
@@ -42,6 +45,7 @@ export const lawbookChangeSchema = {
   openQuestions: z.array(z.string()).optional(),
   pauseForQuestions: z.boolean().optional(),
   note: z.string().optional(),
+  bug: z.boolean().optional(),
 };
 
 type ChangeArgs = {
@@ -64,6 +68,7 @@ type ChangeArgs = {
   openQuestions?: string[];
   pauseForQuestions?: boolean;
   note?: string;
+  bug?: boolean;
 };
 
 function requireField(args: ChangeArgs, field: keyof ChangeArgs): string {
@@ -83,6 +88,16 @@ export function handleLawbookChange(args: ChangeArgs): unknown {
       return specInit(args.projectPath);
     case "list":
       return specList(args.projectPath);
+    case "draft": {
+      // Covers: req~feature-draft~1
+      const name = requireField(args, "change");
+      if (args.bug) return scaffoldBugfix(args.projectPath, name, { level: args.level });
+      return scaffoldFeature(args.projectPath, name, {
+        level: args.level,
+        reason: args.reason,
+        capability: args.capability,
+      });
+    }
     case "validate":
       return specValidate(args.projectPath, requireField(args, "change"));
     case "sync":

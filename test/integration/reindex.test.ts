@@ -17,6 +17,24 @@ test("no-op reindex reports rootUnchanged and zero computed", async (t) => {
   assert.equal(second.rootUnchanged, true);
 });
 
+test("no-op reindex still reports repository totals equal to the DB row counts", async (t) => {
+  const root = tmpRepo(t);
+  seedSampleRepo(root);
+  const first = await buildIndex(root);
+  const second = await buildIndex(root);
+  assert.equal(second.files, 0, "the delta is zero");
+  const db = openDb(root);
+  const count = (table: string) =>
+    Number((db.prepare(`SELECT COUNT(*) AS n FROM ${table}`).get() as { n: number }).n);
+  const rows = { files: count("files"), nodes: count("nodes"), edges: count("edges") };
+  db.close();
+  assert.ok(rows.files > 0 && rows.nodes > 0 && rows.edges > 0);
+  assert.deepEqual(second.totals, rows);
+  assert.deepEqual(first.totals, rows);
+  assert.match(second.nextStep, /compass_find/);
+  assert.match(second.nextStep, /compass_explore/);
+});
+
 test("move symbol between files recomputes zero for that content hash", async (t) => {
   const root = tmpRepo(t);
   write(

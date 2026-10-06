@@ -38,6 +38,40 @@ Lawbook owns **specs, ceremony, coverage, and drift**. Cortex owns the
 
 Max **3** review/test → implement reworks; then the coordinator asks the human.
 
+## Compass-first evidence gate (`compassGate`)
+
+Leaving **`exploring`** or **`implementing`** with `advance` checks the Compass
+call log (`.speclaw/compass-calls.jsonl`, see
+[`compass.md`](compass.md#compass-first-enforcement)) for **evidence calls**
+since the current stage started: `compass_explore`, `compass_find`,
+`compass_diff_context`, or the aliases `compass_impact`, `compass_trace`,
+`compass_search`, `compass_recall`. `compass_index` does not count.
+
+The window starts at the newest `harness.json` history entry that entered the
+current stage, so a `rework` back to `implementing` starts a fresh window.
+
+Set the mode with a top-level key in `lawbook/config.yaml`:
+
+```yaml
+compassGate: warn # off | warn | strict (default warn)
+```
+
+| Mode | No evidence in the window |
+|------|---------------------------|
+| `off` | No check; no `compassEvidence` in the result |
+| `warn` (default, also for a missing or invalid key) | Advances; result carries `warnings: ["compass-first: …"]` |
+| `strict` | Rejected with an error naming the stage, the evidence tools, and `compassGate`; `harness.json` is left byte-identical |
+
+Every gated advance returns `compassEvidence: { mode, stage, since, calls }`
+(never written to `harness.json`). `speclaw cortex advance` (and the
+`lawbook harness` alias) prints the evidence count and any warning on stderr;
+stdout stays JSON. `start`, `status`, `rework`, and advances from any other
+stage are never gated.
+
+**Limitation — the window is per project, not per session.** The call log is
+shared by everything running in the repo, so a concurrent session (or a human
+running `speclaw explore`) can satisfy another session's gate.
+
 ## MCP tool `cortex`
 
 | Action | Use it to |

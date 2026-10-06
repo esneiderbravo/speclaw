@@ -2,7 +2,7 @@
   "lockfileVersion": 1,
   "generator": "@esneiderbravo/speclaw@2.0.1",
   "algorithm": "sha256",
-  "root": "sha256:97d130ac526e5f43116d7e43bb668432a75c4747c0042c8421097e8d9449363b",
+  "root": "sha256:c07ade52f0ed0029eeb817a7bb948f21a5dd87adcde83535911cd6317a162b48",
   "files": {
     ".github/instructions/law-compass-does-not-import-foundation-1.instructions.md": {
       "digest": "sha256:e97bcfe4c51adfb84d9cf9260de14d7fabe6f32ba36a88f7741b380ad162ab85",
@@ -33,11 +33,11 @@
       "ownership": "strict"
     },
     "AGENTS.md": {
-      "digest": "sha256:7dbf1f0697a4d79d231c31d4a7b4dfb7eb525076070b3007a50896642f3bb65d",
+      "digest": "sha256:d88655afbf8dd16f09ccbe80ef04b3d385cee6fe1dd92590e3d1c08088747648",
       "ownership": "strict"
     },
     "CLAUDE.md": {
-      "digest": "sha256:4b769bf5660205c1ae195eaba4fd681d34b5d1d402536d8e56802940776c452e",
+      "digest": "sha256:debaffb6f18ba124f998edddb19162641c894bdbcd91022e38254dd59b60311b",
       "ownership": "strict"
     },
     "LAWS.md": {
@@ -82,5 +82,18 @@
     }
   },
   "symlinks": {},
-  "accepted": []
+  "accepted": [
+    {
+      "path": "CLAUDE.md",
+      "digest": "sha256:debaffb6f18ba124f998edddb19162641c894bdbcd91022e38254dd59b60311b",
+      "at": "2026-10-06T19:29:41.635Z",
+      "by": "esneiderbravo"
+    },
+    {
+      "path": "AGENTS.md",
+      "digest": "sha256:d88655afbf8dd16f09ccbe80ef04b3d385cee6fe1dd92590e3d1c08088747648",
+      "at": "2026-10-06T19:29:43.373Z",
+      "by": "esneiderbravo"
+    }
+  ]
 }

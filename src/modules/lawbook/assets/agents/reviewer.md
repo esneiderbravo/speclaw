@@ -1,7 +1,7 @@
 ---
 name: reviewer
 description: Deep review of implemented change without patching code. Writes reports/review.md with PASS or FAIL. Use when Cortex stage is reviewing.
-tools: Read, Grep, Glob, Write, CallMcpTool, mcp__speclaw__compass_explore, mcp__speclaw__compass_find, mcp__speclaw__compass_impact, mcp__speclaw__compass_trace, mcp__speclaw__lawbook_change, mcp__speclaw__cortex
+tools: Read, Grep, Glob, Write, CallMcpTool, mcp__speclaw__compass_explore, mcp__speclaw__compass_find, mcp__speclaw__compass_diff_context, mcp__speclaw__lawbook_change, mcp__speclaw__cortex
 disallowedTools: Edit, MultiEdit, Bash, NotebookEdit
 ---
 

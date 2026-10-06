@@ -23,6 +23,7 @@ import {
   type CeremonyTargets,
 } from "./levels.js";
 import { inferBugResolution, preventionRequiresDelta, validateBugfixContent } from "./bugfix.js";
+import { isPlaceholderDelta } from "./scaffold-change.js";
 import { harnessArchiveBlockers } from "../cortex/harness.js";
 
 export type { CeremonyLevel, CeremonyTargets };
@@ -314,6 +315,11 @@ export function specValidate(
   for (const file of deltas) {
     const rel = path.relative(changeDir, file);
     const content = fs.readFileSync(file, "utf8");
+    if (isPlaceholderDelta(content)) {
+      warnings.push(
+        `${rel}: placeholder delta from \`lawbook draft\` — replace it (and remove the marker) or delete it; sync refuses placeholders`,
+      );
+    }
     if (!/\b(SHALL|MUST)\b/.test(content)) {
       issues.push(`${rel}: no normative requirement (use SHALL/MUST)`);
     }
@@ -406,6 +412,15 @@ export function specSync(projectPath: string, change: string): SyncResult {
   const created: string[] = [];
   const updated: string[] = [];
   if (!fs.existsSync(changeSpecs)) return { change, promoted, created, updated };
+  // Refuse before copying anything, so a placeholder never becomes canonical.
+  const placeholders = deltaSpecFiles(changeDir)
+    .filter((f) => isPlaceholderDelta(fs.readFileSync(f, "utf8")))
+    .map((f) => path.relative(changeDir, f));
+  if (placeholders.length > 0) {
+    throw new Error(
+      `refusing to sync placeholder delta(s): ${placeholders.join(", ")} — fill them in and remove the marker, or delete them`,
+    );
+  }
   const walk = (dir: string) => {
     for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
       const full = path.join(dir, e.name);

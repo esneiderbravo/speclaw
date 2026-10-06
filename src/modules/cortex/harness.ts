@@ -11,44 +11,35 @@
 
 import fs from "node:fs";
 import path from "node:path";
+import {
+  GATED_STAGES,
+  compassGateError,
+  compassGateWarning,
+  evaluateCompassGate,
+  readCompassGateMode,
+  type CompassEvidence,
+} from "./compass-gate.js";
 
-/** Confirmed ceremony level (mirrors lawbook; kept local to avoid cycles). */
-export type CeremonyLevel = 0 | 1 | 2 | 3;
+// Harness types live in the leaf `types.ts` so `compass-gate.ts` can use them
+// without importing this file back (no file-level import cycle).
+export {
+  HARNESS_STAGES,
+  type CeremonyLevel,
+  type HarnessHistoryEntry,
+  type HarnessStage,
+  type HarnessState,
+  type HarnessVerdict,
+} from "./types.js";
+import type { CeremonyLevel, HarnessStage, HarnessState, HarnessVerdict } from "./types.js";
 
-export const HARNESS_STAGES = [
-  "exploring",
-  "planning",
-  "questions",
-  "implementing",
-  "reviewing",
-  "testing",
-  "archiving",
-  "done",
-] as const;
-
-export type HarnessStage = (typeof HARNESS_STAGES)[number];
-
-export type HarnessVerdict = "PASS" | "FAIL" | null;
-
-export interface HarnessHistoryEntry {
-  at: string;
-  from: HarnessStage;
-  to: HarnessStage;
-  op: "start" | "advance" | "rework";
-  note?: string;
-}
-
-export interface HarnessState {
-  version: 1;
-  change: string;
-  stage: HarnessStage;
-  level: CeremonyLevel;
-  iteration: number;
-  maxRework: number;
-  verdicts: { review: HarnessVerdict; test: HarnessVerdict };
-  openQuestions: string[];
-  history: HarnessHistoryEntry[];
-}
+/**
+ * Result of a gated `advance`: the persisted state plus the Compass-first gate
+ * outcome. `compassEvidence` and `warnings` are never written to harness.json.
+ */
+export type HarnessAdvanceResult = HarnessState & {
+  compassEvidence?: CompassEvidence;
+  warnings?: string[];
+};
 
 export const harnessOps = ["status", "start", "advance", "rework"] as const;
 export type HarnessOp = (typeof harnessOps)[number];
@@ -183,7 +174,7 @@ export type HarnessHandleArgs = {
  */
 export function handleHarness(
   args: HarnessHandleArgs,
-): HarnessState | { state: HarnessState | null } {
+): HarnessAdvanceResult | { state: HarnessState | null } {
   const { projectPath, change, harnessOp } = args;
   requireChangeDir(projectPath, change);
 
@@ -254,6 +245,19 @@ export function handleHarness(
     }
 
     const to = allowedAdvance(current.stage, current.level, args.verdict ?? undefined);
+
+    // Compass-first gate: runs before any write, so a strict rejection leaves
+    // harness.json byte-identical.
+    let compassEvidence: CompassEvidence | undefined;
+    const warnings: string[] = [];
+    const mode = GATED_STAGES.has(current.stage) ? readCompassGateMode(projectPath) : "off";
+    if (mode !== "off") {
+      const { satisfied, ...evidence } = evaluateCompassGate(projectPath, current, mode);
+      compassEvidence = evidence;
+      if (!satisfied && mode === "strict") throw new Error(compassGateError(evidence));
+      if (!satisfied) warnings.push(compassGateWarning(evidence));
+    }
+
     const verdicts = { ...current.verdicts };
     if (current.stage === "reviewing" && args.verdict) verdicts.review = args.verdict;
     if (current.stage === "testing" && args.verdict) verdicts.test = args.verdict;
@@ -275,7 +279,8 @@ export function handleHarness(
       ],
     };
     writeHarness(projectPath, change, next);
-    return next;
+    if (!compassEvidence) return next;
+    return warnings.length ? { ...next, compassEvidence, warnings } : { ...next, compassEvidence };
   }
 
   if (harnessOp === "rework") {

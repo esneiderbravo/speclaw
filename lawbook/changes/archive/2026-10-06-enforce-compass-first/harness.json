@@ -1,0 +1,106 @@
+{
+  "version": 1,
+  "change": "enforce-compass-first",
+  "stage": "done",
+  "level": 2,
+  "iteration": 2,
+  "maxRework": 3,
+  "verdicts": {
+    "review": "PASS",
+    "test": "PASS"
+  },
+  "openQuestions": [],
+  "history": [
+    {
+      "at": "2026-10-06T18:01:28.595Z",
+      "from": "exploring",
+      "to": "exploring",
+      "op": "start",
+      "note": "Diagnosed from ftd-admin-finanzas FAR-2199 transcripts: explorer 0 compass_explore vs 69 Read/Grep/Glob; ~20 of 34 min were two human question rounds; planner re-read explorer files; no CLI scaffold for non-bug changes."
+    },
+    {
+      "at": "2026-10-06T18:05:27.241Z",
+      "from": "exploring",
+      "to": "planning",
+      "op": "advance",
+      "note": "Explorer brief done: 40 Compass calls (31 explore, 9 find). Key constraints: law-enforcement forbids index DB query in speclaw_check; allow verdict auto-approves reads; 9-tool cap → draft as lawbook_change action."
+    },
+    {
+      "at": "2026-10-06T18:05:27.305Z",
+      "from": "planning",
+      "to": "questions",
+      "op": "advance",
+      "note": "Single batched question round (explorer + level). Coordinator defaults: compass_index does not count; per-project calls since stage start; `lawbook draft <name>` + lawbook_change action draft; canonical tool names in role agents; patch version bump."
+    },
+    {
+      "at": "2026-10-06T18:12:07.026Z",
+      "from": "questions",
+      "to": "planning",
+      "op": "advance",
+      "note": "Human answers: compassGate default warn (strict opt-in); gate exploring+implementing, compass_index not evidence; hook nudge DB-free (extension + call log), additionalContext only, never allow/deny, installed unconditionally; single batched question round including level confirmation."
+    },
+    {
+      "at": "2026-10-06T18:24:32.573Z",
+      "from": "planning",
+      "to": "implementing",
+      "op": "advance",
+      "note": "Planner draft valid (level 2; lawbook-workflow, law-enforcement, cli deltas; perf benchmark tasks 8.x per human requirement). Two implementers in parallel: A = call log + gate + nudge (1-3), B = index totals + scaffold + workflow texts + bench script (4-6, 8.1)."
+    },
+    {
+      "at": "2026-10-06T18:41:37.584Z",
+      "from": "implementing",
+      "to": "reviewing",
+      "op": "advance",
+      "note": "Implementers A+B done: 598/598 tests, eslint+prettier clean. Follow-ups applied in-change: reads never evaluate laws (PostToolUse Read|Grep|Glob nudge-only); alias-free shipped texts + guard test; fresh drafts validate at levels 0-3. Compass calls: A 11, B 13."
+    },
+    {
+      "at": "2026-10-06T18:49:11.654Z",
+      "from": "reviewing",
+      "to": "implementing",
+      "op": "rework",
+      "note": "Review FAIL: B1 cortex import cycle (compass-gate↔harness), B2 missing Covers for req~feature-draft~1, B3 agent bench uses npm speclaw not builds, M1 MCP hook result lacks hookSpecificOutput.additionalContext, M2 docs 12.1 missing; minors m1-m5 + foundation template aliases in scope. Coordinator: m3 → repo-wide Grep/Glob (no path) becomes nudge-eligible; m4 → restore quick/bug name rules."
+    },
+    {
+      "at": "2026-10-06T18:55:49.300Z",
+      "from": "implementing",
+      "to": "reviewing",
+      "op": "advance",
+      "note": "Rework 1 done: B1 cycle removed (cortex/types.ts), M1 hookSpecificOutput.additionalContext on non-PreToolUse, m1 rotation race-safe + .1 read, m2 stderr evidence count, m3 repo-wide Grep/Glob eligible, M2 docs; B2 Covers, B3 bench pinned to ref builds (verified 2.0.3+bench-main / 2.0.4+bench-branch), m4, m5 placeholder marker, foundation template aliases. 608/608, eslint+prettier clean. Remaining: drift reseal on engine.ts at archive; pre-existing req~owners-cli~1 utest gap."
+    },
+    {
+      "at": "2026-10-06T18:59:27.745Z",
+      "from": "reviewing",
+      "to": "implementing",
+      "op": "rework",
+      "note": "Re-review FAIL: R1 placeholder marker matched with includes() → this change's own delta quotes it, sync/archive blocked forever. R2 hookSpecificOutput on Stop/InstructionsLoaded → limit to PostToolUse. R3 dotted dir false negative → fix via stat. R4 accepted."
+    },
+    {
+      "at": "2026-10-06T19:01:36.274Z",
+      "from": "implementing",
+      "to": "reviewing",
+      "op": "advance",
+      "note": "Rework 2 done: R1 whole-line placeholder match via isPlaceholderDelta (temp-copy sync of this change promotes 3 specs), R2 hookSpecificOutput PostToolUse-only (other events unchanged vs main), R3 stat-based directory detection, R4 accepted. 612/612, eslint+prettier clean, validate valid."
+    },
+    {
+      "at": "2026-10-06T19:03:42.414Z",
+      "from": "reviewing",
+      "to": "testing",
+      "op": "advance",
+      "note": "Review PASS at iteration 2. Follow-ups (non-blocking): F1 CRLF placeholder regex, F2 prose-dir Grep nudge, F3 rotation append-back window, F4 nits; pre-existing PreToolUse non-deny → permissionDecision allow."
+    },
+    {
+      "at": "2026-10-06T19:22:57.646Z",
+      "from": "testing",
+      "to": "archiving",
+      "op": "advance",
+      "note": "Test PASS: check/build/test 618/618 (85.58% lines), coverage 15/15 clean (added owners-cli utest), manual CLI + live Claude Code nudge delivery verified. Perf: all 13 micro budgets met (nudge p95 43-47.5ms), agent bench -34% wall-clock, -37% tool calls, -58% Read/Grep/Glob, compass_index 1→0. Remaining: 12.1 CLAUDE.md/AGENTS.md notes, 12.2 human laws accept, drift reseal, sync, archive."
+    },
+    {
+      "at": "2026-10-06T19:30:24.957Z",
+      "from": "archiving",
+      "to": "done",
+      "op": "advance",
+      "note": "Archived to lawbook/changes/archive/2026-10-06-enforce-compass-first after sync, drift reseal (semantic 0), validate, coverage clean, and human laws accept (verify 1 passed, 0 failed)."
+    }
+  ]
+}

@@ -22,7 +22,13 @@ export interface SpeclawHookInput {
   payload: {
     hook_event_name: string;
     tool_name: string;
-    tool_input: { file_path: string };
+    tool_input: {
+      file_path: string;
+      path: string;
+      pattern: string;
+      glob: string;
+      type: string;
+    };
   };
 }
 
@@ -49,7 +55,13 @@ const SPECLAW_HOOK_INPUT: SpeclawHookInput = {
   payload: {
     hook_event_name: "${hook_event_name}",
     tool_name: "${tool_name}",
-    tool_input: { file_path: "${tool_input.file_path}" },
+    tool_input: {
+      file_path: "${tool_input.file_path}",
+      path: "${tool_input.path}",
+      pattern: "${tool_input.pattern}",
+      glob: "${tool_input.glob}",
+      type: "${tool_input.type}",
+    },
   },
 };
 
@@ -64,6 +76,13 @@ const SPECLAW_HOOK: SpeclawHook = {
 
 /** Tool-name matcher for the file-mutating tools the `path` backend can evaluate. */
 const MUTATION_MATCHER = "Write|Edit|MultiEdit|NotebookEdit";
+
+/**
+ * Tool-name matcher for the code-reading tools the Compass-first nudge watches.
+ * Installed on `PostToolUse` only: there the result is context the agent reads
+ * and the event cannot gate the tool; a `PreToolUse` "allow" would auto-approve.
+ */
+export const NUDGE_MATCHER = "Read|Grep|Glob";
 
 /** True when a hook object is one speclaw owns (safe to replace on merge). */
 function isSpeclawHook(h: unknown): boolean {
@@ -82,7 +101,8 @@ export interface CompiledHooks {
  * Compile a law manifest into the hook groups speclaw contributes, one per event
  * the laws demand: `PreToolUse` when any `bloqueo` law exists, `PostToolUse` for
  * `feedback`, `Stop` for `gate`, and `InstructionsLoaded` whenever any law exists
- * (the context-coverage audit). A law whose scope contains a malformed glob is
+ * (the context-coverage audit). One `PostToolUse` group matching `Read|Grep|Glob`
+ * is always emitted for the Compass-first nudge, even with no laws. A law whose scope contains a malformed glob is
  * excluded and reported, so a bad pattern fails loudly at generation rather than
  * silently matching nothing at runtime.
  *
@@ -104,8 +124,10 @@ export function compileHooks(manifest: LawManifest): CompiledHooks {
   const hasGate = valid.some((l) => l.enforcement === "gate");
   if (hasBloqueo)
     byEvent.PreToolUse = [{ matcher: MUTATION_MATCHER, hooks: [{ ...SPECLAW_HOOK }] }];
+  // The Compass-first nudge entry is always present, laws or not.
+  byEvent.PostToolUse = [{ matcher: NUDGE_MATCHER, hooks: [{ ...SPECLAW_HOOK }] }];
   if (hasFeedback)
-    byEvent.PostToolUse = [{ matcher: MUTATION_MATCHER, hooks: [{ ...SPECLAW_HOOK }] }];
+    byEvent.PostToolUse.unshift({ matcher: MUTATION_MATCHER, hooks: [{ ...SPECLAW_HOOK }] });
   if (hasGate) byEvent.Stop = [{ hooks: [{ ...SPECLAW_HOOK }] }];
   if (valid.length > 0) byEvent.InstructionsLoaded = [{ hooks: [{ ...SPECLAW_HOOK }] }];
 

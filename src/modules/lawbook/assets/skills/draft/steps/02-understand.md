@@ -10,9 +10,12 @@
   concept) before grep/read to locate the code and its blast radius. Read the
   governing standards in `docs/standards/`.
 - Clarify what the user wants (feature / fix / refactor) and confirm scope.
-- **Propose a ceremony level** with `lawbook_level` (mode `propose`) using the
-  paths and symbols from the brief or from that locate pass; **confirm with the
-  human** (mode `set`) before writing artifacts. For an obvious one-liner,
-  offer `speclaw quick` instead.
+- When `change.json` already has a `confirmedLevel` (the coordinator recorded
+  it in the single question round), use that level and skip the separate level
+  confirmation.
+- Otherwise **propose a ceremony level** with `lawbook_change` action `level`
+  (mode `propose`) using the paths and symbols from the brief or from that
+  locate pass; **confirm with the human** (mode `set`) before writing
+  artifacts. For an obvious one-liner, offer `speclaw quick` instead.
 
 Next: read `steps/03-name-capabilities.md` and do only what it says.

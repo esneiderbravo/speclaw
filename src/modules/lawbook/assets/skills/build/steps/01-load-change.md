@@ -1,7 +1,7 @@
 # Load the change
 
 - Read `lawbook/changes/<name>/proposal.md`, `tasks.md`, and the delta specs under
-  `specs/`. If unsure which change, run `lawbook_list`.
+  `specs/`. If unsure which change, run `lawbook_change` (action: list).
 - Read the governing standards in `docs/standards/` for the areas you'll touch.
 
 Next: read `steps/02-branch.md` and do only what it says.

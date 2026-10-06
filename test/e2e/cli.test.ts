@@ -156,6 +156,61 @@ test("lawbook init then list runs the workflow from the shell", { skip }, (t) =>
   assert.match(list.stdout + list.stderr, /capabilities/);
 });
 
+test("lawbook draft <name> --level 2 --json scaffolds a feature change", { skip }, (t) => {
+  // Covers: req~feature-draft~1
+  const root = tmpRepo(t);
+  assert.equal(runCli(["lawbook", "init"], { cwd: root }).code, 0);
+  const r = runCli(["lawbook", "draft", "add-widget", "--level", "2", "--json"], {
+    cwd: root,
+    ...FORCED,
+  });
+  assert.equal(r.code, 0, r.stderr);
+  assert.ok(!r.stdout.includes(TAGLINE), "no branded header on --json");
+  const out = JSON.parse(r.stdout) as { change: string; level: number; changeType: string };
+  assert.deepEqual([out.change, out.level, out.changeType], ["add-widget", 2, "feature"]);
+  const base = "lawbook/changes/add-widget";
+  for (const f of ["proposal.md", "design.md", "tasks.md", "reports/README.md"]) {
+    assert.ok(has(root, `${base}/${f}`), f);
+  }
+  assert.ok(has(root, `${base}/specs/add-widget/spec.md`));
+  assert.ok(!has(root, `${base}/bugfix.md`));
+  const valid = runCli(["lawbook", "validate", "add-widget"], { cwd: root });
+  assert.equal(valid.code, 0, valid.stderr);
+  assert.match(valid.stdout + valid.stderr, /add-widget is valid/);
+  const rec = JSON.parse(read(root, `${base}/change.json`)) as Record<string, unknown>;
+  assert.equal(rec.confirmedLevel, 2);
+  assert.equal(rec.changeType, "feature");
+
+  const again = runCli(["lawbook", "draft", "add-widget"], { cwd: root });
+  assert.notEqual(again.code, 0);
+  assert.match(again.stdout + again.stderr, /add-widget.*already exists/);
+
+  const help = runCli(["help"], { cwd: root });
+  assert.match(help.stdout, /draft <name>/);
+  assert.match(help.stdout, /--level/);
+});
+
+test("index prints repository totals and the next step, also as --json", { skip }, (t) => {
+  const root = tmpRepo(t);
+  seedSampleRepo(root);
+  const first = runCli(["index"], { cwd: root });
+  assert.equal(first.code, 0, first.stderr);
+  assert.match(first.stdout, /Totals: \d+ files · \d+ nodes · \d+ edges/);
+  assert.match(first.stdout, /compass_find/);
+  assert.match(first.stdout, /compass_explore/);
+  const again = runCli(["index", "--json"], { cwd: root, ...FORCED });
+  assert.equal(again.code, 0, again.stderr);
+  assert.ok(!again.stdout.includes(TAGLINE), "no branded header on --json");
+  const stats = JSON.parse(again.stdout) as {
+    files: number;
+    totals: { files: number; nodes: number };
+    nextStep: string;
+  };
+  assert.equal(stats.files, 0, "no-op rerun re-extracts nothing");
+  assert.ok(stats.totals.files > 0 && stats.totals.nodes > 0);
+  assert.match(stats.nextStep, /compass_find/);
+});
+
 test("index then explore/search a real node from the shell", { skip }, (t) => {
   const root = tmpRepo(t);
   seedSampleRepo(root);

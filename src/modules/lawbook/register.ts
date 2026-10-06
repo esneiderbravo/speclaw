@@ -55,7 +55,7 @@ export function registerSpec(server: McpServer, opts: RegisterOpts = {}): void {
 
   add(
     "lawbook_change",
-    "Lawbook lifecycle: init, list, validate, sync, archive, level, coverage, drift.",
+    "Lawbook lifecycle: init, list, draft, validate, sync, archive, level, coverage, drift.",
     lawbookChangeSchema,
     async (args) => text(handleLawbookChange(args)),
   );

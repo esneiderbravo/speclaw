@@ -12,6 +12,7 @@ import {
   matchCompiled,
   readLawManifest,
 } from "./laws.js";
+import { compassNudge, isNudgeEvent } from "./compass-nudge.js";
 
 // The evaluator behind the `speclaw_check` tool and the `speclaw check` CLI. It
 // answers one question — "does this pending or completed action break a law?" —
@@ -43,6 +44,17 @@ export interface CheckResult {
   elapsedMs: number;
   /** Set when the evaluator failed open (missing/corrupt manifest, exception). */
   diagnostic?: string;
+  /**
+   * Compass-first nudge on `PostToolUse` Read/Grep/Glob of indexed code with no
+   * recent Compass call. Also appended to `reason`; never changes `verdict`.
+   */
+  nudge?: string;
+  /**
+   * Claude Code hook output for `PostToolUse` only, present when there is a
+   * `reason`: the `additionalContext` is what reaches the agent's
+   * context from an `mcp_tool` hook. Never carries a `permissionDecision`.
+   */
+  hookSpecificOutput?: { hookEventName: string; additionalContext: string };
 }
 
 /** Arguments accepted by {@link checkAction} and the `speclaw_check` tool. */
@@ -144,18 +156,35 @@ function recordContextCoverage(projectPath: string, laws: Law[], file: string | 
  * another (unimplemented) backend are skipped. The evaluator fails open: a
  * missing or unparseable manifest, or any exception, yields `allow` with a
  * diagnostic — an enforcement layer that blocks when its own checker crashes is
- * worse than none.
+ * worse than none. On `PostToolUse` Read/Grep/Glob it evaluates no law and carries
+ * only the advisory Compass-first `nudge` (see `compass-nudge.ts`), which never
+ * alters the verdict.
  *
  * @param args - The project, hook event, optional tool name, and raw payload.
  * @returns The verdict, the laws evaluated, an optional reason, and `elapsedMs`.
  */
 export function checkAction(args: CheckArgs): CheckResult {
   const start = performance.now();
-  const done = (r: Omit<CheckResult, "elapsedMs">): CheckResult => ({
-    ...r,
-    elapsedMs: performance.now() - start,
-  });
+  // Runs before the manifest load so the nudge works with no laws at all; it
+  // swallows its own errors and returns null.
+  const nudge = compassNudge(args);
+  const done = (r: Omit<CheckResult, "elapsedMs">): CheckResult => {
+    const reason = nudge ? (r.reason ? `${r.reason}\n${nudge}` : nudge) : r.reason;
+    return {
+      ...r,
+      ...(nudge ? { nudge, reason } : {}),
+      // Only PostToolUse: Stop / InstructionsLoaded keep their pre-change shape.
+      ...(reason && args.event === "PostToolUse"
+        ? { hookSpecificOutput: { hookEventName: args.event, additionalContext: reason } }
+        : {}),
+      elapsedMs: performance.now() - start,
+    };
+  };
   try {
+    // Laws govern mutations: a PostToolUse Read/Grep/Glob carries only the
+    // nudge and never evaluates a law, so reads stay as silent as on main.
+    if (isNudgeEvent(args)) return done({ verdict: "allow", evaluated: [] });
+
     const laws = loadLaws(args.projectPath);
     if (!laws) {
       return done({

@@ -1,5 +1,3 @@
-import fs from "node:fs";
-import path from "node:path";
 import {
   gatherSignals,
   loadCeremonyConfig,
@@ -10,6 +8,7 @@ import {
   type CeremonyRecord,
   type CeremonyTargets,
 } from "./levels.js";
+import { scaffoldChange } from "./scaffold-change.js";
 
 /**
  * Scaffold a level-0 change: `record.md`, `change.json`, and `reports/`.
@@ -23,26 +22,25 @@ export function scaffoldQuick(
   name: string,
   targets: CeremonyTargets = { paths: [], symbols: [] },
 ): { change: string; proposal: CeremonyProposal; record: CeremonyRecord; dir: string } {
-  const changeDir = path.join(projectPath, "lawbook", "changes", name);
-  if (fs.existsSync(changeDir)) {
-    throw new Error(`change "${name}" already exists under lawbook/changes/`);
-  }
-  const { thresholds } = loadCeremonyConfig(projectPath);
-  const signals = gatherSignals(projectPath, targets, thresholds);
-  const proposal = proposeLevel(signals, thresholds);
   // quick always records level 0; if measurement says higher, still allow but note it.
-  const level = 0 as const;
-  fs.mkdirSync(path.join(changeDir, "reports"), { recursive: true });
-  const rationale =
+  const quickRationale = (proposal: CeremonyProposal): string =>
     proposal.level === null
       ? proposal.rationale
       : proposal.level > 0
         ? `${proposal.rationale} — quick forced level 0; promote if scope grows`
         : proposal.rationale;
-  const recordMd = `# ${name}
+  const r = scaffoldChange(projectPath, name, {
+    targets,
+    level: 0,
+    recordProposal: (proposal) => ({ ...proposal, rationale: quickRationale(proposal) }),
+    reason: (proposal) =>
+      proposal.level !== null && proposal.level > 0 ? "speclaw quick" : undefined,
+    reportsReadme: `# Reports — ${name}\n\nAdd at least one discipline report before archive.\n`,
+    artifacts: ({ proposal }) => ({
+      "record.md": `# ${name}
 
 **Level:** 0 (proposed: ${proposal.level ?? "n/a"}, confirmed by: human)
-**Why:** ${rationale}
+**Why:** ${quickRationale(proposal)}
 
 ## What changes
 
@@ -57,19 +55,10 @@ export function scaffoldQuick(
 ## Evidence
 
 - \`reports/\` — add a discipline report before archive
-`;
-  fs.writeFileSync(path.join(changeDir, "record.md"), recordMd);
-  fs.writeFileSync(
-    path.join(changeDir, "reports", "README.md"),
-    `# Reports — ${name}\n\nAdd at least one discipline report before archive.\n`,
-  );
-  const record = setCeremonyLevel(projectPath, name, {
-    proposal: { ...proposal, rationale },
-    level,
-    confirmedBy: "human",
-    reason: proposal.level !== null && proposal.level > 0 ? "speclaw quick" : undefined,
+`,
+    }),
   });
-  return { change: name, proposal, record, dir: changeDir };
+  return { change: r.change, proposal: r.proposal, record: r.record as CeremonyRecord, dir: r.dir };
 }
 
 /**

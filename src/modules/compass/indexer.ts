@@ -49,6 +49,10 @@ export interface IndexStats {
   removed: number;
   rootUnchanged: boolean;
   embedder: string;
+  /** Whole-repository row counts after the run (not the delta). */
+  totals: { files: number; nodes: number; edges: number };
+  /** One-line hint pointing the agent at the query tools. */
+  nextStep: string;
 }
 
 /** Options for {@link buildIndex}. */
@@ -263,6 +267,8 @@ export async function buildIndex(
     removed: 0,
     rootUnchanged: false,
     embedder: embedder.id,
+    totals: { files: 0, nodes: 0, edges: 0 },
+    nextStep: "",
   };
 
   const cfg = loadAffectedConfig(projectPath);
@@ -543,6 +549,9 @@ export async function buildIndex(
     ).run(new Date().toISOString());
     clearNeedsReindex(db);
 
+    stats.totals = countTotals(db);
+    stats.nextStep = indexNextStep(stats.totals);
+
     db.exec("COMMIT");
   } catch (err) {
     db.exec("ROLLBACK");
@@ -559,6 +568,21 @@ export async function buildIndex(
   }
 
   return stats;
+}
+
+function countTotals(db: DatabaseSync): IndexStats["totals"] {
+  const count = (table: string): number =>
+    Number((db.prepare(`SELECT COUNT(*) AS n FROM ${table}`).get() as { n: number }).n);
+  return { files: count("files"), nodes: count("nodes"), edges: count("edges") };
+}
+
+/** Next-step hint printed after an index run; names the query tools, not grep. */
+export function indexNextStep(totals: IndexStats["totals"]): string {
+  const fmt = (n: number): string => n.toLocaleString("en-US");
+  return (
+    `Index ready: ${fmt(totals.files)} files, ${fmt(totals.nodes)} symbols. ` +
+    `Next: compass_find "<concept>" or compass_explore <symbol> — do not grep.`
+  );
 }
 
 function evictCacheBySize(db: DatabaseSync, maxCacheMB: number): void {
