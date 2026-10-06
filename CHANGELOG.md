@@ -5,12 +5,26 @@ All notable changes to this project are documented here. Speclaw follows
 
 ## [Unreleased]
 
+## [2.0.5] — 2026-10-06
+
 ### Changed
 
 - The **Publish to npm** workflow also pushes the `v<version>` tag and creates
   the GitHub release from the version's `CHANGELOG.md` section. It skips a tag
   or release that already exists and fails before tagging if the section is
   missing.
+
+### Fixed
+
+- `speclaw.lock` no longer pins the `.claude/rules/speclaw` symlink (it points
+  into the gitignored `ai-specs/`),
+  so `speclaw update` stops flipping `symlinks` between `{}` and that entry
+  depending on whether the link exists locally. Locks written by older versions
+  that still pin it only warn in `speclaw verify` when the link is missing or
+  retargeted, instead of failing clean CI clones with "Managed symlink
+  missing". The next `speclaw update` or `speclaw laws lock` drops a legacy
+  entry once; after that the lock stays stable. Other managed symlinks still
+  fail verify.
 
 ## [2.0.4] — 2026-10-06
 

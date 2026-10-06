@@ -61,7 +61,9 @@ export interface VerifyIntegrityOpts {
 
 /**
  * Verify digests and/or scan rule files. Missing lockfile is soft (ok=true)
- * with guidance to run `speclaw laws lock`.
+ * with guidance to run `speclaw laws lock`. Lock entries for regenerable IDE
+ * mirrors (files or the `.claude/rules/speclaw` symlink) that are missing or
+ * retargeted only warn; other managed symlinks fail strictly.
  */
 export function verifyIntegrity(opts: VerifyIntegrityOpts): IntegrityReport {
   const projectPath = opts.projectPath;
@@ -228,6 +230,11 @@ export function verifyIntegrity(opts: VerifyIntegrityOpts): IntegrityReport {
       } catch {
         actual = null;
       }
+      // Entries for regenerable mirror links come from locks written before
+      // they stopped being pinned; the link targets gitignored `ai-specs/` and
+      // is absent or dangling on clean clones, so it warns only and never
+      // fails CI.
+      const regenerable = isRegenerableIdeMirror(rel);
       if (actual === null) {
         symlinks.push({
           path: rel,
@@ -235,13 +242,15 @@ export function verifyIntegrity(opts: VerifyIntegrityOpts): IntegrityReport {
           actualTarget: null,
           status: "missing",
         });
-        ok = false;
+        if (!regenerable) ok = false;
         verifyFindings.push({
           lawId: "integrity~symlink~1",
-          severity: "error",
+          severity: regenerable ? "warn" : "error",
           engine: "integrity",
           file: rel,
-          message: `Managed symlink missing (expected → ${entry.target})`,
+          message: regenerable
+            ? "Regenerable IDE mirror symlink missing — run `speclaw update` or `speclaw laws lock` to drop the stale entry"
+            : `Managed symlink missing (expected → ${entry.target})`,
         });
       } else if (normalizeLink(actual) !== normalizeLink(entry.target)) {
         symlinks.push({
@@ -250,13 +259,15 @@ export function verifyIntegrity(opts: VerifyIntegrityOpts): IntegrityReport {
           actualTarget: actual,
           status: "mismatch",
         });
-        ok = false;
+        if (!regenerable) ok = false;
         verifyFindings.push({
           lawId: "integrity~symlink~1",
-          severity: "error",
+          severity: regenerable ? "warn" : "error",
           engine: "integrity",
           file: rel,
-          message: `Managed symlink retargeted`,
+          message: regenerable
+            ? "Regenerable IDE mirror symlink retargeted — run `speclaw update` or `speclaw laws lock` to drop the stale entry"
+            : `Managed symlink retargeted`,
           detail: `expected ${entry.target} found ${actual}`,
         });
       } else {

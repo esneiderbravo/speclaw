@@ -1,0 +1,56 @@
+{
+  "version": 1,
+  "change": "lock-regenerable-symlink",
+  "stage": "archiving",
+  "level": 1,
+  "iteration": 0,
+  "maxRework": 3,
+  "verdicts": {
+    "review": "PASS",
+    "test": "PASS"
+  },
+  "openQuestions": [],
+  "history": [
+    {
+      "at": "2026-10-06T20:36:26.912Z",
+      "from": "exploring",
+      "to": "exploring",
+      "op": "start"
+    },
+    {
+      "at": "2026-10-06T20:36:43.249Z",
+      "from": "exploring",
+      "to": "planning",
+      "op": "advance",
+      "note": "RCA: .claude/rules/speclaw (gitignored mirror) pinned in lock symlinks; verify errors when missing on clean clone"
+    },
+    {
+      "at": "2026-10-06T20:36:47.609Z",
+      "from": "planning",
+      "to": "implementing",
+      "op": "advance",
+      "note": "bugfix.md drafted at level 1"
+    },
+    {
+      "at": "2026-10-06T20:40:55.456Z",
+      "from": "implementing",
+      "to": "reviewing",
+      "op": "advance",
+      "note": "fix + 3 red-green regression tests; version 2.0.5"
+    },
+    {
+      "at": "2026-10-06T20:43:23.020Z",
+      "from": "reviewing",
+      "to": "testing",
+      "op": "advance",
+      "note": "review PASS: mirror symlink no longer pinned; legacy entries warn; non-mirror symlinks stay strict; delta changes only req~integrity-verify~1; red evidence recorded"
+    },
+    {
+      "at": "2026-10-06T20:48:15.621Z",
+      "from": "testing",
+      "to": "archiving",
+      "op": "advance",
+      "note": "Gates green: check 0, build 0, test 621/621 (cov 85.5/82.1/87.7). CLI a-d in /tmp scratch: lock symlinks {} byte-stable over update+laws lock x2; clean clone verify exit 0; legacy pinned mirror missing/retargeted -> warn exit 0; update/laws lock drop it; non-mirror stays exit 1. HEAD build reproduced exit 1. Advisory: '.claude/rules/speclaw gitignored' wording is not true of default scaffold (by design); non-blocking. Reports: backend.md, cli.md."
+    }
+  ]
+}
