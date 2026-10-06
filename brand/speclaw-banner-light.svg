@@ -1,32 +1,28 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 380" width="1200" height="380" role="img" aria-label="speclaw — where specs become law">
   <defs>
-    <linearGradient id="bgl" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#FBFAF6"/>
-      <stop offset="1" stop-color="#F1EDE3"/>
-    </linearGradient>
     <style>
-      .wm  { font-family: 'SF Mono','JetBrains Mono','Fira Code',Menlo,Consolas,monospace; font-weight: 700; }
-      .tag { font-family: 'SF Mono','JetBrains Mono',Menlo,Consolas,monospace; font-weight: 500; }
-      .sub { font-family: -apple-system,'Segoe UI',Helvetica,Arial,sans-serif; font-weight: 400; }
+      .wm  { font-family: 'Chivo', 'Helvetica Neue', Arial, sans-serif; font-weight: 800; letter-spacing: -3.3px; }
+      .tag { font-family: 'Chivo Mono', 'SFMono-Regular', Menlo, monospace; font-weight: 400; letter-spacing: 3px; }
     </style>
   </defs>
 
-  <rect x="0" y="0" width="1200" height="380" rx="22" fill="url(#bgl)"/>
-  <rect x="1" y="1" width="1198" height="378" rx="21" fill="none" stroke="#E0DACB" stroke-width="1.5"/>
+  <rect x="0" y="0" width="1200" height="380" rx="22" fill="#f4f4f3"/>
+  <rect x="1" y="1" width="1198" height="378" rx="21" fill="none" stroke="#cdcdc8" stroke-width="1.5"/>
 
-  <g transform="translate(100,116)">
-    <rect x="4" y="4" width="140" height="140" rx="9" fill="none" stroke="#14181A" stroke-width="6.5"/>
-    <rect x="31" y="39" width="86" height="9" rx="4.5" fill="#A9B2B6"/>
-    <rect x="31" y="64" width="64" height="9" rx="4.5" fill="#A9B2B6"/>
-    <rect x="31" y="89" width="77" height="9" rx="4.5" fill="#A9B2B6"/>
-    <rect x="24" y="113" width="99" height="15" rx="7.5" fill="#0E8E8E"/>
+  <!-- the site mark (Mark.tsx) in the bond theme, 32-unit frame -->
+  <g transform="translate(92 102) scale(5.5)">
+    <rect x="5" y="3.5" width="21" height="25" fill="none" stroke="#131313" stroke-width="2.5"/>
+    <g stroke="#56595d" stroke-width="2.5">
+      <path d="M10 11h11"/>
+      <path d="M10 15.5h11"/>
+      <path d="M10 20h7"/>
+    </g>
+    <path d="M10 24.5h21" stroke="#00707f" stroke-width="3.5"/>
   </g>
 
-  <text x="300" y="196" class="wm" font-size="86" textLength="392" lengthAdjust="spacingAndGlyphs">
-    <tspan fill="#14181A">spec</tspan><tspan fill="#0B7A7C">law</tspan>
+  <text x="300" y="200" class="wm" font-size="104">
+    <tspan fill="#131313">spec</tspan><tspan fill="#00707f">law</tspan>
   </text>
 
-  <rect x="302" y="214" width="388" height="10" rx="5" fill="#17C1C1"/>
-
-  <text x="304" y="270" class="tag" font-size="22" textLength="392" lengthAdjust="spacing" fill="#5C716D">WHERE SPECS BECOME LAW</text>
+  <text x="304" y="262" class="tag" font-size="22" fill="#3e4042">WHERE SPECS BECOME LAW</text>
 </svg>

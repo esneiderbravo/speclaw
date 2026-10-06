@@ -15,7 +15,9 @@ The two UI surfaces speclaw *does* have are governed elsewhere:
 - **The terminal CLI** (`src/cli/`, rendered with `@clack/prompts` and
   `picocolors`) follows [`backend-standards.md`](backend-standards.md): command
   handlers and `src/cli/lib/ui.ts` stay thin and presentation-only, delegating
-  to modules/shared. Keep colors on the speclaw palette (teal `#0E8E8E`).
+  to modules/shared. Keep colors on the speclaw palette: the site's ink tokens
+  (signal `#00e3fd` on ink paper `#131313`; source `app/tokens.css` in the
+  speclaw-site repository), as defined by the `brand` capability.
 - **The Compass visualizer** — an interactive HTML graph written to
   `.speclaw/graph.html` by `src/modules/compass/visualize.ts` — is generated
   output, not a maintained frontend app. It also follows the backend standard
