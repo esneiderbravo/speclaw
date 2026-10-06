@@ -76,6 +76,14 @@ All notable changes to this project are documented here. Speclaw follows
 - Existing installs show the updated hooks as `refreshedDiverged` on
   `speclaw update`.
 
+## [2.0.3] — 2026-10-03
+
+### Fixed
+
+- `compass_explore` and `search` resolve a repo-relative file path to a symbol
+  in that file. An exact symbol name still wins. A path such as `src/foo.ts`
+  no longer returns zero similar symbols.
+
 ## [2.0.2] — 2026-10-02
 
 ### Changed
