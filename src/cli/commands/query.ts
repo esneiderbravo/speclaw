@@ -5,6 +5,17 @@ import { hotspots, coupling } from "../../modules/compass/hotspots.js";
 import { diffContext, formatDiffContext } from "../../modules/compass/diff-context.js";
 import { Flags, list } from "../lib/args.js";
 import { ui } from "../lib/ui.js";
+import { recordCompassCall } from "../../shared/compass-calls.js";
+
+/** CLI query verbs that are Compass call-log twins of an MCP tool. */
+const LOGGED_VERBS: Readonly<Record<string, string>> = {
+  explore: "compass_explore",
+  search: "compass_search",
+  recall: "compass_recall",
+  impact: "compass_impact",
+  trace: "compass_trace",
+  "diff-context": "compass_diff_context",
+};
 
 /**
  * Run a Compass query from the shell — the same surface agents call via MCP.
@@ -21,6 +32,8 @@ export async function runQuery(cmd: string, flags: Flags): Promise<void> {
   const focus = list(flags.focus);
   const maxTokens = flags["max-tokens"] ? Number(flags["max-tokens"]) : undefined;
   const explain = Boolean(flags.explain);
+  const logged = LOGGED_VERBS[cmd];
+  if (logged) recordCompassCall(cwd, logged);
   try {
     switch (cmd) {
       case "explore": {

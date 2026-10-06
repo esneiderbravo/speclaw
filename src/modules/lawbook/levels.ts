@@ -513,6 +513,8 @@ export function setCeremonyLevel(
     confirmedAt: new Date().toISOString(),
     overrideReason: opts.reason,
     promotions: prev?.promotions ?? [],
+    // A drafted change keeps its type when its level is confirmed later.
+    ...(prev?.changeType ? { changeType: prev.changeType } : {}),
   };
   writeCeremonyRecord(projectPath, change, record);
   return record;

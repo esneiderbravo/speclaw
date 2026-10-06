@@ -19,7 +19,7 @@ Setup
   agent add <id>           Configure another agent later (symlinks + MCP)
 
 Compass (code intelligence — the same surface agents use via MCP)
-  index                    (Re)build the local code graph (--force / --prune)
+  index                    (Re)build the local code graph (--force / --prune / --json)
   watch                    Keep the index fresh on file changes
   explore <node>           A node's source + callers/callees
   search <query>           Hybrid find (BM25+vector+name); --focus --max-tokens --explain
@@ -40,6 +40,7 @@ Lawbook (spec-driven workflow)
   lawbook init             Create the lawbook/ workspace
   lawbook list             Active/archived changes and capabilities
   lawbook level <mode>     Propose/set/promote/explain ceremony level (--json)
+  lawbook draft <name>     Scaffold a feature change (--level N, --capability C, --json)
   lawbook draft --bug <c>  Scaffold a bug change (bugfix.md + reports)
   lawbook investigate      Rank bug suspects from graph (--symptom / --stack-trace, --json)
   lawbook validate <c>     Validate a change's artifacts
@@ -111,6 +112,7 @@ function maybeHeader(cmd: string | undefined, flags: ReturnType<typeof parseFlag
   if (cmd === "coverage" && (flags.json || flags.tap)) return;
   if (cmd === "drift" && flags.json) return;
   if (cmd === "quick" && flags.json) return;
+  if (cmd === "index" && flags.json) return;
   if (cmd === "lawbook" && flags.json && flags._[0] === "level") return;
   if (cmd === "lawbook" && flags.json && flags._[0] === "investigate") return;
   if (cmd === "lawbook" && flags.json && flags._[0] === "draft") return;

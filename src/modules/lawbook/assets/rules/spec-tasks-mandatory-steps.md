@@ -27,8 +27,8 @@ steps, branch convention, and testing/documentation requirements.
   see the `spec-reports-disciplines` rule) with the unit/integration/e2e results
   for what the feature touched.
 - Update the technical documentation the change touches.
-- Archive the change within the same PR (the `archive` command / `lawbook_archive`
-  tool) after Cortex review/test PASS.
+- Archive the change within the same PR (the `archive` command / `lawbook_change`
+  action `archive`) after Cortex review/test PASS.
 
 ## 3. Manual verification — the tester must execute it
 
@@ -38,10 +38,10 @@ requires verification is not complete until the tester has verified it.
 
 ## 4. Archiving is part of the change
 
-A change is not done until it is archived with `lawbook_archive` (never a manual
+A change is not done until it is archived with `lawbook_change` action `archive` (never a manual
 `mv`). The archive lands in the same PR that implements the change.
 
-`lawbook_archive` is gated: it refuses to archive while any task is unchecked,
+Archive (`lawbook_change` action `archive`) is gated: it refuses to archive while any task is unchecked,
 while `reports/` has no discipline report, while the delta specs are not yet
 synced into the canonical specs, or while harness review/test verdicts are not
 PASS. Resolve those first — the gate is enforced in the engine, so a manual `mv`

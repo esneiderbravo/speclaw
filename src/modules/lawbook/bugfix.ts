@@ -1,17 +1,13 @@
 import fs from "node:fs";
 import path from "node:path";
 import {
-  gatherSignals,
-  loadCeremonyConfig,
-  proposeLevel,
-  setCeremonyLevel,
   type CeremonyProposal,
   type CeremonyRecord,
   type CeremonyTargets,
-  writeCeremonyRecord,
   type ChangeType,
 } from "./levels.js";
 import type { InvestigateResult } from "./investigate.js";
+import { scaffoldChange } from "./scaffold-change.js";
 
 export const BUGFIX_HEADINGS = [
   "1. Observed symptom",
@@ -194,44 +190,29 @@ export function scaffoldBugfix(
     seed?: Partial<InvestigateResult>;
   } = {},
 ): { change: string; proposal: CeremonyProposal; record: CeremonyRecord; dir: string } {
-  const changeDir = path.join(projectPath, "lawbook", "changes", name);
-  if (fs.existsSync(changeDir)) {
-    throw new Error(`change "${name}" already exists under lawbook/changes/`);
-  }
-  const targets = opts.targets ?? { paths: [], symbols: [] };
-  const { thresholds } = loadCeremonyConfig(projectPath);
-  const signals = gatherSignals(projectPath, targets, thresholds);
-  const proposal = proposeLevel(signals, thresholds);
-  const level = opts.level ?? (proposal.level !== null && proposal.level <= 1 ? proposal.level : 1);
-
-  fs.mkdirSync(path.join(changeDir, "reports"), { recursive: true });
-  fs.writeFileSync(path.join(changeDir, "bugfix.md"), bugfixTemplate(name, level, opts.seed));
-  fs.writeFileSync(
-    path.join(changeDir, "reports", "README.md"),
-    `# Reports — ${name}\n\nBug reports MUST include the regression test **failing before the fix**.\n`,
-  );
-
-  if (level >= 1) {
-    fs.writeFileSync(
-      path.join(changeDir, "tasks.md"),
-      `- [ ] Reproduce and confirm root cause\n- [ ] Implement fix\n- [ ] Add regression test (red before, green after)\n- [ ] Complete prevention §7\n- [ ] Write discipline report under reports/\n`,
-    );
-  }
-  if (level >= 2) {
-    fs.writeFileSync(
-      path.join(changeDir, "design.md"),
-      `# Design — ${name}\n\n## Approach\n\n(structural bugfix — document the fix architecture)\n`,
-    );
-  }
-
-  const record = setCeremonyLevel(projectPath, name, {
-    proposal,
-    level,
-    confirmedBy: "human",
+  const r = scaffoldChange(projectPath, name, {
+    changeType: "bug",
+    targets: opts.targets,
+    level: (proposal) =>
+      opts.level ?? (proposal.level !== null && proposal.level <= 1 ? proposal.level : 1),
+    reportsReadme: `# Reports — ${name}\n\nBug reports MUST include the regression test **failing before the fix**.\n`,
+    artifacts: ({ level }) => {
+      const lvl = level ?? 1;
+      const files: Record<string, string> = {
+        "bugfix.md": bugfixTemplate(name, lvl, opts.seed),
+      };
+      if (lvl >= 1) {
+        files["tasks.md"] =
+          `- [ ] Reproduce and confirm root cause\n- [ ] Implement fix\n- [ ] Add regression test (red before, green after)\n- [ ] Complete prevention §7\n- [ ] Write discipline report under reports/\n`;
+      }
+      if (lvl >= 2) {
+        files["design.md"] =
+          `# Design — ${name}\n\n## Approach\n\n(structural bugfix — document the fix architecture)\n`;
+      }
+      return files;
+    },
   });
-  const updated: typeof record & { changeType: ChangeType } = { ...record, changeType: "bug" };
-  writeCeremonyRecord(projectPath, name, updated);
-  return { change: name, proposal, record: updated, dir: changeDir };
+  return { change: r.change, proposal: r.proposal, record: r.record as CeremonyRecord, dir: r.dir };
 }
 
 /** Read change type from an archived folder path. */

@@ -18,7 +18,7 @@ is nothing extra to install.
 | Without Compass | With Compass |
 |-----------------|--------------|
 | Many `Grep` + `Read` round-trips (tokens spent scanning) | One `compass_explore` call returns just the relevant node |
-| Guess which file matters | `compass_recall` finds code by meaning |
+| Guess which file matters | `compass_find` finds code by name or meaning |
 | Edit without knowing the blast radius | callers/callees returned with the node |
 | Whole files dumped into context | verbatim source of the node + its neighbors only |
 
@@ -30,12 +30,12 @@ a request, not whole files.
 | Tool | Use it to |
 |------|-----------|
 | `compass_index` | Build/refresh the graph (`.speclaw/index.db`). Incremental — unchanged files are skipped by hash. Run once after init and after significant edits. |
-| `compass_explore` | Read a node's verbatim source plus its callers and callees. The default before editing. |
-| `compass_search` | Structural search: find nodes by name/keyword. |
-| `compass_recall` | Semantic search: describe what you want in natural language and get nodes ranked by meaning. |
-| `compass_impact` | Blast radius: every node that transitively calls a target — "what could break if I change this?" before editing. |
-| `compass_trace` | Trace a call path between two nodes — how an entrypoint reaches a sink. |
-| `compass_watch` | Keep the index fresh automatically (start/stop a debounced incremental re-index on file change). |
+| `compass_find` | Find code: `mode: exact` by name/keyword, `mode: concept` by meaning in natural language. |
+| `compass_explore` | Read a node's verbatim source plus its callers and callees. The default before editing. Add `include: ["blast_radius"]` for what could break, or `to: <symbol>` for the call path between two nodes. |
+| `compass_diff_context` | Symbols, blast radius, and tests for a diff (working tree or a rev). |
+
+`compass_index` also takes `action: start|stop|status` to keep the index fresh
+automatically (a debounced incremental re-index on file change).
 
 If the graph is missing (no `.speclaw/index.db`), run `compass_index` first —
 a missing graph is not license to skip Compass. The only legitimate fallbacks

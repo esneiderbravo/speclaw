@@ -16,7 +16,9 @@ async function readStdin(): Promise<string> {
  *
  * - `--hook-payload -` reads a hook event JSON from stdin, evaluates it, prints
  *   the `hookSpecificOutput` contract, and exits 2 on `deny` (the documented
- *   command-hook block signal).
+ *   command-hook block signal). `PostToolUse` never carries a
+ *   `permissionDecision`: it prints `additionalContext` when the result has a
+ *   reason (nothing otherwise) and always exits 0.
  * - `--dry-run [--path P] [--event E]` previews the verdict for a synthetic
  *   action against path `P`, without blocking anything (always exits 0).
  * - with no flags, prints a summary of the project's declared laws.
@@ -39,6 +41,14 @@ export async function runCheck(flags: Flags): Promise<void> {
     const event = (payload.hook_event_name ?? payload.event ?? "PreToolUse") as CheckEvent;
     const toolName = (payload.tool_name ?? payload.toolName) as string | undefined;
     const result = checkAction({ projectPath: cwd, event, toolName, payload });
+    if (event === "PostToolUse") {
+      // PostToolUse (feedback laws, the Compass-first nudge) carries context
+      // only and never a permission decision. Other events keep their output.
+      if (result.hookSpecificOutput) {
+        console.log(JSON.stringify({ hookSpecificOutput: result.hookSpecificOutput }));
+      }
+      return;
+    }
     const decision = result.verdict === "deny" ? "deny" : "allow";
     console.log(
       JSON.stringify({

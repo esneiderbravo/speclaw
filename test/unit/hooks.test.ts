@@ -161,3 +161,72 @@ test("installHooks never clobbers an unparseable settings file", (t) => {
   assert.equal(read(root, ".claude/settings.json"), "{ not json");
   assert.ok(report.skipped.some((s) => s.includes("settings.json")));
 });
+
+// Covers: req~compass-nudge~1
+test("compileHooks always emits the Read|Grep|Glob PostToolUse nudge entry, even with zero laws", () => {
+  const { byEvent } = compileHooks(manifest([]));
+  assert.deepEqual(Object.keys(byEvent), ["PostToolUse"]);
+  const group = byEvent.PostToolUse![0]!;
+  assert.equal(group.matcher, "Read|Grep|Glob");
+  const hook = group.hooks[0]!;
+  assert.equal(hook.type, "mcp_tool");
+  assert.equal(hook.server, "speclaw");
+  assert.equal(hook.tool, "speclaw_check");
+  assert.deepEqual(hook.input.payload.tool_input, {
+    file_path: "${tool_input.file_path}",
+    path: "${tool_input.path}",
+    pattern: "${tool_input.pattern}",
+    glob: "${tool_input.glob}",
+    type: "${tool_input.type}",
+  });
+});
+
+test("compileHooks never puts the nudge matcher on PreToolUse", () => {
+  const { byEvent } = compileHooks(
+    manifest([
+      lawOf({ id: "law~b~1", enforcement: "bloqueo", scope: ["**/.env"] }),
+      lawOf({ id: "law~f~1", enforcement: "feedback" }),
+    ]),
+  );
+  assert.ok(byEvent.PreToolUse!.every((g) => !/Read|Grep|Glob/.test(g.matcher ?? "")));
+  // feedback laws keep their mutation group alongside the nudge group
+  assert.deepEqual(
+    byEvent.PostToolUse!.map((g) => g.matcher),
+    ["Write|Edit|MultiEdit|NotebookEdit", "Read|Grep|Glob"],
+  );
+});
+
+test("installHooks with zero laws installs the nudge, keeps foreign entries, and reruns without drift", (t) => {
+  const root = tmpRepo(t);
+  write(
+    root,
+    ".claude/settings.json",
+    JSON.stringify(
+      {
+        hooks: {
+          PostToolUse: [{ matcher: "Read", hooks: [{ type: "command", command: "echo mine" }] }],
+        },
+      },
+      null,
+      2,
+    ) + "\n",
+  );
+  const record: Record<string, string> = {};
+  installHooks(root, ["claude"], manifest([]), emptyReport(), { record });
+  const first = read(root, ".claude/settings.json");
+  const settings = JSON.parse(first) as {
+    hooks: Record<string, Array<{ matcher?: string; hooks: Array<Record<string, unknown>> }>>;
+  };
+  const post = settings.hooks.PostToolUse!;
+  assert.ok(post.some((g) => g.hooks.some((h) => h.command === "echo mine")));
+  assert.ok(
+    post.some((g) => g.matcher === "Read|Grep|Glob" && g.hooks.some((h) => h.server === "speclaw")),
+  );
+  assert.ok(!settings.hooks.PreToolUse);
+
+  const report = emptyReport();
+  installHooks(root, ["claude"], manifest([]), report, { baselines: { ...record } });
+  assert.equal(read(root, ".claude/settings.json"), first);
+  assert.deepEqual(report.written, []);
+  assert.deepEqual(report.refreshedDiverged, []);
+});

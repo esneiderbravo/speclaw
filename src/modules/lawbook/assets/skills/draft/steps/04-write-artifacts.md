@@ -1,8 +1,18 @@
 # Write the artifacts
 
 Artifact volume follows the **confirmed ceremony level** in `change.json`
-(propose + confirm with `lawbook_level` / the human **before** scaffolding).
-Missing `change.json` means level 3.
+(propose + confirm with `lawbook_change` action `level` / the human **before**
+scaffolding). Missing `change.json` means level 3.
+
+Scaffold with `speclaw lawbook draft <name> --level N --capability <capability>`
+(or `lawbook_change` action `draft` with `change`, `level`, and `capability`),
+passing the exact capability name chosen in the previous step. It creates
+`change.json`, `reports/README.md`, and the level's stub artifacts; fill them
+in. When the capability is new, the delta stub is a marked placeholder:
+replace it with the real spec and remove the
+`<!-- speclaw:placeholder-delta -->` marker (validate warns and sync refuses
+while it remains). For each further capability, add its delta by hand, and
+delete any stub delta the change does not use.
 
 Create under `lawbook/changes/<name>/` only what the level needs:
 

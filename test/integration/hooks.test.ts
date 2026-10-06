@@ -29,6 +29,29 @@ test("scaffold seeds the law manifest and installs Claude hooks", (t) => {
     "${tool_input.file_path}",
   );
 
+  // the Compass-first nudge entry rides on PostToolUse for Read|Grep|Glob
+  // Covers: req~compass-nudge~1
+  const nudge = (
+    settings.hooks.PostToolUse as Array<{
+      matcher?: string;
+      hooks: Array<{ server: string; input: { payload: { tool_input: Record<string, string> } } }>;
+    }>
+  ).find((g) => g.matcher === "Read|Grep|Glob");
+  assert.ok(nudge);
+  assert.equal(nudge.hooks[0]!.server, "speclaw");
+  assert.equal(nudge.hooks[0]!.input.payload.tool_input.path, "${tool_input.path}");
+  assert.equal(nudge.hooks[0]!.input.payload.tool_input.pattern, "${tool_input.pattern}");
+  assert.ok(
+    !(settings.hooks.PreToolUse as Array<{ matcher?: string }>).some((g) =>
+      /Read|Grep|Glob/.test(g.matcher ?? ""),
+    ),
+  );
+
+  // a rerun with the same inputs leaves the settings byte-identical (no drift)
+  const before = read(root, ".claude/settings.json");
+  scaffold(root, sampleProfile(), [], ["claude"]);
+  assert.equal(read(root, ".claude/settings.json"), before);
+
   // the settings baseline is recorded so update/--backup can detect divergence
   const baselines = readManifest(root)!.baselines;
   assert.ok(Object.keys(baselines).some((k) => k.includes("settings.json")));

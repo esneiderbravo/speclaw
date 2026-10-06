@@ -120,6 +120,14 @@ Claude-specific notes: [`CLAUDE.md`](CLAUDE.md). The law: [`LAWS.md`](LAWS.md).
   block at the **end** of `.github/CODEOWNERS` (GitHub: last match wins; CLI
   only — no MCP tool). `speclaw doctor` errors if content appears after the end
   marker. `deriveFromTraceability` is not enabled in this release.
+- Compass-first (2.0.4): `compassGate: off|warn|strict` in `lawbook/config.yaml`
+  (default `warn`) gates the Cortex `exploring` and `implementing` stages on
+  Compass calls logged to `.speclaw/compass-calls.jsonl`. A PostToolUse
+  `Read|Grep|Glob` hook adds a Compass-first nudge as context only — never a
+  permission decision. `compass_index` returns totals plus a `nextStep`.
+- `speclaw lawbook draft <name> [--level N] [--capability C]` (or
+  `lawbook_change` action `draft`) scaffolds a change. Existing installs show
+  the updated hooks as `refreshedDiverged` on `speclaw update`.
 - speclaw **2.0** is the official release: Foundation (hooks + `speclaw.lock`),
   Compass (schema 10), Lawbook (ceremony 0–3, coverage, drift, bugfix),
   Cortex (multi-agent loop; nine canonical MCP tools including `cortex`),

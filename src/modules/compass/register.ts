@@ -4,6 +4,7 @@ import { defineTool, defineAliasTool, text, type ToolSpec } from "../../shared/m
 import { shouldExpose, type RegisterOpts } from "../../shared/exposure.js";
 import { aliasesEnabled } from "../../shared/tool-catalog.js";
 import { logDeprecatedCall, prefixDeprecated } from "../../shared/deprecation.js";
+import { recordCompassCall } from "../../shared/compass-calls.js";
 import { buildIndex } from "./indexer.js";
 import { impact } from "./query.js";
 import { affectedTests } from "./affected.js";
@@ -32,7 +33,14 @@ export function registerCompass(server: McpServer, opts: RegisterOpts = {}): voi
     handler: ToolSpec<Shape>["handler"],
   ) => {
     if (!shouldExpose(name, minimal)) return;
-    defineTool(server, { name, description, inputSchema, handler });
+    // Every canonical call lands in the call log the Cortex gate and the
+    // Compass-first nudge read; the write is best-effort and never throws.
+    const call = handler as (args: { projectPath: string }, extra: unknown) => unknown;
+    const logged = ((args: { projectPath: string }, extra: unknown) => {
+      recordCompassCall(args.projectPath, name);
+      return call(args, extra);
+    }) as typeof handler;
+    defineTool(server, { name, description, inputSchema, handler: logged });
   };
 
   add(
@@ -132,6 +140,7 @@ export function registerCompass(server: McpServer, opts: RegisterOpts = {}): voi
     inputSchema: { projectPath: z.string(), query: z.string(), limit: z.number().optional() },
     handler: async ({ projectPath, query, limit }) => {
       logDeprecatedCall(projectPath, "compass_search");
+      recordCompassCall(projectPath, "compass_search");
       const body = JSON.stringify(await findSymbols(projectPath, query, "exact", limit), null, 2);
       return text(prefixDeprecated("compass_search", body));
     },
@@ -143,6 +152,7 @@ export function registerCompass(server: McpServer, opts: RegisterOpts = {}): voi
     inputSchema: { projectPath: z.string(), query: z.string(), limit: z.number().optional() },
     handler: async ({ projectPath, query, limit }) => {
       logDeprecatedCall(projectPath, "compass_recall");
+      recordCompassCall(projectPath, "compass_recall");
       const body = JSON.stringify(await findSymbols(projectPath, query, "concept", limit), null, 2);
       return text(prefixDeprecated("compass_recall", body));
     },
@@ -160,6 +170,7 @@ export function registerCompass(server: McpServer, opts: RegisterOpts = {}): voi
     },
     handler: async (args) => {
       logDeprecatedCall(args.projectPath, "compass_impact");
+      recordCompassCall(args.projectPath, "compass_impact");
       const sym = args.symbol ?? args.node;
       const body = sym
         ? JSON.stringify(
@@ -191,6 +202,7 @@ export function registerCompass(server: McpServer, opts: RegisterOpts = {}): voi
     },
     handler: async ({ projectPath, from, to, maxDepth }) => {
       logDeprecatedCall(projectPath, "compass_trace");
+      recordCompassCall(projectPath, "compass_trace");
       const body = JSON.stringify(
         await exploreRich({ projectPath, node: from, to, maxDepth }),
         null,
@@ -211,6 +223,7 @@ export function registerCompass(server: McpServer, opts: RegisterOpts = {}): voi
     },
     handler: async (args) => {
       logDeprecatedCall(args.projectPath, "compass_affected_tests");
+      recordCompassCall(args.projectPath, "compass_affected_tests");
       const body = JSON.stringify(affectedTests(args.projectPath, args), null, 2);
       return text(prefixDeprecated("compass_affected_tests", body));
     },
@@ -222,6 +235,7 @@ export function registerCompass(server: McpServer, opts: RegisterOpts = {}): voi
     inputSchema: { projectPath: z.string(), limit: z.number().optional() },
     handler: async ({ projectPath, limit }) => {
       logDeprecatedCall(projectPath, "compass_hotspots");
+      recordCompassCall(projectPath, "compass_hotspots");
       const body = JSON.stringify(hotspots(projectPath, { limit }), null, 2);
       return text(prefixDeprecated("compass_hotspots", body));
     },
@@ -233,6 +247,7 @@ export function registerCompass(server: McpServer, opts: RegisterOpts = {}): voi
     inputSchema: { projectPath: z.string(), file: z.string() },
     handler: async ({ projectPath, file }) => {
       logDeprecatedCall(projectPath, "compass_coupling");
+      recordCompassCall(projectPath, "compass_coupling");
       const body = JSON.stringify(coupling(projectPath, file, {}), null, 2);
       return text(prefixDeprecated("compass_coupling", body));
     },
@@ -247,6 +262,7 @@ export function registerCompass(server: McpServer, opts: RegisterOpts = {}): voi
     },
     handler: async ({ projectPath, action }) => {
       logDeprecatedCall(projectPath, "compass_watch");
+      recordCompassCall(projectPath, "compass_watch");
       const result =
         action === "start"
           ? startWatch(projectPath)

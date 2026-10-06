@@ -5,6 +5,36 @@ All notable changes to this project are documented here. Speclaw follows
 
 ## [Unreleased]
 
+## [2.0.4] — 2026-10-06
+
+### Added
+
+- Compass-first evidence gate. `cortex advance` out of `exploring` or
+  `implementing` checks for Compass calls (explore, find, diff-context and
+  their aliases; `compass_index` does not count) logged to
+  `.speclaw/compass-calls.jsonl` since the stage started. `compassGate:
+  off|warn|strict` in `lawbook/config.yaml` (default `warn`); `strict` rejects
+  the advance without touching `harness.json`.
+- Compass-first nudge: a `PostToolUse` `Read|Grep|Glob` hook adds context
+  telling the agent to use `compass_find` / `compass_explore` when it reads
+  indexed code without a recent Compass call. Context only — never a
+  permission decision — and reads no longer evaluate laws.
+- `speclaw lawbook draft <name> [--level N] [--capability C]` and the
+  `lawbook_change` action `draft` scaffold a feature change that validates out
+  of the box. Placeholder deltas are refused by sync.
+- `compass_index` / `speclaw index` report graph `totals` and a `nextStep`.
+- `scripts/bench/compass-first.mjs` benchmarks main vs a branch (micro and
+  headless agent runs, each against its own build).
+
+### Changed
+
+- Packaged skills, agents, commands, rules and templates name only canonical
+  MCP tools. The explore skill locates with `compass_find` first and indexes
+  only when that returns nothing; the Cortex skill dispatches the explorer
+  with symbols and questions and batches all human questions into one round.
+- Existing installs show the updated hooks as `refreshedDiverged` on
+  `speclaw update`.
+
 ## [2.0.2] — 2026-10-02
 
 ### Changed

@@ -70,7 +70,7 @@ in.
 
 ## 4. Reports gate the archive
 
-`lawbook_archive` refuses to archive while `reports/` holds no discipline report
+`lawbook_change` action `archive` refuses to archive while `reports/` holds no discipline report
 (the `reports/README.md` scaffold does not count). Which disciplines a change
 touched — and therefore which reports are owed, including `api.md` for any
 API-touching change — is the agent's responsibility to judge and satisfy before

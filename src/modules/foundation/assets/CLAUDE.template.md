@@ -31,9 +31,10 @@ ignore it.
 
 This repo is indexed by Compass, speclaw's local code graph (`.speclaw/`). For
 **any** question about code — what a symbol is, what it uses, who calls it,
-where it lives, how a value flows — call Compass **first**: `compass_search` /
-`compass_recall` to locate, `compass_explore` to read a symbol with its callers
-and callees, `compass_impact` / `compass_trace` for blast radius and call paths.
+where it lives, how a value flows — call Compass **first**: `compass_find` to
+locate, `compass_explore` to read a symbol with its callers and callees (include
+`blast_radius` for what could break, `to` for a call path), and
+`compass_diff_context` for the context of a diff.
 Run `compass_index` first if the graph is missing.
 
 This includes files you already know the name of: to learn what `Foo` imports,

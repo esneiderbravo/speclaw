@@ -43,11 +43,11 @@ verdicts are complete.
 - Scenario headers use exactly `#### Scenario:`.
 - Acceptance criteria are testable without production integrations.
 - The implemented code must match what the delta spec promises. Validate with
-  the `lawbook_validate` tool before syncing or archiving.
+  `lawbook_change` (action: validate) before syncing or archiving.
 
 ## Archiving discipline
 
-Always archive with the `archive` command / `lawbook_archive` tool, never a manual
+Always archive with the `archive` command / `lawbook_change` (action: archive), never a manual
 `mv`. The engine refuses archive while tasks are unchecked, reports are missing,
 specs are out of sync when required, or harness review/test verdicts are not PASS.
 

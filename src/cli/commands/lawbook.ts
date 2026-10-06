@@ -7,8 +7,10 @@ import {
 } from "../../modules/lawbook/engine.js";
 import { handleLevel } from "../../modules/lawbook/quick.js";
 import { scaffoldBugfix } from "../../modules/lawbook/bugfix.js";
+import { scaffoldFeature } from "../../modules/lawbook/scaffold-change.js";
 import { investigate, formatInvestigateResult } from "../../modules/lawbook/investigate.js";
 import { handleHarness } from "../../modules/cortex/harness.js";
+import { printHarnessWarnings } from "./cortex.js";
 import { Flags, list } from "../lib/args.js";
 import { ui } from "../lib/ui.js";
 
@@ -129,23 +131,39 @@ export async function runSpec(flags: Flags): Promise<void> {
         return;
       }
       case "draft": {
-        if (!flags.bug) {
-          ui.err("Usage: speclaw lawbook draft --bug <name> [--level N] [--json]");
-          process.exit(1);
-        }
-        const name =
-          typeof flags.bug === "string" ? flags.bug : req(change, "lawbook draft --bug <name>");
         const levelFlag = flags.level;
         const level =
-          levelFlag === undefined || levelFlag === true
-            ? undefined
-            : (Number(levelFlag) as 0 | 1 | 2 | 3);
-        const result = scaffoldBugfix(cwd, name, { level });
+          levelFlag === undefined || levelFlag === true ? undefined : parseLevel(levelFlag);
+        if (flags.bug) {
+          const name =
+            typeof flags.bug === "string" ? flags.bug : req(change, "lawbook draft --bug <name>");
+          const result = scaffoldBugfix(cwd, name, { level });
+          if (flags.json) {
+            console.log(JSON.stringify(result, null, 2));
+            return;
+          }
+          ui.ok(`bug change "${name}" scaffolded at ${result.dir}`);
+          return;
+        }
+        const name = req(
+          change,
+          "lawbook draft <name> [--level N] [--capability C] [--json] | --bug <name>",
+        );
+        const result = scaffoldFeature(cwd, name, {
+          level,
+          reason: typeof flags.reason === "string" ? flags.reason : undefined,
+          capability: typeof flags.capability === "string" ? flags.capability : undefined,
+        });
         if (flags.json) {
           console.log(JSON.stringify(result, null, 2));
           return;
         }
-        ui.ok(`bug change "${name}" scaffolded at ${result.dir}`);
+        ui.ok(
+          `feature change "${name}" scaffolded at ${result.dir} ` +
+            (result.level === null
+              ? "(level unconfirmed — run `speclaw lawbook level set`)"
+              : `(level ${result.level})`),
+        );
         return;
       }
       case "archive": {
@@ -191,6 +209,7 @@ export async function runSpec(flags: Flags): Promise<void> {
           pauseForQuestions: Boolean(flags["pause-questions"]),
           note: typeof flags.note === "string" ? flags.note : undefined,
         });
+        printHarnessWarnings(result);
         if (flags.json) {
           console.log(JSON.stringify(result, null, 2));
           return;
@@ -208,6 +227,13 @@ export async function runSpec(flags: Flags): Promise<void> {
     ui.err((err as Error).message);
     process.exit(1);
   }
+}
+
+/** Parse a `--level` flag value into a ceremony level; throws on anything but 0–3. */
+function parseLevel(raw: string | boolean | string[]): 0 | 1 | 2 | 3 {
+  const n = Number(Array.isArray(raw) ? raw[raw.length - 1] : raw);
+  if (n === 0 || n === 1 || n === 2 || n === 3) return n;
+  throw new Error(`--level must be 0, 1, 2, or 3 (got "${String(raw)}")`);
 }
 
 /** Return the value or print a usage error and exit if it is missing. */

@@ -22,6 +22,12 @@ coverage:
   # Applied when a requirement omits Needs:.
   defaultNeeds: [impl, utest]
 
+# Cortex Compass-first evidence gate: leaving `exploring` or `implementing`
+# needs a Compass evidence call (compass_explore / compass_find /
+# compass_diff_context, …) since the stage started. off | warn | strict;
+# a missing or invalid value means warn. See docs/cortex.md.
+# compassGate: warn
+
 # Ceremony levels (adaptive). Absent or invalid cuts → built-in defaults.
 ceremony:
   cuts: [3, 8, 15]

@@ -1,7 +1,7 @@
 ---
 name: tester
 description: Run quality gates and manual verification; write discipline reports. Use when Cortex stage is testing. May add missing tests only — not features.
-tools: Read, Grep, Glob, Write, Edit, Bash, CallMcpTool, mcp__speclaw__compass_explore, mcp__speclaw__compass_affected_tests, mcp__speclaw__lawbook_change, mcp__speclaw__cortex
+tools: Read, Grep, Glob, Write, Edit, Bash, CallMcpTool, mcp__speclaw__compass_explore, mcp__speclaw__compass_diff_context, mcp__speclaw__lawbook_change, mcp__speclaw__cortex
 ---
 
 You are the **tester** role in speclaw's **Cortex** (One brain. Many agents.).

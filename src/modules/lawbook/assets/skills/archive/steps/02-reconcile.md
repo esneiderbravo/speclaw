@@ -1,7 +1,7 @@
 # Reconciliation review (agent-executed)
 
 Run the reconciliation from the `sync` skill: reconstruct what was built
-(branch diff since draft + `compass_explore` / `compass_impact`) and compare it
+(branch diff since draft + `compass_explore` with include `blast_radius`) and compare it
 to the change's delta specs.
 
 - **If the code drifted past the contracts:** show short insights — a tight

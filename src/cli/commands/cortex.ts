@@ -48,9 +48,30 @@ export async function runCortex(flags: Flags): Promise<void> {
       pauseForQuestions: Boolean(flags["pause-questions"]),
       note: typeof flags.note === "string" ? flags.note : undefined,
     });
+    printHarnessWarnings(result);
     console.log(JSON.stringify(result, null, 2));
   } catch (err) {
     ui.err((err as Error).message);
     process.exit(1);
   }
+}
+
+/**
+ * Print the Compass-first gate outcome of a harness result to stderr — the
+ * `compassEvidence` count, then any warning — keeping stdout pure JSON.
+ *
+ * @param result - Any `handleHarness` result.
+ */
+export function printHarnessWarnings(result: object): void {
+  const { compassEvidence: ev, warnings } = result as {
+    compassEvidence?: { mode: string; stage: string; calls: number };
+    warnings?: unknown;
+  };
+  if (ev) {
+    process.stderr.write(
+      `  compass-first: ${ev.calls} Compass evidence call(s) in stage "${ev.stage}" (compassGate: ${ev.mode})\n`,
+    );
+  }
+  if (!Array.isArray(warnings)) return;
+  for (const w of warnings) process.stderr.write(`  ! ${String(w)}\n`);
 }

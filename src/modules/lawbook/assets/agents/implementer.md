@@ -1,7 +1,7 @@
 ---
 name: implementer
 description: Implement drafted lawbook tasks in source and tests. Use when Cortex stage is implementing. Does not run final quality gates, review, sync, or archive.
-tools: Read, Grep, Glob, Write, Edit, Bash, CallMcpTool, mcp__speclaw__compass_explore, mcp__speclaw__compass_find, mcp__speclaw__compass_impact, mcp__speclaw__compass_index, mcp__speclaw__lawbook_change, mcp__speclaw__cortex
+tools: Read, Grep, Glob, Write, Edit, Bash, CallMcpTool, mcp__speclaw__compass_explore, mcp__speclaw__compass_find, mcp__speclaw__compass_diff_context, mcp__speclaw__compass_index, mcp__speclaw__lawbook_change, mcp__speclaw__cortex
 disallowedTools: NotebookEdit
 ---
 

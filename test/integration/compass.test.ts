@@ -20,6 +20,10 @@ test("buildIndex parses a multi-language repo into nodes, edges, and embeddings"
   assert.equal(stats.embeddings, stats.nodes);
   assert.ok(indexExists(root));
   assert.equal(indexPath(root), path.join(root, ".speclaw", "index.db"));
+  // A fresh index: the totals are the whole repository and equal this run's delta.
+  assert.deepEqual(stats.totals, { files: 4, nodes: stats.nodes, edges: stats.edges });
+  assert.match(stats.nextStep, /compass_find/);
+  assert.match(stats.nextStep, /compass_explore/);
 });
 
 test("search finds a node by name substring", async (t) => {
