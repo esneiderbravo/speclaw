@@ -30,7 +30,9 @@ not invent alternate first-line install commands in the README.
 
 Releases publish via npm **Trusted Publishing (OIDC)** from
 `.github/workflows/publish.yml` when `package.json` version changes on `main`.
-There is no long-lived `NPM_TOKEN` in CI.
+There is no long-lived `NPM_TOKEN` in CI. The workflow then tags `v<version>`
+and creates the GitHub release from the matching `CHANGELOG.md` section, so
+that section must land in the same PR as the version bump.
 
 1. On npmjs.com → package settings → **Trusted Publisher**: repository
    `esneiderbravo/speclaw`, workflow `publish.yml`.

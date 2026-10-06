@@ -42,8 +42,13 @@ history); if there is none, leave tracker linkage to the team.
   and merge to `main`. The **Publish to npm** workflow
   (`.github/workflows/publish.yml`) then publishes automatically via npm Trusted
   Publishing (OIDC) — no token. If the version is already on npm, it skips.
-- No manual `npm publish`; no release branches. There is no `CHANGELOG.md` —
-  git history and the release commit carry the narrative.
+  The same workflow then pushes the `v<version>` tag and creates the GitHub
+  release from that version's `CHANGELOG.md` section; it skips whatever
+  already exists and fails before tagging if the section is missing.
+- No manual `npm publish`, tags or releases; no release branches. Add the
+  `## [<version>]` section to `CHANGELOG.md` in the PR that bumps the version.
+- The floating major tag (`v2`) is not moved by the workflow — move it by hand
+  after a release so `esneiderbravo/speclaw@v2` consumers pick it up.
 - `speclaw update` brings a scaffolded project up to date **additively** (new
   standards/skills/steps only), never overwriting existing files.
 - **2.0** is the official release (Cortex multi-agent brain + nine MCP tools).
