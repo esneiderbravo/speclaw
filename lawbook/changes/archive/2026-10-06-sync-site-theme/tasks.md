@@ -45,7 +45,7 @@ human's answers to Q1–Q4 are recorded there under "Answered questions".
   message that names the missing path.
 - [x] 2.4 Make sure every SVG under `brand/` that has a PNG twin is rendered.
   Keep the existing render list and do not add new outputs.
-- [ ] 2.5 Note in the PR description why the new dev dependencies are needed
+- [x] 2.5 Note in the PR description why the new dev dependencies are needed
   (law `local-first`). They are dev-only, are used only by `npm run brand`,
   and are not shipped in the package. The justification is in `proposal.md`
   → Non-goals; copy it into the PR description when the PR is opened.
@@ -110,7 +110,7 @@ human's answers to Q1–Q4 are recorded there under "Answered questions".
 
 ## 6. Quality gates
 
-- [ ] 6.1 Run the quality gates and verify they pass (see
+- [x] 6.1 Run the quality gates and verify they pass (see
   docs/standards/testing-standards.md):
   - `npm run check`;
   - `npm run build`;
@@ -121,7 +121,7 @@ human's answers to Q1–Q4 are recorded there under "Answered questions".
 
 ## 7. Manual verification (tester executes it, never the user)
 
-- [ ] 7.1 Perform manual verification of the behavior — the tester role
+- [x] 7.1 Perform manual verification of the behavior — the tester role
   executes this itself, never the user.
   - Run `npm run brand` and open each regenerated PNG. Check the colors, the
     mark, and that text renders in Chivo / Chivo Mono with no fallback serif
@@ -138,7 +138,7 @@ human's answers to Q1–Q4 are recorded there under "Answered questions".
 
 ## 8. Discipline reports
 
-- [ ] 8.1 Produce the discipline reports under reports/ — one per discipline
+- [x] 8.1 Produce the discipline reports under reports/ — one per discipline
   touched, from an open set (e.g. backend.md, frontend.md, api.md, database.md,
   infra.md, security.md; api.md is required whenever the change touches an API
   surface) — with the unit/integration/e2e results for what the feature
@@ -166,6 +166,6 @@ human's answers to Q1–Q4 are recorded there under "Answered questions".
 
 ## 10. Archive
 
-- [ ] 10.1 Archive the change within the same PR (lawbook:archive) after harness
+- [x] 10.1 Archive the change within the same PR (lawbook:archive) after harness
   review/test PASS. Reconcile and `sync` the new `brand` capability, then run
   `lawbook_archive`.

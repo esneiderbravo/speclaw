@@ -55,8 +55,10 @@ test("forced color paints the accent as signal truecolor", () => {
 });
 
 test("NO_COLOR keeps every slot plain", () => {
+  // FORCE_COLOR=1 would paint on its own (the child's stdout is a pipe, not a
+  // TTY), so only the NO_COLOR clause can keep this output plain.
   for (const slot of Object.keys(PALETTE)) {
-    const out = paintInChild(slot, { ...envWithout("FORCE_COLOR"), NO_COLOR: "1" });
+    const out = paintInChild(slot, { ...process.env, FORCE_COLOR: "1", NO_COLOR: "1" });
     assert.equal(out, "x", `${slot} emits no escape under NO_COLOR`);
   }
 });

@@ -133,9 +133,9 @@ identity and kept every non-speclaw hook. Use `update --backup` to keep a
 See [`cortex.md`](cortex.md#compass-first-evidence-gate-compassgate).
 
 <!-- speclaw:map:start -->
-speclaw · 230 files · 948 nodes
-src/ (121)  test/ (103)  scripts/ (5)  eslint.config.js/ (1)
-hubs: tmpRepo 361 · write 300 · has 147 · parse 112 · log 79 · openDb 78 · run 66 · commit 52 · runCli 50 · recordCompassCall 36 · text 34 · gitInit 33
+speclaw · 234 files · 959 nodes
+src/ (121)  test/ (107)  scripts/ (5)  eslint.config.js/ (1)
+hubs: tmpRepo 364 · write 303 · has 151 · parse 114 · log 79 · openDb 78 · run 66 · commit 52 · runCli 50 · recordCompassCall 36 · text 34 · read 34
 entry: src/server.ts (mcp) · src/cli/index.ts (bin)
 <!-- speclaw:map:end -->
 
