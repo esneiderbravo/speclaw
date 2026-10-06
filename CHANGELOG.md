@@ -5,6 +5,26 @@ All notable changes to this project are documented here. Speclaw follows
 
 ## [Unreleased]
 
+## [2.0.6] — 2026-10-06
+
+### Changed
+
+- The brand follows the speclaw site's design tokens. The CLI palette, the
+  Compass HTML viewer, and every asset under `brand/` take the dark **ink**
+  theme (paper `#131313`, ink `#f4f4f3`, signal `#00e3fd`, deny `#ff5c47`);
+  the light banner and mark take the **bond** theme (signal `#00707f`). Green
+  and amber stay for success and warning, re-tuned to at least 4.5:1 on
+  `#131313`. The `c.*` helpers keep their names.
+- The brand SVGs draw the site mark (a document whose last line, the law, runs
+  past the page edge) and set text in Chivo / Chivo Mono instead of SF Mono /
+  JetBrains Mono. The README badges use the bond signal (`00707f` on
+  `131313`).
+- `npm run brand` renders the PNGs with Chivo loaded from the new dev
+  dependencies `@fontsource/chivo` and `@fontsource/chivo-mono` (decoded from
+  WOFF2 by the dev dependency `wawoff2`), never from system fonts. A missing
+  font file stops the render with a non-zero exit that names the file. None of
+  these ship in the published package.
+
 ## [2.0.5] — 2026-10-06
 
 ### Changed

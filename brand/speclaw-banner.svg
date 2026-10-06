@@ -1,45 +1,48 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 380" width="1200" height="380" role="img" aria-label="speclaw — where specs become law">
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#0B0F10"/>
-      <stop offset="1" stop-color="#10181A"/>
+      <stop offset="0" stop-color="#131313"/>
+      <stop offset="1" stop-color="#0d0d0e"/>
     </linearGradient>
     <radialGradient id="glow" cx="0.85" cy="0.15" r="0.6">
-      <stop offset="0" stop-color="#17C1C1" stop-opacity="0.09"/>
-      <stop offset="1" stop-color="#17C1C1" stop-opacity="0"/>
+      <stop offset="0" stop-color="#00e3fd" stop-opacity="0.1"/>
+      <stop offset="1" stop-color="#00e3fd" stop-opacity="0"/>
     </radialGradient>
     <filter id="cyanGlow" x="-40%" y="-40%" width="180%" height="180%">
       <feGaussianBlur stdDeviation="2.2" result="b"/>
       <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
     </filter>
+    <!-- a horizontal line has a zero-height bounding box, so its glow needs a user-space filter region -->
+    <filter id="lawGlow" filterUnits="userSpaceOnUse" x="0" y="18" width="40" height="13">
+      <feGaussianBlur stdDeviation="0.4" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
     <style>
-      .wm  { font-family: 'SF Mono','JetBrains Mono','Fira Code',Menlo,Consolas,monospace; font-weight: 700; }
-      .tag { font-family: 'SF Mono','JetBrains Mono',Menlo,Consolas,monospace; font-weight: 500; }
-      .sub { font-family: -apple-system,'Segoe UI',Helvetica,Arial,sans-serif; font-weight: 400; }
+      .wm  { font-family: 'Chivo', 'Helvetica Neue', Arial, sans-serif; font-weight: 800; letter-spacing: -3.3px; }
+      .tag { font-family: 'Chivo Mono', 'SFMono-Regular', Menlo, monospace; font-weight: 400; letter-spacing: 3px; }
     </style>
   </defs>
 
   <rect x="0" y="0" width="1200" height="380" rx="22" fill="url(#bg)"/>
   <rect x="0" y="0" width="1200" height="380" rx="22" fill="url(#glow)"/>
-  <rect x="1" y="1" width="1198" height="378" rx="21" fill="none" stroke="#2C3235" stroke-width="1.5"/>
+  <rect x="1" y="1" width="1198" height="378" rx="21" fill="none" stroke="#303236" stroke-width="1.5"/>
 
-  <!-- logo mark: a document whose bottom line — the law — is highlighted in cyan -->
-  <g transform="translate(100,116)">
-    <rect x="4" y="4" width="140" height="140" rx="9" fill="none" stroke="#F4F1EA" stroke-width="6.5"/>
-    <rect x="31" y="39" width="86" height="9" rx="4.5" fill="#6E7B80"/>
-    <rect x="31" y="64" width="64" height="9" rx="4.5" fill="#6E7B80"/>
-    <rect x="31" y="89" width="77" height="9" rx="4.5" fill="#6E7B80"/>
-    <rect x="24" y="113" width="99" height="15" rx="7.5" fill="#17C1C1" filter="url(#cyanGlow)"/>
+  <!-- the site mark (Mark.tsx) in its 32-unit frame: a document whose last line, the law, runs past the page edge -->
+  <g transform="translate(92 102) scale(5.5)">
+    <rect x="5" y="3.5" width="21" height="25" fill="none" stroke="#f4f4f3" stroke-width="2.5"/>
+    <g stroke="#999ea3" stroke-width="2.5">
+      <path d="M10 11h11"/>
+      <path d="M10 15.5h11"/>
+      <path d="M10 20h7"/>
+    </g>
+    <path d="M10 24.5h21" stroke="#00e3fd" stroke-width="3.5" filter="url(#lawGlow)"/>
   </g>
 
-  <!-- wordmark: spec (cream) + law (cyan). Sized to fit even without textLength. -->
-  <text x="300" y="196" class="wm" font-size="86" textLength="392" lengthAdjust="spacingAndGlyphs">
-    <tspan fill="#F4F1EA">spec</tspan><tspan fill="#17C1C1" filter="url(#cyanGlow)">law</tspan>
+  <!-- wordmark: spec (ink) + law (signal), Chivo at display weight -->
+  <text x="300" y="200" class="wm" font-size="104">
+    <tspan fill="#f4f4f3">spec</tspan><tspan fill="#00e3fd" filter="url(#cyanGlow)">law</tspan>
   </text>
 
-  <!-- the "law" motif: a cyan underline bar -->
-  <rect x="302" y="214" width="388" height="10" rx="5" fill="#17C1C1" opacity="0.9"/>
-
   <!-- tagline -->
-  <text x="304" y="270" class="tag" font-size="22" textLength="392" lengthAdjust="spacing" fill="#8B989E">WHERE SPECS BECOME LAW</text>
+  <text x="304" y="262" class="tag" font-size="22" fill="#babdc1">WHERE SPECS BECOME LAW</text>
 </svg>

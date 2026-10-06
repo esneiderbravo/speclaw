@@ -4,12 +4,12 @@
 
 <br/>
 
-<a href="https://www.npmjs.com/package/@esneiderbravo/speclaw"><img src="https://img.shields.io/npm/v/@esneiderbravo/speclaw?color=0E8E8E&labelColor=0B0F10&style=flat-square&label=npm" alt="npm"></a>
-&nbsp;<a href="https://github.com/esneiderbravo/speclaw/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/esneiderbravo/speclaw/ci.yml?branch=main&label=CI&labelColor=0B0F10&style=flat-square&color=0E8E8E" alt="CI"></a>
-&nbsp;<a href="https://www.npmjs.com/package/@esneiderbravo/speclaw?activeTab=versions"><img src="https://img.shields.io/badge/provenance-SLSA-0E8E8E?labelColor=0B0F10&style=flat-square" alt="npm provenance"></a>
-&nbsp;<a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-0E8E8E?labelColor=0B0F10&style=flat-square" alt="MIT"></a>
-&nbsp;<img src="https://img.shields.io/badge/node-%E2%89%A522.16-0E8E8E?labelColor=0B0F10&style=flat-square" alt="Node >= 22.16">
-&nbsp;<img src="https://img.shields.io/badge/v2.0-0E8E8E?labelColor=0B0F10&style=flat-square" alt="v2.0">
+<a href="https://www.npmjs.com/package/@esneiderbravo/speclaw"><img src="https://img.shields.io/npm/v/@esneiderbravo/speclaw?color=00707f&labelColor=131313&style=flat-square&label=npm" alt="npm"></a>
+&nbsp;<a href="https://github.com/esneiderbravo/speclaw/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/esneiderbravo/speclaw/ci.yml?branch=main&label=CI&labelColor=131313&style=flat-square&color=00707f" alt="CI"></a>
+&nbsp;<a href="https://www.npmjs.com/package/@esneiderbravo/speclaw?activeTab=versions"><img src="https://img.shields.io/badge/provenance-SLSA-00707f?labelColor=131313&style=flat-square" alt="npm provenance"></a>
+&nbsp;<a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-00707f?labelColor=131313&style=flat-square" alt="MIT"></a>
+&nbsp;<img src="https://img.shields.io/badge/node-%E2%89%A522.16-00707f?labelColor=131313&style=flat-square" alt="Node >= 22.16">
+&nbsp;<img src="https://img.shields.io/badge/v2.0-00707f?labelColor=131313&style=flat-square" alt="v2.0">
 
 <br/><br/>
 
@@ -24,12 +24,12 @@ those laws hold in the editor, in CI, and in the PR.
 One command. No cloud, no LLM, no API keys — <b>everything runs on your machine.</b>
 </p>
 
-<img src="https://img.shields.io/badge/100%25_local-0E8E8E?labelColor=0B0F10&style=flat-square" alt="100% local">
-&nbsp;<img src="https://img.shields.io/badge/no_LLM_·_no_cloud-0E8E8E?labelColor=0B0F10&style=flat-square" alt="no LLM">
-&nbsp;<img src="https://img.shields.io/badge/CLI_+_MCP-0E8E8E?labelColor=0B0F10&style=flat-square" alt="CLI + MCP">
-&nbsp;<img src="https://img.shields.io/badge/9_canonical_tools-0E8E8E?labelColor=0B0F10&style=flat-square" alt="9 tools">
-&nbsp;<img src="https://img.shields.io/badge/Cortex-One_brain._Many_agents.-0E8E8E?labelColor=0B0F10&style=flat-square" alt="Cortex">
-&nbsp;<img src="https://img.shields.io/badge/any_agent-0E8E8E?labelColor=0B0F10&style=flat-square" alt="any agent">
+<img src="https://img.shields.io/badge/100%25_local-00707f?labelColor=131313&style=flat-square" alt="100% local">
+&nbsp;<img src="https://img.shields.io/badge/no_LLM_·_no_cloud-00707f?labelColor=131313&style=flat-square" alt="no LLM">
+&nbsp;<img src="https://img.shields.io/badge/CLI_+_MCP-00707f?labelColor=131313&style=flat-square" alt="CLI + MCP">
+&nbsp;<img src="https://img.shields.io/badge/9_canonical_tools-00707f?labelColor=131313&style=flat-square" alt="9 tools">
+&nbsp;<img src="https://img.shields.io/badge/Cortex-One_brain._Many_agents.-00707f?labelColor=131313&style=flat-square" alt="Cortex">
+&nbsp;<img src="https://img.shields.io/badge/any_agent-00707f?labelColor=131313&style=flat-square" alt="any agent">
 
 </div>
 
@@ -107,7 +107,7 @@ gh attestation verify <tarball> --owner esneiderbravo
   <img src="https://raw.githubusercontent.com/esneiderbravo/speclaw/main/brand/terminal-init.png" width="800" alt="speclaw init — terminal output">
 </p>
 
-<p align="center"><i>Teal steps, green checks, a live progress bar — themed with the speclaw palette.</i></p>
+<p align="center"><i>Cyan steps, green checks, a live progress bar — themed with the speclaw palette.</i></p>
 
 <br/>
 

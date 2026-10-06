@@ -1,21 +1,25 @@
-// Brand-themed terminal UI. Colors come from the speclaw palette (cyan #2EE6E6
-// = the "law", cream text, muted gray, green/amber for status) rendered as
-// 24-bit truecolor ANSI — no dependency needed. Colors auto-disable when the
-// output is not a TTY or NO_COLOR is set.
+// Brand-themed terminal UI. Colors come from the speclaw site's ink theme
+// (`app/tokens.css` in speclaw-site): signal cyan #00E3FD = the "law" accent,
+// ink #F4F4F3 primary text, ink-faint #999EA3 secondary text, deny #FF5C47 for
+// errors, and green/amber re-tuned for success/warning. Every color holds at
+// least 4.5:1 (WCAG 2.x) against the ink paper #131313. They render as 24-bit
+// truecolor ANSI — no dependency needed — and auto-disable when the output is
+// not a TTY or NO_COLOR is set.
 
 import { pkgVersion } from "../../shared/version.js";
 
-type RGB = [number, number, number];
+type RGB = readonly [number, number, number];
 
-const PALETTE = {
-  cyan: [46, 230, 230] as RGB, // #2EE6E6 — the accent / "law"
-  cyanDim: [23, 193, 193] as RGB, // #17C1C1
-  cream: [244, 241, 234] as RGB, // #F4F1EA — primary text
-  muted: [110, 123, 128] as RGB, // #6E7B80 — secondary text
-  green: [63, 185, 80] as RGB, // #3FB950 — success
-  amber: [227, 179, 65] as RGB, // #E3B341 — warning
-  red: [235, 90, 90] as RGB,
-};
+// Covers: req~brand-terminal-palette~1
+export const PALETTE = Object.freeze({
+  cyan: [0, 227, 253] as RGB, // #00E3FD — signal: the accent / "law"
+  cyanDim: [0, 227, 253] as RGB, // #00E3FD — signal (the site has no mid cyan for text)
+  cream: [244, 244, 243] as RGB, // #F4F4F3 — ink: primary text
+  muted: [153, 158, 163] as RGB, // #999EA3 — ink-faint: secondary text
+  green: [62, 207, 122] as RGB, // #3ECF7A — success (re-tuned)
+  amber: [245, 183, 61] as RGB, // #F5B73D — warning (re-tuned)
+  red: [255, 92, 71] as RGB, // #FF5C47 — deny: errors
+} satisfies Record<string, RGB>);
 
 const colorOn =
   (Boolean(process.stdout.isTTY) || process.env.FORCE_COLOR === "1") && !process.env.NO_COLOR;

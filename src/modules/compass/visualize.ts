@@ -146,11 +146,14 @@ export function visualize(
 /**
  * Render the graph as a self-contained, offline HTML page: the data is embedded
  * as JSON and drawn by an inline canvas force-directed renderer (no CDN, no
- * dependencies).
+ * dependencies). Colors are the site's ink tokens (`app/tokens.css` in
+ * speclaw-site): paper #131313, sheet #1f2022, rule #303236, ink #f4f4f3,
+ * ink-faint #999ea3, signal #00e3fd. No retired-palette color may return here.
  *
  * @param data - The nodes/links/totals to embed.
  * @returns A complete HTML document as a string.
  */
+// Covers: req~brand-viewer-palette~1
 export function renderHtml(data: GraphData): string {
   const payload = JSON.stringify(data);
   return `<!doctype html>
@@ -158,20 +161,20 @@ export function renderHtml(data: GraphData): string {
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>speclaw · Compass graph</title>
 <style>
-  :root { --cy:#17C1C1; --cr:#F4F1EA; --mu:#6E7B80; --bg:#0B0F10; }
+  :root { --cy:#00e3fd; --cr:#f4f4f3; --mu:#999ea3; --bg:#131313; --sh:#1f2022; --ru:#303236; }
   * { box-sizing:border-box; }
   html,body { margin:0; height:100%; background:var(--bg); color:var(--cr);
-    font-family:'SF Mono','JetBrains Mono',Menlo,Consolas,monospace; overflow:hidden; }
+    font-family:'Chivo Mono','SFMono-Regular',Menlo,monospace; overflow:hidden; }
   canvas { display:block; cursor:grab; }
   canvas:active { cursor:grabbing; }
   .panel { position:fixed; top:16px; left:16px; padding:12px 14px; border-radius:10px;
-    background:rgba(12,17,19,.82); border:1px solid #232A2D; font-size:12px; line-height:1.5; }
+    background:rgba(31,32,34,.82); border:1px solid var(--ru); font-size:12px; line-height:1.5; }
   .panel b { color:var(--cr); } .panel .sub { color:var(--mu); }
   .legend { position:fixed; bottom:16px; left:16px; font-size:11px; color:var(--mu);
-    background:rgba(12,17,19,.82); border:1px solid #232A2D; border-radius:10px; padding:10px 12px; }
+    background:rgba(31,32,34,.82); border:1px solid var(--ru); border-radius:10px; padding:10px 12px; }
   .legend span { display:inline-flex; align-items:center; margin-right:12px; }
   .legend i { width:9px; height:9px; border-radius:50%; display:inline-block; margin-right:5px; }
-  .tip { position:fixed; padding:6px 9px; border-radius:7px; background:#0E1517; border:1px solid #17C1C1;
+  .tip { position:fixed; padding:6px 9px; border-radius:7px; background:var(--sh); border:1px solid var(--cy);
     color:var(--cr); font-size:12px; pointer-events:none; opacity:0; transition:opacity .1s; white-space:nowrap; }
   .brand { color:var(--cy); font-weight:700; }
 </style></head><body>
@@ -185,9 +188,9 @@ export function renderHtml(data: GraphData): string {
 <div class="tip" id="tip"></div>
 <script>
 const DATA = ${payload};
-const KIND_COLORS = { function:'#17C1C1', method:'#3FB950', class:'#E3B341',
-  interface:'#8B989E', type:'#8B989E', enum:'#8B989E' };
-const colorOf = k => KIND_COLORS[k] || '#6E7B80';
+const KIND_COLORS = { function:'#00e3fd', method:'#3ecf7a', class:'#f5b73d',
+  interface:'#babdc1', type:'#babdc1', enum:'#babdc1' };
+const colorOf = k => KIND_COLORS[k] || '#7c8083';
 
 const cv = document.getElementById('c'), ctx = cv.getContext('2d');
 const tip = document.getElementById('tip');
@@ -237,7 +240,7 @@ function draw(){
   ctx.lineWidth = 1;
   for(const l of L){ const a=toScreen(N[l.s]), b=toScreen(N[l.t]);
     const on = hover>=0 && (l.s===hover||l.t===hover);
-    ctx.strokeStyle = on ? 'rgba(23,193,193,.7)' : 'rgba(110,123,128,.16)';
+    ctx.strokeStyle = on ? 'rgba(0,227,253,.7)' : 'rgba(124,128,131,.16)';
     ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y); ctx.stroke();
   }
   for(let i=0;i<N.length;i++){ const n=N[i], p=toScreen(n);
@@ -245,7 +248,7 @@ function draw(){
     ctx.globalAlpha = dim ? 0.28 : 1;
     ctx.beginPath(); ctx.arc(p.x,p.y,n.r*Math.sqrt(scale),0,7); ctx.fillStyle=colorOf(n.kind); ctx.fill();
     if((n.r>7 || i===hover || (hoverSet&&hoverSet.has(i))) && scale>0.5){
-      ctx.globalAlpha = dim?0.4:0.9; ctx.fillStyle='#F4F1EA'; ctx.font='11px monospace';
+      ctx.globalAlpha = dim?0.4:0.9; ctx.fillStyle='#f4f4f3'; ctx.font="11px 'Chivo Mono','SFMono-Regular',Menlo,monospace";
       ctx.fillText(n.name, p.x+n.r+3, p.y+3);
     }
   }
@@ -266,7 +269,7 @@ addEventListener('mousemove', e=>{
   lastX=e.clientX; lastY=e.clientY;
   const i=pick(e.clientX,e.clientY); hover=i;
   if(i>=0){ const n=N[i]; tip.style.opacity=1; tip.style.left=(e.clientX+12)+'px'; tip.style.top=(e.clientY+12)+'px';
-    tip.innerHTML='<b>'+n.name+'</b> <span style="color:#6E7B80">'+n.kind+' · '+n.file+':'+n.line+'</span>'; }
+    tip.innerHTML='<b>'+n.name+'</b> <span style="color:#999ea3">'+n.kind+' · '+n.file+':'+n.line+'</span>'; }
   else tip.style.opacity=0;
 });
 addEventListener('mouseup', ()=>{ dragging=null; panning=false; });
