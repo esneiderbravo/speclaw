@@ -156,14 +156,14 @@ export function buildLock(opts: {
 /** Integrity severity policy for a project-relative path. */
 export function integrityPolicy(relPath: string): LockOwnership {
   const n = relPath.split("\\").join("/");
-  // `.cursor/rules/` mirrors regenerable `ai-specs/` (gitignored) — lock/CI must
-  // not treat them as strict committed files; scan when present, never pin.
+  // Regenerable IDE mirrors of gitignored `ai-specs/` (`.cursor/rules/`, the
+  // `.claude/rules/speclaw` link) fall through to scan-only: lock/CI must not
+  // treat them as strict committed files; scan when present, never pin.
   if (
     n === "AGENTS.md" ||
     n === "CLAUDE.md" ||
     n.startsWith(".github/instructions/") ||
-    n === ".coderabbit.yaml" ||
-    n === ".claude/rules/speclaw"
+    n === ".coderabbit.yaml"
   ) {
     return "strict";
   }
@@ -173,10 +173,22 @@ export function integrityPolicy(relPath: string): LockOwnership {
   return "scan-only";
 }
 
-/** True when a path is an IDE mirror of regenerable (typically gitignored) content. */
+/**
+ * True when a path is an IDE mirror of regenerable (typically gitignored) content.
+ *
+ * Covers the `.claude/rules/speclaw` symlink as well as mirror files: the link
+ * targets gitignored `ai-specs/rules`, so on a clean clone it is absent (when
+ * the project ignores it) or dangling, and must never be pinned in, or fail
+ * verify against, the lock.
+ *
+ * @param relPath - Project-relative path (file or symlink).
+ * @returns Whether lock/verify should treat the path as regenerable.
+ */
 export function isRegenerableIdeMirror(relPath: string): boolean {
   const n = relPath.split("\\").join("/");
   return (
+    n === ".claude/rules/speclaw" ||
+    n.startsWith(".claude/rules/speclaw/") ||
     n.startsWith(".cursor/rules/") ||
     n.startsWith(".cursor/skills/") ||
     n.startsWith(".cursor/commands/") ||
@@ -304,6 +316,8 @@ export function prepareIntegrityText(relPath: string, raw: string): string {
  * Snapshot digests for discovered files with ownership policy.
  * For `.coderabbit.yaml`, digests only the speclaw delimited block when present.
  * For `docs/compass.md`, digests with the regenerable map body stripped.
+ * Regenerable IDE mirror symlinks ({@link isRegenerableIdeMirror}) are never
+ * pinned, so the lock is identical with or without the local link.
  */
 export function snapshotLockEntries(projectPath: string): {
   files: Record<string, LockFileEntry>;
@@ -319,7 +333,10 @@ export function snapshotLockEntries(projectPath: string): {
     files[rel] = { digest: digestText(raw), ownership };
   }
   const symlinkMap: Record<string, LockSymlinkEntry> = {};
-  for (const s of symlinks) symlinkMap[s.path] = { target: s.target };
+  for (const s of symlinks) {
+    if (isRegenerableIdeMirror(s.path)) continue;
+    symlinkMap[s.path] = { target: s.target };
+  }
   return { files, symlinks: symlinkMap };
 }
 
