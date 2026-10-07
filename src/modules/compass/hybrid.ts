@@ -3,8 +3,10 @@
  * personalized PageRank → structural rerank → token budget.
  */
 
+import path from "node:path";
+import type { DatabaseSync } from "node:sqlite";
 import { openDb, indexExists, ftsAvailable, FILE_NODE_KIND } from "./db.js";
-import { getEmbedder, fromBlob, cosine } from "./embedder.js";
+import { getEmbedder, fromBlob, cosine, tokenize } from "./embedder.js";
 import { isGitRepo, worktreeChangedFiles } from "../../shared/git.js";
 import {
   escapeFtsQuery,
@@ -56,6 +58,32 @@ export interface HybridSearchOpts {
   /** Override route: exact → symbol weights; concept → prose weights. */
   mode?: "exact" | "concept";
   seedLimit?: number;
+  /**
+   * Internal (MCP find): focus already resolved against the index, so the
+   * caller can report the dropped paths. When absent the search resolves it.
+   */
+  resolvedFocus?: ResolvedFocus;
+  /**
+   * Internal (MCP find, exact mode): identifier terms. Their exact names join
+   * the name list, and only symbols named exactly one of them are kept as hits.
+   */
+  exactNames?: string[];
+  /** Internal: filled with counts the MCP formatter reports (never serialised). */
+  report?: HybridReport;
+}
+
+/** Side-channel counts from {@link hybridSearch} for the MCP find formatter. */
+export interface HybridReport {
+  /** Ranked candidates before the token fit cut the list. */
+  ranked: number;
+  /** Vector-list node ids, best first (exact-mode `nearest` fallback). */
+  knnIds: number[];
+}
+
+/** Focus paths kept because the index has them, and the inputs dropped. */
+export interface ResolvedFocus {
+  focus: string[];
+  ignored: string[];
 }
 
 function requireIndex(projectPath: string): void {
@@ -66,16 +94,50 @@ function requireIndex(projectPath: string): void {
   }
 }
 
+/** Repo-relative, slash-separated form of a focus path (absolute paths under the root too). */
+function normaliseFocusPath(projectPath: string, raw: string): string {
+  let p = raw.trim().split("\\").join("/");
+  if (path.isAbsolute(p)) {
+    const rel = path.relative(projectPath, p).split(path.sep).join("/");
+    if (!rel.startsWith("..") && !path.isAbsolute(rel)) p = rel;
+  }
+  while (p.startsWith("./")) p = p.slice(2);
+  return p;
+}
+
 /**
- * Resolve focus paths: explicit list, else worktree changes, else empty.
+ * Resolve the focus set against the index: the explicit list, else the git
+ * working-tree changes, normalised and kept only when present in `files`.
+ * Dropped inputs are reported as given. Non-git with no explicit focus → empty.
  *
+ * @param db - Open index database.
  * @param projectPath - Project root.
  * @param focus - Optional explicit paths.
  */
-export function resolveFocus(projectPath: string, focus?: string[]): string[] {
-  if (focus && focus.length > 0) return [...new Set(focus)];
-  if (!isGitRepo(projectPath)) return [];
-  return worktreeChangedFiles(projectPath);
+// Covers: req~task-relative-ranking~1
+export function resolveSearchFocus(
+  db: DatabaseSync,
+  projectPath: string,
+  focus?: string[],
+): ResolvedFocus {
+  const inputs =
+    focus && focus.length > 0
+      ? focus
+      : isGitRepo(projectPath)
+        ? worktreeChangedFiles(projectPath)
+        : [];
+  const has = db.prepare("SELECT 1 AS ok FROM files WHERE path = ?");
+  const kept: string[] = [];
+  const ignored: string[] = [];
+  for (const raw of inputs) {
+    const p = normaliseFocusPath(projectPath, raw);
+    if (p && has.get(p)) {
+      if (!kept.includes(p)) kept.push(p);
+    } else if (!ignored.includes(raw)) {
+      ignored.push(raw);
+    }
+  }
+  return { focus: kept, ignored };
 }
 
 /**
@@ -93,8 +155,6 @@ export async function hybridSearch(
   requireIndex(projectPath);
   const degraded: string[] = [];
   const q = query.trim();
-  const focus = resolveFocus(projectPath, opts.focus);
-  const focusSet = new Set(focus);
   const mode = opts.mode;
   const route: "symbol" | "prose" =
     mode === "exact"
@@ -111,11 +171,16 @@ export async function hybridSearch(
     weights.name = 0.5;
   }
 
-  const budget = opts.maxTokens ?? defaultBudget(focus.length > 0);
   const seedLimit = opts.seedLimit ?? 50;
+  const exactNames = opts.exactNames ? [...new Set(opts.exactNames)] : null;
   const db = openDb(projectPath);
 
   try {
+    const resolved = opts.resolvedFocus ?? resolveSearchFocus(db, projectPath, opts.focus);
+    const focus = resolved.focus;
+    const focusSet = new Set(focus);
+    const budget = opts.maxTokens ?? defaultBudget(focus.length > 0);
+
     const hasFts = ftsAvailable(db);
     if (!hasFts) degraded.push("fts5-unavailable");
 
@@ -172,6 +237,25 @@ export async function hybridSearch(
 
     const nameIds: number[] = [];
     const nameRank = new Map<number, number>();
+    // Covers: req~find-exact-not-found~1
+    // Exact mode: every symbol named exactly a term joins the name list first,
+    // so the full-text AND of a multi-term query cannot drop one of them.
+    const exactIds = new Set<number>();
+    if (exactNames && exactNames.length > 0) {
+      const rows = db
+        .prepare(
+          `SELECT n.id FROM nodes n
+           WHERE n.name IN (${exactNames.map(() => "?").join(",")})
+             AND n.kind <> '${FILE_NODE_KIND}'
+           ORDER BY n.id`,
+        )
+        .all(...exactNames) as Array<{ id: number }>;
+      for (const r of rows) {
+        exactIds.add(r.id);
+        nameIds.push(r.id);
+        nameRank.set(r.id, nameIds.length);
+      }
+    }
     if (q) {
       const likeRows = db
         .prepare(
@@ -182,10 +266,11 @@ export async function hybridSearch(
            LIMIT 20`,
         )
         .all(`%${q}%`, q) as Array<{ id: number }>;
-      likeRows.forEach((r, i) => {
+      for (const r of likeRows) {
+        if (nameRank.has(r.id)) continue;
         nameIds.push(r.id);
-        nameRank.set(r.id, i + 1);
-      });
+        nameRank.set(r.id, nameIds.length);
+      }
     }
 
     const fused = rrfFuse(
@@ -230,6 +315,10 @@ export async function hybridSearch(
     }
 
     let seeds = [...fused.entries()].sort((a, b) => b[1] - a[1]).slice(0, seedLimit);
+    // An exact-named symbol is always seeded, however crowded the fused list.
+    for (const id of exactIds) {
+      if (!seeds.some(([s]) => s === id)) seeds.push([id, fused.get(id) ?? 0]);
+    }
 
     // Empty / stopword query: top by global pagerank in focus (or global).
     if (!q || seeds.length === 0) {
@@ -422,14 +511,15 @@ export async function hybridSearch(
       })
       .sort((a, b) => b.signals.score - a.signals.score);
 
-    if (focus.length > 0) {
-      const known = new Set(files.map((f) => f.path));
-      if (focus.every((p) => !known.has(p))) {
-        degraded.push("focus-unindexed");
-      }
+    if (focus.length === 0 && resolved.ignored.length > 0) degraded.push("focus-unindexed");
+
+    const kept = exactNames ? ranked.filter((h) => exactNames.includes(h.name)) : ranked;
+    if (opts.report) {
+      opts.report.ranked = kept.length;
+      opts.report.knnIds = [...knnIds];
     }
 
-    const budgetHits: BudgetHit[] = ranked.map((h) => ({
+    const budgetHits: BudgetHit[] = kept.map((h) => ({
       name: h.name,
       kind: h.kind,
       file: h.file,
@@ -437,7 +527,7 @@ export async function hybridSearch(
       signature: h.signature,
     }));
     const fitted = fitToBudget(budgetHits, budget);
-    const finalHits = ranked.slice(0, fitted.hitCount);
+    const finalHits = kept.slice(0, fitted.hitCount);
 
     return {
       rendered: fitted.rendered,
@@ -448,6 +538,98 @@ export async function hybridSearch(
       hits: finalHits,
       degraded,
     };
+  } finally {
+    db.close();
+  }
+}
+
+/** A compact symbol reference: what the MCP find response shows per hit. */
+export interface SymbolRef {
+  name: string;
+  kind: string;
+  file: string;
+  line: number;
+}
+
+/**
+ * Identifier terms of an exact-mode query: split on whitespace, commas, `|`,
+ * and `;`, keep identifier-shaped tokens (dotted names allowed), de-duplicate
+ * in order.
+ *
+ * @param query - Raw query text.
+ */
+// Covers: req~find-exact-not-found~1
+export function exactTerms(query: string): string[] {
+  const out: string[] = [];
+  for (const tok of query.split(/[\s,|;]+/)) {
+    if (/^[A-Za-z_$][\w$.]*$/.test(tok) && !out.includes(tok)) out.push(tok);
+  }
+  return out;
+}
+
+const NEAREST_LIMIT = 5;
+
+/**
+ * Up to five symbols near names that do not exist, de-duplicated by node and
+ * never file-owner nodes: indexed names (≥ 3 chars) contained in a term,
+ * longest first; then case-insensitive equality, then the most shared
+ * camelCase/snake subtokens; vector neighbours last.
+ *
+ * @param projectPath - Indexed project root.
+ * @param terms - The exact-mode terms that matched no symbol.
+ * @param knnIds - Vector-list node ids from the search, best first.
+ */
+// Covers: req~find-exact-not-found~1
+export function nearestSymbols(
+  projectPath: string,
+  terms: string[],
+  knnIds: number[],
+): SymbolRef[] {
+  const db = openDb(projectPath);
+  try {
+    const rows = db
+      .prepare(
+        `SELECT n.id, n.name, n.kind, f.path AS file, n.start_line AS line
+         FROM nodes n JOIN files f ON f.id = n.file_id
+         WHERE n.kind <> '${FILE_NODE_KIND}'
+         ORDER BY n.id`,
+      )
+      .all() as unknown as Array<SymbolRef & { id: number }>;
+    const out: Array<SymbolRef & { id: number }> = [];
+    const seen = new Set<number>();
+    const take = (list: Array<SymbolRef & { id: number }>): void => {
+      for (const r of list) {
+        if (out.length >= NEAREST_LIMIT) return;
+        if (seen.has(r.id)) continue;
+        seen.add(r.id);
+        out.push(r);
+      }
+    };
+
+    take(
+      rows
+        .filter((r) => r.name.length >= 3 && terms.some((t) => t !== r.name && t.includes(r.name)))
+        .sort((a, b) => b.name.length - a.name.length || a.id - b.id),
+    );
+
+    const lowered = terms.map((t) => t.toLowerCase());
+    take(rows.filter((r) => lowered.includes(r.name.toLowerCase())));
+
+    const termTokens = new Set(terms.flatMap((t) => tokenize(t)));
+    if (termTokens.size > 0) {
+      take(
+        rows
+          .map((r) => ({ r, shared: tokenize(r.name).filter((t) => termTokens.has(t)).length }))
+          .filter((x) => x.shared > 0)
+          .sort((a, b) => b.shared - a.shared || a.r.id - b.r.id)
+          .map((x) => x.r),
+      );
+    }
+
+    const byId = new Map(rows.map((r) => [r.id, r]));
+    take(knnIds.map((id) => byId.get(id)).filter((r): r is SymbolRef & { id: number } => !!r));
+
+    return out.map(({ name, kind, file, line }) => ({ name, kind, file, line }));
   } finally {
     db.close();
   }

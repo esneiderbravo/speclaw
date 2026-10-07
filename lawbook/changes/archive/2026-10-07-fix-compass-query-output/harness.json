@@ -1,0 +1,88 @@
+{
+  "version": 1,
+  "change": "fix-compass-query-output",
+  "stage": "done",
+  "level": 3,
+  "iteration": 2,
+  "maxRework": 3,
+  "verdicts": {
+    "review": "PASS",
+    "test": "PASS"
+  },
+  "openQuestions": [],
+  "history": [
+    {
+      "at": "2026-10-07T15:19:41.498Z",
+      "from": "exploring",
+      "to": "exploring",
+      "op": "start"
+    },
+    {
+      "at": "2026-10-07T15:19:43.603Z",
+      "from": "exploring",
+      "to": "planning",
+      "op": "advance"
+    },
+    {
+      "at": "2026-10-07T16:58:34.184Z",
+      "from": "planning",
+      "to": "implementing",
+      "op": "advance"
+    },
+    {
+      "at": "2026-10-07T17:19:59.034Z",
+      "from": "implementing",
+      "to": "reviewing",
+      "op": "advance"
+    },
+    {
+      "at": "2026-10-07T17:25:12.819Z",
+      "from": "reviewing",
+      "to": "implementing",
+      "op": "rework"
+    },
+    {
+      "at": "2026-10-07T17:35:12.008Z",
+      "from": "implementing",
+      "to": "reviewing",
+      "op": "advance"
+    },
+    {
+      "at": "2026-10-07T17:37:45.160Z",
+      "from": "reviewing",
+      "to": "testing",
+      "op": "advance"
+    },
+    {
+      "at": "2026-10-07T17:52:43.209Z",
+      "from": "testing",
+      "to": "implementing",
+      "op": "rework"
+    },
+    {
+      "at": "2026-10-07T17:56:27.738Z",
+      "from": "implementing",
+      "to": "reviewing",
+      "op": "advance"
+    },
+    {
+      "at": "2026-10-07T17:56:27.775Z",
+      "from": "reviewing",
+      "to": "testing",
+      "op": "advance"
+    },
+    {
+      "at": "2026-10-07T17:56:27.812Z",
+      "from": "testing",
+      "to": "archiving",
+      "op": "advance"
+    },
+    {
+      "at": "2026-10-07T17:56:52.715Z",
+      "from": "archiving",
+      "to": "done",
+      "op": "advance",
+      "note": "archived by lawbook archive"
+    }
+  ]
+}

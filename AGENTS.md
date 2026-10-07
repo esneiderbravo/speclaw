@@ -26,9 +26,9 @@ Claude-specific notes: [`CLAUDE.md`](CLAUDE.md). The law: [`LAWS.md`](LAWS.md).
    prefer `compass_affected_tests` / `speclaw affected-tests --from-diff` over
    the full suite. `compass_hotspots` / `speclaw hotspots` ranks activity × AST
    health (default 90 days); `compass_coupling` / `speclaw coupling` reports
-   Jaccard strength, `in_graph`, and `isTestPair`. Schema **9** (`embedding_cache`,
-   Merkle `dir_hashes`, `node_metrics`) — reindex with `speclaw index` after a
-   schema bump (8→9 migrates embeddings). Cheat sheet:
+   Jaccard strength, `in_graph`, and `isTestPair`. Schema **12** (`embedding_cache`,
+   Merkle `dir_hashes`, `node_metrics`, `ref` edges) — reindex with `speclaw index`
+   after a schema bump (11→12 forces a reindex; embeddings reused). Cheat sheet:
    [`docs/compass.md`](docs/compass.md).
 3. **Follow Cortex** (*One brain. Many agents.*) for every non-trivial change;
    archive within the same PR. The primary agent is the **coordinator**
@@ -107,14 +107,14 @@ Claude-specific notes: [`CLAUDE.md`](CLAUDE.md). The law: [`LAWS.md`](LAWS.md).
   `SPECLAW_NO_SELF_UPDATE=1`. The agent MCP entry is pinned to the installed
   version (`npx -y @esneiderbravo/speclaw@<version> mcp`); `update` re-pins a
   stock entry and keeps a custom one. Run `speclaw update` so the pinned MCP
-  entry moves to 2.0.10; an older speclaw opening this index rebuilds it from
-  scratch.
+  entry moves to 2.0.13 (pin every speclaw to 2.0.13); an older speclaw opening
+  this schema-12 index rebuilds it from scratch.
 - Optional `.speclaw/affected.json` overrides affected-test globals/test globs.
   Affected-test `command` may be `null` (with `commandReason`) when no test is
   reachable; `commands[]` lists one `{ cwd, command, files }` per package — never
   run `command` blindly.
-  Compass schema **11** (`node_text` / FTS5 / `pagerank` + embedding cache) — reindex
-  with `speclaw index` (10→11 forces a reindex; embeddings reused); photograph bodies once with
+  Compass schema **12** (`node_text` / FTS5 / `pagerank` + embedding cache + `ref`
+  edges) — reindex with `speclaw index` (11→12 forces a reindex; embeddings reused); photograph bodies once with
   `speclaw drift --reseal` if anchors are new or stale. Hotspots/coupling default
   history window is 90 days.
 - Ceremony 0–3 in `change.json`; `speclaw quick` for level 0; `lawbook_level`
@@ -159,7 +159,7 @@ Claude-specific notes: [`CLAUDE.md`](CLAUDE.md). The law: [`LAWS.md`](LAWS.md).
   `lawbook_change` action `draft`) scaffolds a change. Existing installs show
   the updated hooks as `refreshedDiverged` on `speclaw update`.
 - speclaw **2.0** is the official release: Foundation (hooks + `speclaw.lock`),
-  Compass (schema 11), Lawbook (ceremony 0–3, coverage, drift, bugfix),
+  Compass (schema 12), Lawbook (ceremony 0–3, coverage, drift, bugfix),
   Cortex (multi-agent loop; nine canonical MCP tools including `cortex`),
   Team (`team.owners` → `speclaw owners --write`).
   Install: `npx @esneiderbravo/speclaw@latest init`. CI consumers:

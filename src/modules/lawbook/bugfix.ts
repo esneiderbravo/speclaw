@@ -139,7 +139,11 @@ export function validateBugfixContent(level: number, content: string): string[] 
   return issues;
 }
 
-function bugfixTemplate(name: string, level: number, seed?: Partial<InvestigateResult>): string {
+function bugfixTemplate(
+  name: string,
+  level: number | undefined,
+  seed?: Partial<InvestigateResult>,
+): string {
   const symptom =
     seed?.inputSymptom ??
     "<What you see: error message, wrong value, screenshot reference. Do not interpret yet.>";
@@ -153,7 +157,7 @@ function bugfixTemplate(name: string, level: number, seed?: Partial<InvestigateR
 
   return `# Bugfix: ${name}
 
-**Level:** ${level} · **Type:** bug · **Severity:** normal
+**Level:** ${level ?? "unconfirmed"} · **Type:** bug · **Severity:** normal
 
 ## 1. Observed symptom
 ${symptom}
@@ -179,8 +183,14 @@ ${blast}
 }
 
 /**
- * Scaffold a bug change: `bugfix.md`, `change.json`, and `reports/`.
+ * Scaffold a bug change: `bugfix.md`, `tasks.md` (level ≥ 1 or unconfirmed),
+ * `design.md` (level ≥ 2), `change.json`, and `reports/`.
+ *
+ * A supplied `level` is recorded as the confirmed level. Without one the draft
+ * stays unconfirmed: `change.json` holds the proposal and `changeType` only, so
+ * validate and Cortex treat it as level 3 until a human sets a level.
  */
+// Covers: req~bug-draft-unconfirmed~1
 export function scaffoldBugfix(
   projectPath: string,
   name: string,
@@ -193,13 +203,14 @@ export function scaffoldBugfix(
   const r = scaffoldChange(projectPath, name, {
     changeType: "bug",
     targets: opts.targets,
-    level: (proposal) =>
-      opts.level ?? (proposal.level !== null && proposal.level <= 1 ? proposal.level : 1),
+    level: opts.level,
     reportsReadme: `# Reports — ${name}\n\nBug reports MUST include the regression test **failing before the fix**.\n`,
     artifacts: ({ level }) => {
+      // Unconfirmed: the level-1 set (bugfix.md + tasks.md); design.md only
+      // once a level of 2 or more is confirmed.
       const lvl = level ?? 1;
       const files: Record<string, string> = {
-        "bugfix.md": bugfixTemplate(name, lvl, opts.seed),
+        "bugfix.md": bugfixTemplate(name, level, opts.seed),
       };
       if (lvl >= 1) {
         files["tasks.md"] =

@@ -1,0 +1,797 @@
+# Red evidence — fix-compass-query-output (regression tests against unchanged src/)
+# date: 2026-10-07T17:05:41Z · branch: fix/compass-query-output · HEAD: 5854270
+# git status src/: 0 modified files (src/ untouched)
+
+## npm run build (unchanged src) — exit 0
+
+## npx tsc -p tsconfig.test.json — exit 2 (expected: new opt-in text()/applyTextBudget budget argument does not exist yet; JS still emitted)
+test/unit/output-budget.test.ts(49,37): error TS2345: Argument of type '{ maxTokens: number; }' is not assignable to parameter of type '"brief" | "full" | undefined'.
+test/unit/output-budget.test.ts(53,41): error TS2345: Argument of type '{ maxTokens: number; }' is not assignable to parameter of type '"brief" | "full" | undefined'.
+test/unit/output-budget.test.ts(66,29): error TS2345: Argument of type '{ maxTokens: number; }' is not assignable to parameter of type '"brief" | "full" | undefined'.
+
+## node --test --test-concurrency=1 <10 affected test files> — exit 1
+## files: test/unit/output-budget, test/contract/compass-find-output, test/contract/registers, test/integration/retrieval, test/integration/compass, test/integration/db, test/unit/bugfix, test/unit/harness, test/integration/cortex-questions-cli, test/unit/levels
+
+✖ compass_find response fits maxTokens and stays valid JSON (114.868583ms)
+✖ compass_find without maxTokens fits the brief ceiling (52.603625ms)
+✖ compass_find reports truncated only when it trimmed (55.054375ms)
+✖ compass_search alias uses the same compact shape (52.464958ms)
+✔ canonical MCP tools match the consolidated surface (2.72225ms)
+✔ tool input schemas validate required fields (1.959458ms)
+✔ foundation handlers wrap their results as MCP text (1.264625ms)
+✔ lawbook handlers run the workflow end to end through the transport (34.528291ms)
+✔ lawbook_change accepts action draft without adding a tool (4.683375ms)
+✔ compass handlers wrap their results as MCP text (170.146ms)
+✔ deprecated alias delegates to canonical surface (40.70175ms)
+✖ compass_explore mode full is not cut at the brief ceiling (29.641541ms)
+✖ compass_diff_context mode full is not cut at the brief ceiling (112.687416ms)
+✔ buildIndex parses a multi-language repo into nodes, edges, and embeddings (52.866666ms)
+✔ search finds a node by name substring (18.696417ms)
+✔ explore returns source, callees, and callers for an exact node (16.909333ms)
+✔ explore falls back to fuzzy matches when no exact node exists (15.111417ms)
+✔ explore returns exact source after multibyte text (13.675958ms)
+✔ explore resolves a repo-relative path or unique basename to a file symbol (35.19225ms)
+✔ recall ranks nodes by semantic similarity (13.323208ms)
+✔ impact walks callers transitively (13.364542ms)
+✔ trace finds a call path, handles identity, and reports no route (15.208625ms)
+✔ query functions throw when no index has been built (0.7505ms)
+✔ visualize writes an HTML graph, with and without a focus node (15.316125ms)
+✔ graphData throws without an index (0.431334ms)
+✔ buildIndex is incremental — unchanged files are skipped, removed files pruned (18.070542ms)
+✔ callees list only resolved symbols and count the unresolved (11.73625ms)
+✔ member calls on non-project receivers do not bind by name (11.872708ms)
+✔ a function called only from a test callback lists that caller (13.671209ms)
+✔ file-owner nodes are hidden from find and name explore (71.957083ms)
+✔ path explore of a declaration-less file resolves to its file-owner node (15.223875ms)
+✖ explore lists type references as callers via ref (11.092625ms)
+✖ ref edges change neither impact nor affected tests (23.069083ms)
+✔ cortex advance records each repeated --question as one open question (230.974459ms)
+✖ advance --pause-questions from implementing exits non-zero (144.914625ms)
+✔ openDb creates the index, applies the schema, and stamps the version (8.380542ms)
+✔ openDb reopens an up-to-date database without dropping data (9.906792ms)
+✔ openDb rebuilds a database stamped with an incompatible schema version (19.628834ms)
+✔ schema 10 migrates to 11 and forces a reindex keeping embeddings (11.464125ms)
+✔ a schema-11 index without edges.spec gains it in place keeping embeddings (20.083917ms)
+✔ a failed 10 to 11 migration rolls back and keeps schema 10 (20.8365ms)
+✔ reindex after migration recomputes no unchanged embedding (57.50175ms)
+✔ schema 9 migrates through 10 to 11 via openDb keeping embeddings (20.617666ms)
+✖ schema 11 migrates to 12 and keeps embeddings (15.909708ms)
+✖ failed 11 to 12 migration rolls back (25.839917ms)
+✖ schema 10 migrates through 11 to 12 keeping embeddings (25.833917ms)
+✖ reindex after the 12 migration adds ref edges without re-embedding (18.300833ms)
+✔ hybrid MRR@10 beats or matches LIKE baseline on golden fixture (878.327084ms)
+✖ worktree focus excludes unindexed files (115.34975ms)
+✖ explicit unindexed focus falls back to no-focus defaults (25.099166ms)
+✖ exact find for a missing name reports not found with nearest (26.556875ms)
+✖ multi-term exact query ORs identifiers (25.478584ms)
+✔ artifactNeeds bug level 1 skips proposal and deltas (0.445292ms)
+✔ scaffoldBugfix creates bugfix.md not proposal (4.905334ms)
+✔ validateBugfixContent rejects missing reproduction (0.374791ms)
+✔ preventionRequiresDelta detects missing requirement language (0.152542ms)
+✔ inferBugResolution mitigated for unreproducible (0.101708ms)
+✔ specValidate accepts bug level 1 with bugfix + tasks + report (3.533833ms)
+✔ parseBugfixSections extracts seven sections (0.089625ms)
+✖ bug draft without a level is not self-confirmed (2.866084ms)
+✔ a bug draft with a supplied level is confirmed (2.53475ms)
+✔ harness start/status/advance and rejects illegal jumps (6.413291ms)
+✔ harness rework increments iteration and caps at maxRework (3.26075ms)
+✔ level 0 skips planning and review on advance (2.448166ms)
+✔ harnessArchiveBlockers require verdicts and stage (2.351334ms)
+✔ briefForStage maps stages to roles (0.086792ms)
+✔ archive completes the harness and status reads the archived change (4.198833ms)
+✔ the archive result reports harnessCompleted and brief reads the archived change (3.361375ms)
+✔ mutating ops on an archived change are rejected without writing (3.417125ms)
+✔ the newest exact archive wins when resolving a change (1.831291ms)
+✔ completeHarnessOnArchive leaves a missing or done harness untouched (4.25775ms)
+✔ a failed directory move restores the harness bytes (2.752791ms)
+✔ the shipped skill and archiver agent do not advance after archive (0.290542ms)
+✖ pauseForQuestions outside planning is rejected (2.46375ms)
+✖ advance follows the level confirmed after start (2.582125ms)
+✖ an unconfirmed level never skips planning (2.071208ms)
+✔ score/level table covers ≥20 combinations (0.970834ms)
+✔ levelFromScore respects cuts (0.070958ms)
+✔ artifactNeeds matrix (0.086291ms)
+✔ setCeremonyLevel rejects silent downgrade (3.065791ms)
+✔ promote scaffolds artifacts and keeps record.md (3.473542ms)
+✔ scoreSignals onlyDocs short-circuits (0.070959ms)
+✖ empty targets propose no level (43.298667ms)
+✖ set and promote without targets keep the stored proposal (61.256791ms)
+✖ set without targets and without a stored proposal stores the no-targets proposal (16.55025ms)
+✔ estimateTokens is deterministic and monotonic (0.489125ms)
+✔ applyTextBudget truncates over-budget text (0.113292ms)
+✔ budgetExploreShape preserves caller totals when truncating (0.152458ms)
+✖ full-mode truncation hint does not suggest mode full (0.382167ms)
+✖ an explicit token cap trims to that cap with a truthful hint (4.3035ms)
+✔ text() keeps its brief default and accepts an opt-in budget (0.138417ms)
+ℹ tests 91
+ℹ suites 0
+ℹ pass 65
+ℹ fail 26
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3877.157666
+
+✖ failing tests:
+
+test at dist-test/test/contract/compass-find-output.test.js:32:1
+✖ compass_find response fits maxTokens and stays valid JSON (114.868583ms)
+  AssertionError [ERR_ASSERTION]: maxTokens 2000: ,
+        "signature": "function handleRequest10(input: string, retries: number): string {",
+        "signals": {
+  … [truncated — use mode:"full" or narrow includes]
+      at TestContext.<anonymous> (file:///Users/esneiderbravo/Projects/speclaw/dist-test/test/contract/compass-find-output.test.js:43:16)
+      at async Test.run (node:internal/test_runner/test:1313:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:385:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at dist-test/test/contract/compass-find-output.test.js:57:1
+✖ compass_find without maxTokens fits the brief ceiling (52.603625ms)
+  SyntaxError: Unexpected token '…', ..."ignals": 
+  … [truncat"... is not valid JSON
+      at JSON.parse (<anonymous>)
+      at TestContext.<anonymous> (file:///Users/esneiderbravo/Projects/speclaw/dist-test/test/contract/compass-find-output.test.js:66:23)
+      at async Test.run (node:internal/test_runner/test:1313:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:897:7)
+
+test at dist-test/test/contract/compass-find-output.test.js:71:1
+✖ compass_find reports truncated only when it trimmed (55.054375ms)
+  SyntaxError: Bad control character in string literal in JSON at position 5948 (line 45 column 11)
+      at JSON.parse (<anonymous>)
+      at TestContext.<anonymous> (file:///Users/esneiderbravo/Projects/speclaw/dist-test/test/contract/compass-find-output.test.js:80:26)
+      at async Test.run (node:internal/test_runner/test:1313:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:897:7)
+
+test at dist-test/test/contract/compass-find-output.test.js:95:1
+✖ compass_search alias uses the same compact shape (52.464958ms)
+  SyntaxError: Bad control character in string literal in JSON at position 5948 (line 45 column 77)
+      at JSON.parse (<anonymous>)
+      at TestContext.<anonymous> (file:///Users/esneiderbravo/Projects/speclaw/dist-test/test/contract/compass-find-output.test.js:99:26)
+      at async Test.run (node:internal/test_runner/test:1313:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:897:7)
+
+test at dist-test/test/contract/registers.test.js:136:1
+✖ compass_explore mode full is not cut at the brief ceiling (29.641541ms)
+  AssertionError [ERR_ASSERTION]: 1500
+      at TestContext.<anonymous> (file:///Users/esneiderbravo/Projects/speclaw/dist-test/test/contract/registers.test.js:149:12)
+      at async Test.run (node:internal/test_runner/test:1313:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:897:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at dist-test/test/contract/registers.test.js:155:1
+✖ compass_diff_context mode full is not cut at the brief ceiling (112.687416ms)
+  AssertionError [ERR_ASSERTION]: 1500
+      at TestContext.<anonymous> (file:///Users/esneiderbravo/Projects/speclaw/dist-test/test/contract/registers.test.js:168:12)
+      at async Test.run (node:internal/test_runner/test:1313:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:897:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at dist-test/test/integration/compass.test.js:389:1
+✖ explore lists type references as callers via ref (11.092625ms)
+  AssertionError [ERR_ASSERTION]: []
+  
+  undefined !== 'ref'
+  
+      at TestContext.<anonymous> (file:///Users/esneiderbravo/Projects/speclaw/dist-test/test/integration/compass.test.js:396:12)
+      at async Test.run (node:internal/test_runner/test:1313:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:897:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 'ref',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at dist-test/test/integration/compass.test.js:421:1
+✖ ref edges change neither impact nor affected tests (23.069083ms)
+  AssertionError [ERR_ASSERTION]: the fixture produced ref edges
+      at TestContext.<anonymous> (file:///Users/esneiderbravo/Projects/speclaw/dist-test/test/integration/compass.test.js:438:12)
+      at async Test.run (node:internal/test_runner/test:1313:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:897:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at dist-test/test/integration/cortex-questions-cli.test.js:37:1
+✖ advance --pause-questions from implementing exits non-zero (144.914625ms)
+  AssertionError [ERR_ASSERTION]: cortex advance --change demo: {
+    "version": 1,
+    "change": "demo",
+    "stage": "reviewing",
+    "level": 2,
+    "iteration": 0,
+    "maxRework": 3,
+    "verdicts": {
+      "review": null,
+      "test": null
+    },
+    "openQuestions": [],
+    "history": [
+      {
+        "at": "2026-10-07T17:05:24.633Z",
+        "from": "exploring",
+        "to": "exploring",
+        "op": "start"
+      },
+      {
+        "at": "2026-10-07T17:05:24.669Z",
+        "from": "exploring",
+        "to": "planning",
+        "op": "advance"
+      },
+      {
+        "at": "2026-10-07T17:05:24.703Z",
+        "from": "planning",
+        "to": "implementing",
+        "op": "advance"
+      },
+      {
+        "at": "2026-10-07T17:05:24.740Z",
+        "from": "implementing",
+        "to": "reviewing",
+        "op": "advance"
+      }
+    ]
+  }
+  
+      at TestContext.<anonymous> (file:///Users/esneiderbravo/Projects/speclaw/dist-test/test/integration/cortex-questions-cli.test.js:49:16)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1306:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:897:18)
+      at Test.postRun (node:internal/test_runner/test:1447:19)
+      at Test.run (node:internal/test_runner/test:1372:12)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:385:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 0,
+    expected: 0,
+    operator: 'notStrictEqual',
+    diff: 'simple'
+  }
+
+test at dist-test/test/integration/db.test.js:190:1
+✖ schema 11 migrates to 12 and keeps embeddings (15.909708ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  '11' !== '12'
+  
+      at TestContext.<anonymous> (file:///Users/esneiderbravo/Projects/speclaw/dist-test/test/integration/db.test.js:197:12)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1306:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:897:18)
+      at Test.postRun (node:internal/test_runner/test:1447:19)
+      at Test.run (node:internal/test_runner/test:1372:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:897:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: '11',
+    expected: '12',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at dist-test/test/integration/db.test.js:203:1
+✖ failed 11 to 12 migration rolls back (25.839917ms)
+  AssertionError [ERR_ASSERTION]: Missing expected exception.
+      at TestContext.<anonymous> (file:///Users/esneiderbravo/Projects/speclaw/dist-test/test/integration/db.test.js:211:12)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1306:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:897:18)
+      at Test.postRun (node:internal/test_runner/test:1447:19)
+      at Test.run (node:internal/test_runner/test:1372:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:897:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: /11→12/,
+    operator: 'throws',
+    diff: 'simple'
+  }
+
+test at dist-test/test/integration/db.test.js:219:1
+✖ schema 10 migrates through 11 to 12 keeping embeddings (25.833917ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  '11' !== '12'
+  
+      at TestContext.<anonymous> (file:///Users/esneiderbravo/Projects/speclaw/dist-test/test/integration/db.test.js:226:12)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1306:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:897:18)
+      at Test.postRun (node:internal/test_runner/test:1447:19)
+      at Test.run (node:internal/test_runner/test:1372:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:897:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: '11',
+    expected: '12',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at dist-test/test/integration/db.test.js:232:1
+✖ reindex after the 12 migration adds ref edges without re-embedding (18.300833ms)
+  AssertionError [ERR_ASSERTION]: every file is re-extracted
+  
+  0 !== 2
+  
+      at TestContext.<anonymous> (file:///Users/esneiderbravo/Projects/speclaw/dist-test/test/integration/db.test.js:245:12)
+      at async Test.run (node:internal/test_runner/test:1313:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:897:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 0,
+    expected: 2,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at dist-test/test/integration/retrieval.test.js:74:1
+✖ worktree focus excludes unindexed files (115.34975ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    [
+  +   'notes.md',
+      'src/a.ts'
+    ]
+  
+      at TestContext.<anonymous> (file:///Users/esneiderbravo/Projects/speclaw/dist-test/test/integration/retrieval.test.js:86:12)
+      at async Test.run (node:internal/test_runner/test:1313:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:897:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [ 'notes.md', 'src/a.ts' ],
+    expected: [ 'src/a.ts' ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at dist-test/test/integration/retrieval.test.js:90:1
+✖ explicit unindexed focus falls back to no-focus defaults (25.099166ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+  + [
+  +   'notes.md'
+  + ]
+  - []
+  
+      at TestContext.<anonymous> (file:///Users/esneiderbravo/Projects/speclaw/dist-test/test/integration/retrieval.test.js:97:12)
+      at async Test.run (node:internal/test_runner/test:1313:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:897:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [ 'notes.md' ],
+    expected: [],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at dist-test/test/integration/retrieval.test.js:116:1
+✖ exact find for a missing name reports not found with nearest (26.556875ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + undefined
+  - false
+  
+      at TestContext.<anonymous> (file:///Users/esneiderbravo/Projects/speclaw/dist-test/test/integration/retrieval.test.js:120:12)
+      at async Test.run (node:internal/test_runner/test:1313:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:897:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: false,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at dist-test/test/integration/retrieval.test.js:134:1
+✖ multi-term exact query ORs identifiers (25.478584ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+  + undefined
+  - [
+  -   'alpha',
+  -   'beta'
+  - ]
+  
+      at TestContext.<anonymous> (file:///Users/esneiderbravo/Projects/speclaw/dist-test/test/integration/retrieval.test.js:138:12)
+      at async Test.run (node:internal/test_runner/test:1313:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:897:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: [ 'alpha', 'beta' ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at dist-test/test/unit/bugfix.test.js:76:1
+✖ bug draft without a level is not self-confirmed (2.866084ms)
+  AssertionError [ERR_ASSERTION]: change.json carries confirmedLevel
+  
+  true !== false
+  
+      at TestContext.<anonymous> (file:///Users/esneiderbravo/Projects/speclaw/dist-test/test/unit/bugfix.test.js:83:16)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1306:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:897:18)
+      at Test.postRun (node:internal/test_runner/test:1447:19)
+      at Test.run (node:internal/test_runner/test:1372:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:897:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: true,
+    expected: false,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at dist-test/test/unit/harness.test.js:259:1
+✖ pauseForQuestions outside planning is rejected (2.46375ms)
+  AssertionError [ERR_ASSERTION]: Missing expected exception.
+      at TestContext.<anonymous> (file:///Users/esneiderbravo/Projects/speclaw/dist-test/test/unit/harness.test.js:272:12)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1306:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:897:18)
+      at Test.postRun (node:internal/test_runner/test:1447:19)
+      at Test.run (node:internal/test_runner/test:1372:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:897:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: /planning[\s\S]*exploring|exploring[\s\S]*planning/,
+    operator: 'throws',
+    diff: 'simple'
+  }
+
+test at dist-test/test/unit/harness.test.js:282:1
+✖ advance follows the level confirmed after start (2.582125ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + 'implementing'
+  - 'planning'
+  
+      at TestContext.<anonymous> (file:///Users/esneiderbravo/Projects/speclaw/dist-test/test/unit/harness.test.js:289:12)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1306:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:897:18)
+      at Test.postRun (node:internal/test_runner/test:1447:19)
+      at Test.run (node:internal/test_runner/test:1372:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:897:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'implementing',
+    expected: 'planning',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at dist-test/test/unit/harness.test.js:294:1
+✖ an unconfirmed level never skips planning (2.071208ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + 'implementing'
+  - 'planning'
+  
+      at TestContext.<anonymous> (file:///Users/esneiderbravo/Projects/speclaw/dist-test/test/unit/harness.test.js:301:12)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1306:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:897:18)
+      at Test.postRun (node:internal/test_runner/test:1447:19)
+      at Test.run (node:internal/test_runner/test:1372:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:897:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'implementing',
+    expected: 'planning',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at dist-test/test/unit/levels.test.js:187:1
+✖ empty targets propose no level (43.298667ms)
+  AssertionError [ERR_ASSERTION]: {"filesTouched":0,"modulesTouched":0,"blastRadiusNodes":0,"affectedTests":0,"touchesPublicApi":false,"maxHotspotScore":0,"touchesGlobalFile":false,"onlyDocs":false,"degraded":[]}
+      at TestContext.<anonymous> (file:///Users/esneiderbravo/Projects/speclaw/dist-test/test/unit/levels.test.js:191:12)
+      at async Test.run (node:internal/test_runner/test:1313:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:897:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at dist-test/test/unit/levels.test.js:198:1
+✖ set and promote without targets keep the stored proposal (61.256791ms)
+  AssertionError [ERR_ASSERTION]: set kept level
+  
+  0 !== 1
+  
+      at TestContext.<anonymous> (file:///Users/esneiderbravo/Projects/speclaw/dist-test/test/unit/levels.test.js:208:16)
+      at async Test.run (node:internal/test_runner/test:1313:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:897:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 0,
+    expected: 1,
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at dist-test/test/unit/levels.test.js:220:1
+✖ set without targets and without a stored proposal stores the no-targets proposal (16.55025ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  0 !== null
+  
+      at TestContext.<anonymous> (file:///Users/esneiderbravo/Projects/speclaw/dist-test/test/unit/levels.test.js:225:12)
+      at async Test.run (node:internal/test_runner/test:1313:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:897:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 0,
+    expected: null,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at dist-test/test/unit/output-budget.test.js:28:1
+✖ full-mode truncation hint does not suggest mode full (0.382167ms)
+  AssertionError [ERR_ASSERTION]: yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy
+  … [truncated — use mode:"full" or narrow includes]
+      at TestContext.<anonymous> (file:///Users/esneiderbravo/Projects/speclaw/dist-test/test/unit/output-budget.test.js:33:12)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1306:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:897:18)
+      at Test.postRun (node:internal/test_runner/test:1447:19)
+      at Test.run (node:internal/test_runner/test:1372:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:897:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at dist-test/test/unit/output-budget.test.js:37:1
+✖ an explicit token cap trims to that cap with a truthful hint (4.3035ms)
+  AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:
+  
+    assert.ok(!out.text.includes('mode:"full"'))
+  
+      at TestContext.<anonymous> (file:///Users/esneiderbravo/Projects/speclaw/dist-test/test/unit/output-budget.test.js:42:12)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1306:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:897:18)
+      at Test.postRun (node:internal/test_runner/test:1447:19)
+      at Test.run (node:internal/test_runner/test:1372:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:897:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+
+## rework 1 / F1 — red before fix (2026-10-07T17:26Z)
+
+$ npx tsc -p tsconfig.test.json && node scripts/prep-test-assets.mjs && node --test dist-test/test/contract/compass-find-output.test.js
+src/modules/compass/find-output.ts unchanged since review (focus/focusIgnored/terms unbounded).
+
+✔ compass_find response fits maxTokens and stays valid JSON (116.312958ms)
+✔ compass_find without maxTokens fits the brief ceiling (56.023292ms)
+✔ compass_find reports truncated only when it trimmed (62.975291ms)
+✔ compass_search alias uses the same compact shape (59.133458ms)
+✖ compass_find fits a 256-token cap over a worktree with many changes (186.59225ms)
+✖ compass_find fits a 256-token cap with a long exact-mode query (44.847208ms)
+ℹ tests 6
+ℹ suites 0
+ℹ pass 4
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 613.395167
+
+✖ failing tests:
+
+test at dist-test/test/contract/compass-find-output.test.js:146:1
+✖ compass_find fits a 256-token cap over a worktree with many changes (186.59225ms)
+  AssertionError [ERR_ASSERTION]: e-20/request-handler.ts","src/features/billing-module-21/request-handler.ts","src/features/billing-module-22/reques
+  … [truncated — narrow includes or the query]
+      at assertFits (file:///Users/esneiderbravo/Projects/speclaw/dist-test/test/contract/compass-find-output.test.js:138:12)
+      at TestContext.<anonymous> (file:///Users/esneiderbravo/Projects/speclaw/dist-test/test/contract/compass-find-output.test.js:156:18)
+      at async Test.run (node:internal/test_runner/test:1313:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:897:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at dist-test/test/contract/compass-find-output.test.js:162:1
+✖ compass_find fits a 256-token cap with a long exact-mode query (44.847208ms)
+  AssertionError [ERR_ASSERTION]: mber29","missingIdentifierNumber30","missingIdentifierNumber31","missingIdentifierNumber32","missingIdentifierNumbe
+  … [truncated — narrow includes or the query]
+      at assertFits (file:///Users/esneiderbravo/Projects/speclaw/dist-test/test/contract/compass-find-output.test.js:138:12)
+      at TestContext.<anonymous> (file:///Users/esneiderbravo/Projects/speclaw/dist-test/test/contract/compass-find-output.test.js:173:18)
+      at async Test.run (node:internal/test_runner/test:1313:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:897:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+## rework 1 / F1 — green after fix
+
+✔ compass_find response fits maxTokens and stays valid JSON (108.6345ms)
+✔ compass_find without maxTokens fits the brief ceiling (50.81625ms)
+✔ compass_find reports truncated only when it trimmed (70.478458ms)
+✔ compass_search alias uses the same compact shape (61.15275ms)
+✔ compass_find fits a 256-token cap over a worktree with many changes (184.052542ms)
+✔ compass_find fits a 256-token cap with a long exact-mode query (45.037042ms)
+✔ a response under the cap is emitted whole with exact tokens (1.433084ms)
+✔ a capped search result is reported truncated even when it fits (0.115ms)
+✔ lowest-ranked hits go first, then the last rendered block is shortened (0.277167ms)
+✔ nearest entries are dropped from the end when still over the cap (0.172333ms)
+✔ the alias prefix counts toward the cap and tokens (0.107083ms)
+ℹ tests 11
+ℹ suites 0
+ℹ pass 11
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 603.173625
+
+## rework 2 / T2 — red before fix (output-budget.ts unchanged)
+✔ estimateTokens is deterministic and monotonic (0.410583ms)
+✔ applyTextBudget truncates over-budget text (0.100292ms)
+✔ budgetExploreShape preserves caller totals when truncating (0.129542ms)
+✔ full-mode truncation hint does not suggest mode full (0.11725ms)
+✔ an explicit token cap trims to that cap with a truthful hint (0.0855ms)
+✔ text() keeps its brief default and accepts an opt-in budget (0.088834ms)
+✖ budgetExploreShape keeps a 172-line source whole in full mode and never hints mode:full there (1.544541ms)
+ℹ tests 7
+ℹ suites 0
+ℹ pass 6
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 49.263
+
+✖ failing tests:
+
+test at dist-test/test/unit/output-budget.test.js:59:1
+✖ budgetExploreShape keeps a 172-line source whole in full mode and never hints mode:full there (1.544541ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  ... Skipped lines
+  
+    'line 0\n' +
+      'line 1\n' +
+      'line 2\n' +
+      'line 3\n' +
+      'line 4\n' +
+  ...
+      'line 119\n' +
+  +   '…'
+  -   'line 120\n' +
+  -   'line 121\n' +
+  -   'line 122\n' +
+  -   'line 123\n' +
+  -   'line 124\n' +
+  -   'line 125\n' +
+  -   'line 126\n' +
+  -   'line 127\n' +
+  -   'line 128\n' +
+  -   'line 129\n' +
+  -   'line 130\n' +
+  -   'line 131\n' +
+  -   'line 132\n' +
+  -   'line 133\n' +
+  -   'line 134\n' +
+  -   'line 135\n' +
+  -   'line 136\n' +
+  -   'line 137\n' +
+  -   'line 138\n' +
+  -   'line 139\n' +
+  -   'line 140\n' +
+  -   'line 141\n' +
+  -   'line 142\n' +
+  -   'line 143\n' +
+  -   'line 144\n' +
+  -   'line 145\n' +
+  -   'line 146\n' +
+  -   'line 147\n' +
+  -   'line 148\n' +
+  -   'line 149\n' +
+  -   'line 150\n' +
+  -   'line 151\n' +
+  -   'line 152\n' +
+  -   'line 153\n' +
+  -   'line 154\n' +
+  -   'line 155\n' +
+  -   'line 156\n' +
+  -   'line 157\n' +
+  -   'line 158\n' +
+  -   'line 159\n' +
+  -   'line 160\n' +
+  -   'line 161\n' +
+  -   'line 162\n' +
+  -   'line 163\n' +
+  -   'line 164\n' +
+  -   'line 165\n' +
+  -   'line 166\n' +
+  -   'line 167\n' +
+  -   'line 168\n' +
+  -   'line 169\n' +
+  -   'line 170\n' +
+  -   'line 171'
+  
+      at TestContext.<anonymous> (file:///Users/esneiderbravo/Projects/speclaw/dist-test/test/unit/output-budget.test.js:64:12)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1306:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:897:18)
+      at Test.postRun (node:internal/test_runner/test:1447:19)
+      at Test.run (node:internal/test_runner/test:1372:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:897:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'line 0\nline 1\nline 2\nline 3\nline 4\nline 5\nline 6\nline 7\nline 8\nline 9\nline 10\nline 11\nline 12\nline 13\nline 14\nline 15\nline 16\nline 17\nline 18\nline 19\nline 20\nline 21\nline 22\nline 23\nline 24\nline 25\nline 26\nline 27\nline 28\nline 29\nline 30\nline 31\nline 32\nline 33\nline 34\nline 35\nline 36\nline 37\nline 38\nline 39\nline 40\nline 41\nline 42\nline 43\nline 44\nline 45\nline 46\nline 47\nline 48\nline 49\nline 50\nline 51\nline 52\nline 53\nline 54\nline 55\nline 56\nline 57\nline 58\nline 59\nline 60\nline 61\nline 62\nline 63\nline 64\nline 65\nline 66\nline 67\nline 68\nline 69\nline 70\nline 71\nline 72\nline 73\nline 74\nline 75\nline 76\nline 77\nline 78\nline 79\nline 80\nline 81\nline 82\nline 83\nline 84\nline 85\nline 86\nline 87\nline 88\nline 89\nline 90\nline 91\nline 92\nline 93\nline 94\nline 95\nline 96\nline 97\nline 98\nline 99\nline 100\nline 101\nline 102\nline 103\nline 104\nline 105\nline 106\nline 107\nline 108\nline 109\nline 110\nline 111\nline 112\nline 113\nline 114\nline 115\nline 116\nline 117\nline 118\nline 119\n…',
+    expected: 'line 0\nline 1\nline 2\nline 3\nline 4\nline 5\nline 6\nline 7\nline 8\nline 9\nline 10\nline 11\nline 12\nline 13\nline 14\nline 15\nline 16\nline 17\nline 18\nline 19\nline 20\nline 21\nline 22\nline 23\nline 24\nline 25\nline 26\nline 27\nline 28\nline 29\nline 30\nline 31\nline 32\nline 33\nline 34\nline 35\nline 36\nline 37\nline 38\nline 39\nline 40\nline 41\nline 42\nline 43\nline 44\nline 45\nline 46\nline 47\nline 48\nline 49\nline 50\nline 51\nline 52\nline 53\nline 54\nline 55\nline 56\nline 57\nline 58\nline 59\nline 60\nline 61\nline 62\nline 63\nline 64\nline 65\nline 66\nline 67\nline 68\nline 69\nline 70\nline 71\nline 72\nline 73\nline 74\nline 75\nline 76\nline 77\nline 78\nline 79\nline 80\nline 81\nline 82\nline 83\nline 84\nline 85\nline 86\nline 87\nline 88\nline 89\nline 90\nline 91\nline 92\nline 93\nline 94\nline 95\nline 96\nline 97\nline 98\nline 99\nline 100\nline 101\nline 102\nline 103\nline 104\nline 105\nline 106\nline 107\nline 108\nline 109\nline 110\nline 111\nline 112\nline 113\nline 114\nline 115\nline 116\nline 117\nline 118\nline 119\nline 120\nline 121\nline 122\nline 123\nline 124\nline 125\nline 126\nline 127\nline 128\nline 129\nline 130\nline 131\nline 132\nline 133\nline 134\nline 135\nline 136\nline 137\nline 138\nline 139\nline 140\nline 141\nline 142\nline 143\nline 144\nline 145\nline 146\nline 147\nline 148\nline 149\nline 150\nline 151\nline 152\nline 153\nline 154\nline 155\nline 156\nline 157\nline 158\nline 159\nline 160\nline 161\nline 162\nline 163\nline 164\nline 165\nline 166\nline 167\nline 168\nline 169\nline 170\nline 171',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+## rework 2 / T2 — green after fix
+✔ estimateTokens is deterministic and monotonic (0.41625ms)
+✔ applyTextBudget truncates over-budget text (0.099875ms)
+✔ budgetExploreShape preserves caller totals when truncating (0.133792ms)
+✔ full-mode truncation hint does not suggest mode full (0.118541ms)
+✔ an explicit token cap trims to that cap with a truthful hint (0.082875ms)
+✔ text() keeps its brief default and accepts an opt-in budget (0.089042ms)
+✔ budgetExploreShape keeps a 172-line source whole in full mode and never hints mode:full there (0.203875ms)
+ℹ pass 7
+ℹ fail 0
+
+manual: compass_explore handleHarness mode:full → 172/172 source lines, no truncation entry, no [truncated suffix

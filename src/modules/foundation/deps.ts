@@ -1,5 +1,5 @@
 import type { DatabaseSync } from "node:sqlite";
-import { DepsRule, Law } from "./laws.js";
+import { DEFAULT_EDGE_KINDS, DepsRule, Law } from "./laws.js";
 import type { Finding } from "./verify-model.js";
 import { underPaths } from "./verify-model.js";
 
@@ -30,8 +30,10 @@ function applyGroups(pattern: string, match: RegExpMatchArray): string {
 
 /** The `IN (?, ?)` clause and params for an optional edge-kind filter. */
 function edgeKindClause(edgeKinds: string[] | undefined): { sql: string; params: string[] } {
-  if (!edgeKinds || edgeKinds.length === 0) return { sql: "", params: [] };
-  return { sql: ` AND e.kind IN (${edgeKinds.map(() => "?").join(", ")})`, params: edgeKinds };
+  // Type-reference (`ref`) edges feed explore callers only; a law without
+  // explicit kinds keeps reading calls and imports, as before refs existed.
+  const kinds = edgeKinds && edgeKinds.length > 0 ? edgeKinds : DEFAULT_EDGE_KINDS;
+  return { sql: ` AND e.kind IN (${kinds.map(() => "?").join(", ")})`, params: [...kinds] };
 }
 
 /** Load resolved file→file edges (earliest line per pair) from the index. */

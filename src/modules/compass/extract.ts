@@ -32,11 +32,15 @@ export interface ExtractedSymbol {
   branches: number;
 }
 
-/** A call or import reference found within a source file. */
+/** A call, import, or type reference found within a source file. */
 export interface ExtractedRef {
-  /** Callee name for a call; for an import, the whole statement (whitespace collapsed, ≤1024 chars). */
+  /**
+   * Callee name for a call; the referenced type name for a `ref`; for an
+   * import, the whole statement (whitespace collapsed, ≤1024 chars).
+   */
   name: string;
-  kind: "call" | "import";
+  /** `ref`: a TS/JS type annotation or `extends`/`implements` clause naming a type. */
+  kind: "call" | "import" | "ref";
   line: number;
   /** Enclosing symbol index, or null for file scope (owned by the file-owner node). */
   ownerIndex: number | null;
@@ -129,6 +133,181 @@ function calleeName(node: Node, lang: LangConfig): string | null {
 
 /** Python receivers that mean "this class/instance". */
 const PY_SELF = new Set(["self", "cls"]);
+
+/**
+ * Type names that never become a `ref` edge: TypeScript lib and utility types
+ * and JS built-in constructors (predefined types like `string` are separate
+ * tree-sitter nodes and never reach here; they are listed for safety).
+ */
+const BUILTIN_TYPES = new Set([
+  "string",
+  "number",
+  "boolean",
+  "bigint",
+  "symbol",
+  "object",
+  "any",
+  "unknown",
+  "never",
+  "void",
+  "undefined",
+  "null",
+  "Array",
+  "ReadonlyArray",
+  "ArrayLike",
+  "Promise",
+  "PromiseLike",
+  "Awaited",
+  "Record",
+  "Partial",
+  "Required",
+  "Readonly",
+  "Pick",
+  "Omit",
+  "Exclude",
+  "Extract",
+  "NonNullable",
+  "ReturnType",
+  "Parameters",
+  "ConstructorParameters",
+  "InstanceType",
+  "ThisType",
+  "ThisParameterType",
+  "OmitThisParameter",
+  "Uppercase",
+  "Lowercase",
+  "Capitalize",
+  "Uncapitalize",
+  "Map",
+  "Set",
+  "WeakMap",
+  "WeakSet",
+  "WeakRef",
+  "ReadonlyMap",
+  "ReadonlySet",
+  "Date",
+  "RegExp",
+  "Error",
+  "TypeError",
+  "RangeError",
+  "Function",
+  "Object",
+  "String",
+  "Number",
+  "Boolean",
+  "Symbol",
+  "BigInt",
+  "Iterable",
+  "Iterator",
+  "IterableIterator",
+  "AsyncIterable",
+  "AsyncIterator",
+  "AsyncIterableIterator",
+  "Generator",
+  "AsyncGenerator",
+  "PropertyKey",
+  "JSON",
+  "Math",
+  "ArrayBuffer",
+  "SharedArrayBuffer",
+  "DataView",
+  "Int8Array",
+  "Uint8Array",
+  "Uint8ClampedArray",
+  "Int16Array",
+  "Uint16Array",
+  "Int32Array",
+  "Uint32Array",
+  "Float32Array",
+  "Float64Array",
+  "BigInt64Array",
+  "BigUint64Array",
+  "TemplateStringsArray",
+]);
+
+/** AST nodes whose subtree names types: annotations and heritage clauses. */
+const TYPE_REF_NODES = new Set([
+  "type_annotation",
+  "extends_type_clause",
+  "implements_clause",
+  "extends_clause",
+]);
+
+/** A type named in an annotation or heritage clause; `qualifier` is `ns` of `ns.Type`. */
+interface TypeName {
+  name: string;
+  line: number;
+  /** Start byte of the name, to test it against type-parameter scopes. */
+  pos: number;
+  /** null: a bare name; an identifier: an `ns.Type` qualifier; "": a longer chain. */
+  qualifier: string | null;
+}
+
+/** `Type` of a qualified `ns.Type` / `a.b.Type` node, with its qualifier. */
+function qualifiedTypeName(node: Node, nameType: string): TypeName | null {
+  let name: Node | null = null;
+  let module: Node | null = null;
+  for (let i = 0; i < node.childCount; i++) {
+    const c = node.child(i);
+    if (!c) continue;
+    if (c.type === nameType) name = c;
+    else if (module === null && c.type !== ".") module = c;
+  }
+  if (!name) return null;
+  return {
+    name: name.text,
+    line: name.startPosition.row + 1,
+    pos: name.startIndex,
+    qualifier: module?.type === "identifier" ? module.text : "",
+  };
+}
+
+/** Collect every type named inside a type subtree (generic arguments included). */
+function typeNamesIn(node: Node, out: TypeName[]): void {
+  if (node.type === "type_identifier") {
+    out.push({
+      name: node.text,
+      line: node.startPosition.row + 1,
+      pos: node.startIndex,
+      qualifier: null,
+    });
+    return;
+  }
+  if (node.type === "nested_type_identifier") {
+    const q = qualifiedTypeName(node, "type_identifier");
+    if (q) out.push(q);
+    return;
+  }
+  for (let i = 0; i < node.childCount; i++) {
+    const c = node.child(i);
+    if (c) typeNamesIn(c, out);
+  }
+}
+
+/**
+ * Types a heritage or annotation node names. A class `extends` value is an
+ * expression (`Base`, `ns.Base`), not a type node, so it is read directly.
+ */
+function typeRefsOf(node: Node): TypeName[] {
+  const out: TypeName[] = [];
+  if (node.type !== "extends_clause" && node.type !== "class_heritage") {
+    typeNamesIn(node, out);
+    return out;
+  }
+  for (let i = 0; i < node.childCount; i++) {
+    const c = node.child(i);
+    if (!c) continue;
+    if (c.type === "identifier") {
+      out.push({ name: c.text, line: c.startPosition.row + 1, pos: c.startIndex, qualifier: null });
+    } else if (c.type === "member_expression") {
+      const q = qualifiedTypeName(c, "property_identifier");
+      if (q) out.push(q);
+    } else if (c.type === "type_arguments") {
+      typeNamesIn(c, out);
+    }
+  }
+  return out;
+}
 
 /**
  * The receiver of a member call (`recv.f()`), or null for a plain call.
@@ -451,6 +630,12 @@ export async function extract(source: string, lang: LangConfig): Promise<Extract
   // binding's import (matched by `spec`) resolved to a project file.
   const identReceivers: Array<{ ref: ExtractedRef; receiver: string }> = [];
   const bareCalls: ExtractedRef[] = [];
+  // Type references: one per (owner, name); qualified ones are classified like
+  // member calls once the import bindings are known. A bare name inside the
+  // declaration that introduces a same-named type parameter (`<Props>`) is that
+  // parameter and is dropped; the same name elsewhere in the file is kept.
+  const typeNames: Array<{ t: TypeName; ownerIndex: number | null }> = [];
+  const typeParamScopes: Array<{ name: string; start: number; end: number }> = [];
   const bindings = new Set<string>();
   // JS/TS import binding → its import's module specifier.
   const bindingSpecs = new Map<string, string>();
@@ -518,6 +703,24 @@ export async function extract(source: string, lang: LangConfig): Promise<Extract
         member: 0,
         spec,
       });
+    } else if (
+      lang.id !== "python" &&
+      (TYPE_REF_NODES.has(node.type) ||
+        (lang.id === "javascript" && node.type === "class_heritage"))
+    ) {
+      // Covers: req~type-ref-edges~1
+      for (const t of typeRefsOf(node)) {
+        if (t.qualifier === null && BUILTIN_TYPES.has(t.name)) continue;
+        typeNames.push({ t, ownerIndex });
+      }
+    } else if (node.type === "type_parameter") {
+      // Scope: the declaration owning the `<…>` list (function, method, arrow,
+      // class, interface, type alias, function type), never the whole file.
+      const name = node.child(0);
+      const scope = node.parent?.parent ?? node.parent;
+      if (name?.type === "type_identifier" && scope) {
+        typeParamScopes.push({ name: name.text, start: scope.startIndex, end: scope.endIndex });
+      }
     } else if (COMMENT_TYPES.has(node.type)) {
       rawCoverage.push(...parseCoverageComment(node, ownerIndex));
     } else if (node.type === "export_statement" && lang.id !== "python") {
@@ -539,5 +742,30 @@ export async function extract(source: string, lang: LangConfig): Promise<Extract
     ref.spec = spec;
   }
   for (const ref of bareCalls) ref.spec = bindingSpecs.get(ref.name) ?? null;
+  // A bare type name carries its import binding's spec (resolved like a bare
+  // call); `ns.Type` on an import binding is a member ref (2), else foreign (1).
+  // Scoped type parameters are filtered before de-duplication, so a dropped
+  // parameter never hides a real reference of the same owner.
+  const typeRefKeys = new Set<string>();
+  for (const { t, ownerIndex } of typeNames) {
+    if (
+      t.qualifier === null &&
+      typeParamScopes.some((p) => p.name === t.name && p.start <= t.pos && t.pos < p.end)
+    ) {
+      continue;
+    }
+    const key = `${ownerIndex ?? "file"}:${t.name}`;
+    if (typeRefKeys.has(key)) continue;
+    typeRefKeys.add(key);
+    let member: ExtractedRef["member"] = 0;
+    let spec: string | null;
+    if (t.qualifier === null) {
+      spec = bindingSpecs.get(t.name) ?? null;
+    } else {
+      spec = t.qualifier ? (bindingSpecs.get(t.qualifier) ?? null) : null;
+      member = spec !== null ? 2 : 1;
+    }
+    refs.push({ name: t.name, kind: "ref", line: t.line, ownerIndex, member, spec });
+  }
   return { symbols, refs, coverage: attachCoverage(rawCoverage, symbols), reexports };
 }

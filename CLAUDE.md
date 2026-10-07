@@ -39,10 +39,10 @@ and callees, `compass_impact` (grouped by module; `format: flat` for the old lis
 `compass_hotspots` / `speclaw hotspots` (activity × AST health, default 90d)
 and `compass_coupling` / `speclaw coupling` (Jaccard strength, `in_graph`,
 `isTestPair`). Run `compass_index` first if the graph is missing (Claude Code
-sessions refresh an existing index at start via a `SessionStart` hook). Schema **11**
-stores FTS5/`node_text`/`pagerank` plus `embedding_cache`, Merkle `dir_hashes`, and
-`node_metrics` — reindex with `speclaw index` after a schema bump (10→11 forces a
-reindex; embeddings reused). Each Write/Edit is re-indexed right after the edit;
+sessions refresh an existing index at start via a `SessionStart` hook). Schema **12**
+stores FTS5/`node_text`/`pagerank` plus `embedding_cache`, Merkle `dir_hashes`,
+`node_metrics`, and type-reference (`ref`) edges — reindex with `speclaw index` after a
+schema bump (11→12 forces a reindex; embeddings reused). Each Write/Edit is re-indexed right after the edit;
 PageRank and the compact map in `docs/compass.md` catch up on the next full run;
 files created or renamed by shell commands and edits by agents without hooks are
 picked up at the next session start or `compass_index`.
@@ -123,14 +123,14 @@ Planner clarifying questions always go to the human via the coordinator.
   `SPECLAW_NO_SELF_UPDATE=1`. The agent MCP entry is pinned to the installed
   version (`npx -y @esneiderbravo/speclaw@<version> mcp`); `update` re-pins a
   stock entry and keeps a custom one. Run `speclaw update` so the pinned MCP
-  entry moves to 2.0.10; an older speclaw opening this index rebuilds it from
-  scratch.
+  entry moves to 2.0.13 (pin every speclaw to 2.0.13); an older speclaw opening
+  this schema-12 index rebuilds it from scratch.
 - Optional `.speclaw/affected.json` overrides affected-test globals/test globs.
   Affected-test `command` may be `null` (with `commandReason`) when no test is
   reachable; `commands[]` lists one `{ cwd, command, files }` per package — never
   run `command` blindly.
-  After a Compass schema bump (now **11**, FTS5 + pagerank + embedding cache), reindex
-  with `speclaw index` (10→11 forces a reindex; embeddings reused); photograph bodies once with
+  After a Compass schema bump (now **12**, FTS5 + pagerank + embedding cache + `ref`
+  edges), reindex with `speclaw index` (11→12 forces a reindex; embeddings reused); photograph bodies once with
   `speclaw drift --reseal` if anchors are new or stale. Hotspots/coupling
   default history window is 90 days.
 - Ceremony levels 0–3 live in `change.json`. `speclaw quick` scaffolds level 0;
@@ -174,7 +174,7 @@ Planner clarifying questions always go to the human via the coordinator.
 - `speclaw lawbook draft <name> [--level N] [--capability C]` (or
   `lawbook_change` action `draft`) scaffolds a change. Existing installs show
   the updated hooks as `refreshedDiverged` on `speclaw update`.
-- speclaw **2.0**: Foundation (hooks + lock), Compass (schema 11), Lawbook
+- speclaw **2.0**: Foundation (hooks + lock), Compass (schema 12), Lawbook
   (ceremony 0–3), Cortex (multi-agent loop; nine canonical MCP tools), Team
   (`owners --write`). Install: `npx @esneiderbravo/speclaw@latest init`. CI:
   `esneiderbravo/speclaw@v2`.

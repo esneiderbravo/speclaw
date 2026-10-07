@@ -39,8 +39,12 @@ export interface ExploreResult {
   callees?: Array<{ name: string; file?: string; line: number }>;
   /** References that resolved to nothing (builtins, member calls, packages). */
   unresolvedCallees?: UnresolvedCallees;
-  /** Callers; references outside any definition appear as `kind: "file"` named by path. */
-  callers?: Array<{ name: string; kind: string; file: string; line: number }>;
+  /**
+   * Callers; references outside any definition appear as `kind: "file"` named
+   * by path. With `includeRefs`, one entry per caller node carrying `via`
+   * (`call` when that node both calls and type-references the symbol).
+   */
+  callers?: Array<{ name: string; kind: string; file: string; line: number; via?: "call" | "ref" }>;
   otherMatches?: SearchHit[];
   message?: string;
 }
@@ -255,6 +259,39 @@ function pickPrimary(symbols: SymbolRow[]): SymbolRow {
   return symbols.find((s) => s.kind === "function") ?? symbols[0]!;
 }
 
+type CallerEntry = NonNullable<ExploreResult["callers"]>[number];
+
+/** Rows de-duplicated on every field (the call-only caller list, as before refs). */
+function uniqueRows(rows: CallerEntry[]): CallerEntry[] {
+  const seen = new Set<string>();
+  return rows.filter((r) => {
+    const key = `${r.name}\0${r.kind}\0${r.file}\0${r.line}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+/**
+ * One caller entry per owner node with `via`: `call` (at its first call line)
+ * when the node calls the symbol, else `ref` (at its first reference line).
+ */
+// Covers: req~type-ref-edges~1
+function callersWithVia(
+  rows: Array<CallerEntry & { id: number; via: "call" | "ref" }>,
+): CallerEntry[] {
+  const byNode = new Map<number, CallerEntry & { via: "call" | "ref" }>();
+  for (const r of rows) {
+    const prev = byNode.get(r.id);
+    if (!prev || (prev.via === "ref" && r.via === "call")) {
+      byNode.set(r.id, { name: r.name, kind: r.kind, file: r.file, line: r.line, via: r.via });
+    }
+  }
+  return [...byNode.values()].sort((a, b) =>
+    a.file === b.file ? a.line - b.line : a.file < b.file ? -1 : 1,
+  );
+}
+
 /**
  * Source, callers, and callees for one definition. `others` are the
  * `otherMatches` (same-name siblings, or the rest of a file).
@@ -264,6 +301,7 @@ function assembleExplore(
   projectPath: string,
   best: SymbolRow,
   others: SymbolRow[],
+  includeRefs = false,
 ): ExploreResult {
   // Covers: req~compass-mcp-surface~1
   // Resolved callees only, one row per target node at its first call line, so
@@ -294,26 +332,34 @@ function assembleExplore(
   // builtin global name (`test`, `fetch`) matches by name only within the
   // definition's own file. A caller outside any definition is its file-owner
   // node (`kind: "file"`).
-  const callers = db
+  // A `ref` edge (type reference) counts only through its resolved id, never by name.
+  const kinds = includeRefs ? "e.kind IN ('call', 'ref')" : "e.kind = 'call'";
+  const rows = db
     .prepare(
-      `SELECT DISTINCT owner.name AS name, owner.kind AS kind, f.path AS file, e.line
+      `SELECT DISTINCT owner.id AS id, owner.name AS name, owner.kind AS kind, f.path AS file,
+              e.line, e.kind AS via
        FROM edges e
        JOIN nodes owner ON owner.id = e.src_node_id
        JOIN files f ON f.id = owner.file_id
-       WHERE (e.dst_node_id = ? OR (
-               e.dst_name = ? AND e.is_member = 0
+       WHERE ${kinds}
+         AND (e.dst_node_id = ? OR (
+               e.kind = 'call' AND e.dst_name = ? AND e.is_member = 0
                AND (e.dst_name NOT IN (${BUILTIN_SQL_LIST})
                     OR e.src_file_id = (SELECT file_id FROM nodes WHERE id = ?))
              ))
-         AND e.kind = 'call'
        ORDER BY f.path, e.line`,
     )
     .all(best.id, best.name, best.id) as Array<{
+    id: number;
     name: string;
     kind: string;
     file: string;
     line: number;
+    via: "call" | "ref";
   }>;
+  const callers = includeRefs
+    ? callersWithVia(rows)
+    : uniqueRows(rows.map(({ name, kind, file, line }) => ({ name, kind, file, line })));
 
   return {
     found: true,
@@ -352,7 +398,12 @@ function assembleExplore(
  * file one); a file with no node at all reports that it has no symbols. A non-unique suffix falls through to {@link search}, which also
  * matches `files.path`.
  */
-function exploreWhenNameMisses(db: CompassDb, projectPath: string, query: string): ExploreResult {
+function exploreWhenNameMisses(
+  db: CompassDb,
+  projectPath: string,
+  query: string,
+  includeRefs: boolean,
+): ExploreResult {
   // Covers: req~explore-file-path~2
   const resolved = resolveIndexedFile(db, projectPath, query);
   if (resolved.status === "one") {
@@ -360,7 +411,7 @@ function exploreWhenNameMisses(db: CompassDb, projectPath: string, query: string
     const owner = symbols.length === 0 ? fileSymbols(db, resolved.file, true)[0] : undefined;
     if (owner) {
       return {
-        ...assembleExplore(db, projectPath, owner, []),
+        ...assembleExplore(db, projectPath, owner, [], includeRefs),
         message: `Path "${resolved.file}" declares no symbols; resolved to its file-owner node.`,
       };
     }
@@ -378,6 +429,7 @@ function exploreWhenNameMisses(db: CompassDb, projectPath: string, query: string
       projectPath,
       primary,
       symbols.filter((s) => s.id !== primary.id),
+      includeRefs,
     );
     return {
       ...result,
@@ -412,10 +464,18 @@ function exploreWhenNameMisses(db: CompassDb, projectPath: string, query: string
  *
  * @param projectPath - Absolute path to the indexed project.
  * @param query - Exact node name, or a file path when no symbol has that name.
+ * @param opts - `includeRefs` (default false) also lists type-reference
+ *   (`ref`) callers and tags every caller with `via`; the MCP and CLI explore
+ *   opt in, investigation and ceremony signals keep the call-only list.
  * @returns The explore result; `found` is `false` when no single symbol is selected.
  * @throws If no index exists for the project.
  */
-export function explore(projectPath: string, query: string): ExploreResult {
+export function explore(
+  projectPath: string,
+  query: string,
+  opts: { includeRefs?: boolean } = {},
+): ExploreResult {
+  const includeRefs = opts.includeRefs ?? false;
   requireIndex(projectPath);
   const db = openDb(projectPath);
   try {
@@ -430,8 +490,8 @@ export function explore(projectPath: string, query: string): ExploreResult {
       )
       .all(query) as unknown as SymbolRow[];
 
-    if (matches.length === 0) return exploreWhenNameMisses(db, projectPath, query);
-    return assembleExplore(db, projectPath, matches[0]!, matches.slice(1));
+    if (matches.length === 0) return exploreWhenNameMisses(db, projectPath, query, includeRefs);
+    return assembleExplore(db, projectPath, matches[0]!, matches.slice(1), includeRefs);
   } finally {
     db.close();
   }

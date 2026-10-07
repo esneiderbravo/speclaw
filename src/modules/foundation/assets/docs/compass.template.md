@@ -30,7 +30,7 @@ a request, not whole files.
 | Tool | Use it to |
 |------|-----------|
 | `compass_index` | Build/refresh the graph (`.speclaw/index.db`). Incremental — unchanged files are skipped by hash. Run once after init and after significant edits. |
-| `compass_find` | Find code: `mode: exact` by name/keyword, `mode: concept` by meaning in natural language. |
+| `compass_find` | Find code: `mode: exact` by exact name (one or more identifiers; a missing name returns `found: false` and up to five `nearest` names), `mode: concept` by meaning in natural language. Returns compact hits (`name`, `kind`, `file`, `line`) in one JSON document that fits `maxTokens` (default 1500); `truncated: true` only when it trimmed. |
 | `compass_explore` | Read a node's verbatim source plus its callers and callees. The default before editing. Add `include: ["blast_radius"]` for what could break, or `to: <symbol>` for the call path between two nodes. |
 | `compass_diff_context` | Symbols, blast radius, and tests for a diff (working tree or a rev). |
 
@@ -46,9 +46,16 @@ project method, so they do not appear as callers. Calls through an imported
 re-export barrel (`index.ts` holding `export * from "./lib/core"`) bind by
 name, preferring a definition under the barrel's directory.
 
-Compass uses index schema 11. speclaw 2.0.9 or older, including an MCP entry
-pinned at `@2.0.9`, rebuilds a schema-11 index from scratch (losing the
-embedding cache). Run `speclaw update` so the pinned MCP entry moves to 2.0.10.
+Explore callers carry `via`: `call` for calls, `ref` for type references
+(annotations and `extends`/`implements` clauses that resolve through the file's
+own import or a same-file definition). Type references never change blast
+radius, affected tests, or ranking. `compass_find` keeps only indexed files in
+`focus` and lists the others in `focusIgnored`.
+
+Compass uses index schema 12 (11→12 forces one reindex; embeddings reused).
+speclaw 2.0.12 or older, including an MCP entry pinned at `@2.0.12`, rebuilds a
+schema-12 index from scratch (losing the embedding cache). Pin every speclaw to
+2.0.13: run `speclaw update` so the pinned MCP entry moves to 2.0.13.
 
 `compass_index` also takes `action: start|stop|status` to keep the index fresh
 automatically (a debounced incremental re-index on file change).

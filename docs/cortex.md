@@ -38,6 +38,22 @@ Lawbook owns **specs, ceremony, coverage, and drift**. Cortex owns the
 
 Max **3** review/test → implement reworks; then the coordinator asks the human.
 
+**The level is re-read on every move.** `advance` and `rework` read
+`confirmedLevel` from `change.json` before routing and store it as the harness
+`level`, so a `lawbook_change` action `level` set after `start` governs the
+next step. A missing `change.json` or a `change.json` without `confirmedLevel`
+counts as level 3, so an unconfirmed change never skips `planning`. A bug
+draft (`speclaw lawbook draft --bug <name>`) without `--level` starts
+unconfirmed: its `bugfix.md` says `Level: unconfirmed` and validate holds it to
+level-3 bug rules until a human sets a level.
+
+**Questions pause only from `planning`.** `advance` with `pauseForQuestions`
+(CLI `--pause-questions --question …`) moves `planning` to `questions` and
+records the questions. From any other stage it is rejected with
+`pauseForQuestions is only valid from stage planning (current: <stage>)`,
+`harness.json` stays byte-identical, and the CLI exits 1 — nothing advances
+and no question is dropped.
+
 **Archive completes the harness.** `lawbook_archive` / `speclaw lawbook archive`
 moves the harness from `archiving` to `done` (one `history[]` entry) just before
 it moves the change to `lawbook/changes/archive/<date>-<name>/`, restores the old

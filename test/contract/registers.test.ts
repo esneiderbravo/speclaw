@@ -9,6 +9,7 @@ import { registerCortex } from "../../src/modules/cortex/register.js";
 import { registerSpec } from "../../src/modules/lawbook/register.js";
 import { registerTools } from "../../src/modules/tools/register.js";
 import { CANONICAL_TOOLS } from "../../src/shared/tool-catalog.js";
+import { estimateTokens, OUTPUT_BUDGET } from "../../src/shared/output-budget.js";
 
 function captureCanonical(
   register: (server: import("@modelcontextprotocol/sdk/server/mcp.js").McpServer) => void,
@@ -193,4 +194,56 @@ test("deprecated alias delegates to canonical surface", async (t) => {
   const res = await tools.get("compass_search")!.handler({ projectPath: root, query: "alpha" });
   assert.ok(isTextResult(res));
   assert.match((res as { content: { text: string }[] }).content[0]!.text, /\[deprecated\]/);
+});
+
+/** A ~110-line function whose source renders between the brief and full ceilings. */
+function seedBigFunction(root: string): void {
+  const body = Array.from(
+    { length: 110 },
+    (_, i) => `  const v${i} = "${"x".repeat(56)}" + String(${i});`,
+  ).join("\n");
+  write(root, "src/big.ts", `export function bigOne(): number {\n${body}\n  return 1;\n}\n`);
+}
+
+// Covers: req~find-response-budget~1
+test("compass_explore mode full is not cut at the brief ceiling", async (t) => {
+  const root = tmpRepo(t);
+  seedBigFunction(root);
+  const tools = captureCanonical(registerCompass);
+  await tools.get("compass_index")!.handler({ projectPath: root });
+  const res = await tools.get("compass_explore")!.handler({
+    projectPath: root,
+    node: "bigOne",
+    include: ["source"],
+    mode: "full",
+  });
+  assert.ok(isTextResult(res));
+  const out = res.content[0]!.text;
+  assert.ok(estimateTokens(out) > OUTPUT_BUDGET.brief, String(estimateTokens(out)));
+  assert.ok(estimateTokens(out) <= OUTPUT_BUDGET.full);
+  assert.ok(!out.includes("[truncated"), out.slice(-160));
+  assert.doesNotThrow(() => JSON.parse(out));
+});
+
+// Covers: req~find-response-budget~1
+test("compass_diff_context mode full is not cut at the brief ceiling", async (t) => {
+  const root = tmpRepo(t);
+  const fns = Array.from(
+    { length: 70 },
+    (_, i) => `export function changedSymbolNumber${i}(): number {\n  return ${i};\n}\n`,
+  ).join("");
+  write(root, "src/many.ts", fns);
+  const tools = captureCanonical(registerCompass);
+  await tools.get("compass_index")!.handler({ projectPath: root });
+  const res = await tools.get("compass_diff_context")!.handler({
+    projectPath: root,
+    paths: ["src/many.ts"],
+    mode: "full",
+  });
+  assert.ok(isTextResult(res));
+  const out = res.content[0]!.text;
+  assert.ok(estimateTokens(out) > OUTPUT_BUDGET.brief, String(estimateTokens(out)));
+  assert.ok(!out.includes("[truncated"), out.slice(-160));
+  const body = JSON.parse(out) as { changedSymbols: unknown[] };
+  assert.equal(body.changedSymbols.length, 70);
 });

@@ -329,6 +329,33 @@ const MIGRATIONS: Migration[] = [
       "up at the next session start or `compass_index`.\n" +
       "- Preserve all project-specific wording; only apply these speclaw-authored changes.",
   },
+  {
+    version: "2.0.13",
+    describe:
+      "Compass schema 12 — type-reference callers, compact compass_find, unconfirmed bug drafts",
+    agentPrompt:
+      "- Compass is now **schema 12**: the first `speclaw index` after upgrading migrates " +
+      "11→12 and re-extracts every file once (embeddings are reused). Where the project " +
+      'mentions "Schema **11**" or "Compass (schema 11)", change it to schema 12 ' +
+      "(11→12 forces a reindex; embeddings reused).\n" +
+      "- speclaw 2.0.12 or older (including an MCP entry pinned at `@2.0.12` or a stale " +
+      "global CLI) treats a schema-12 index as incompatible and rebuilds it from scratch. " +
+      "Pin every speclaw the project uses (global CLI, `npx`, CI, and the MCP entry) to " +
+      "2.0.13: run `speclaw update` so the pinned MCP entry moves to 2.0.13.\n" +
+      "- `compass_find` now returns one compact JSON document capped as a whole at " +
+      "`maxTokens` (default 1500): hits carry only `name`, `kind`, `file`, `line`; exact mode " +
+      "adds `found`, `terms`, and `nearest` when no symbol has the name; `focusIgnored` lists " +
+      "focus paths that are not indexed; `truncated: true` appears only when it trimmed. " +
+      "`speclaw search --json` keeps its shape. If the project's docs describe the find " +
+      "response fields, update them.\n" +
+      "- `compass_explore` and `speclaw explore` list type references (`ref` edges: " +
+      "annotations, `extends`/`implements`) among callers; every caller carries " +
+      '`via: "call" | "ref"`. Blast radius, affected tests, and ranking are unchanged.\n' +
+      "- Cortex: `pauseForQuestions` is accepted only from stage `planning` (an error " +
+      "elsewhere); `advance`/`rework` re-read the confirmed level; `speclaw lawbook draft " +
+      "--bug` without `--level` leaves the level unconfirmed (validate uses 3).\n" +
+      "- Preserve all project-specific wording; only apply these speclaw-authored changes.",
+  },
 ];
 
 /**

@@ -11,11 +11,14 @@ import {
   setCeremonyLevel,
   promoteCeremonyLevel,
   confirmedLevel,
+  gatherSignals,
   type CeremonySignals,
 } from "../../src/modules/lawbook/levels.js";
+import { buildIndex } from "../../src/modules/compass/indexer.js";
 import { tmpRepo, write } from "../helpers/env.js";
 import { specInit } from "../../src/modules/lawbook/engine.js";
-import { scaffoldQuick } from "../../src/modules/lawbook/quick.js";
+import { scaffoldQuick, handleLevel } from "../../src/modules/lawbook/quick.js";
+import { scaffoldBugfix } from "../../src/modules/lawbook/bugfix.js";
 
 function sig(partial: Partial<CeremonySignals>): CeremonySignals {
   return {
@@ -190,4 +193,107 @@ test("promote scaffolds artifacts and keeps record.md", (t) => {
 
 test("scoreSignals onlyDocs short-circuits", () => {
   assert.equal(scoreSignals(sig({ filesTouched: 99, onlyDocs: true })), 0);
+});
+
+/** An indexed project with three source files and an initialised lawbook. */
+async function seedIndexed(root: string): Promise<string[]> {
+  specInit(root);
+  const paths = ["src/a.ts", "src/b.ts", "src/c.ts"];
+  write(root, paths[0]!, "export function a(): number { return 1; }\n");
+  write(
+    root,
+    paths[1]!,
+    'import { a } from "./a.js";\nexport function b(): number { return a(); }\n',
+  );
+  write(
+    root,
+    paths[2]!,
+    'import { b } from "./b.js";\nexport function c(): number { return b(); }\n',
+  );
+  await buildIndex(root);
+  return paths;
+}
+
+type StoredRecord = {
+  level: number | null;
+  score: number;
+  signals: CeremonySignals;
+  rationale: string;
+  degraded: string[];
+  confirmedLevel: number;
+  promotions: Array<{ from: number; to: number }>;
+};
+
+function stored(root: string, change: string): StoredRecord {
+  return JSON.parse(
+    fs.readFileSync(path.join(root, "lawbook/changes", change, "change.json"), "utf8"),
+  ) as StoredRecord;
+}
+
+// Covers: req~level-proposal-preserved~1
+test("empty targets propose no level", async (t) => {
+  const root = tmpRepo(t);
+  await seedIndexed(root);
+  const signals = gatherSignals(root, { paths: [], symbols: [] });
+  assert.ok(signals.degraded.includes("no-targets" as never), JSON.stringify(signals));
+  const { proposal } = handleLevel({ projectPath: root, mode: "propose" }) as {
+    proposal: { level: number | null; score: number; degraded: string[] };
+  };
+  assert.equal(proposal.level, null);
+  assert.equal(proposal.score, 0);
+  assert.ok(proposal.degraded.includes("no-targets"));
+});
+
+// Covers: req~level-proposal-preserved~1
+test("set and promote without targets keep the stored proposal", async (t) => {
+  const root = tmpRepo(t);
+  const paths = await seedIndexed(root);
+  handleLevel({ projectPath: root, mode: "set", change: "c", paths, level: 1, reason: "test" });
+  const measured = stored(root, "c");
+  assert.equal(measured.signals.filesTouched, 3);
+
+  handleLevel({ projectPath: root, mode: "set", change: "c", level: 2 });
+  const afterSet = stored(root, "c");
+  assert.equal(afterSet.confirmedLevel, 2);
+  for (const k of ["level", "score", "signals", "rationale", "degraded"] as const) {
+    assert.deepEqual(afterSet[k], measured[k], `set kept ${k}`);
+  }
+
+  handleLevel({ projectPath: root, mode: "promote", change: "c", level: 3 });
+  const afterPromote = stored(root, "c");
+  assert.equal(afterPromote.confirmedLevel, 3);
+  assert.deepEqual(afterPromote.signals, measured.signals);
+  assert.equal(afterPromote.score, measured.score);
+  assert.deepEqual(
+    afterPromote.promotions.map((p) => [p.from, p.to]),
+    [[2, 3]],
+  );
+
+  handleLevel({ projectPath: root, mode: "set", change: "c", paths: [paths[0]!], level: 3 });
+  assert.equal(stored(root, "c").signals.filesTouched, 1, "targets replace the stored proposal");
+});
+
+// Covers: req~level-proposal-preserved~1
+test("set without targets and without a stored proposal stores the no-targets proposal", async (t) => {
+  const root = tmpRepo(t);
+  await seedIndexed(root);
+  handleLevel({ projectPath: root, mode: "set", change: "fresh", level: 1 });
+  const rec = stored(root, "fresh");
+  assert.equal(rec.level, null);
+  assert.ok(rec.degraded.includes("no-targets"));
+  assert.equal(rec.confirmedLevel, 1);
+});
+
+// Covers: req~level-proposal-preserved~1
+test("promote on a change with no confirmed level is rejected with use mode set", (t) => {
+  const root = tmpRepo(t);
+  specInit(root);
+  scaffoldBugfix(root, "unconfirmed");
+  const file = path.join(root, "lawbook/changes/unconfirmed/change.json");
+  const before = fs.readFileSync(file, "utf8");
+  assert.throws(
+    () => handleLevel({ projectPath: root, mode: "promote", change: "unconfirmed", level: 3 }),
+    /no confirmed level to promote — use mode 'set'/,
+  );
+  assert.equal(fs.readFileSync(file, "utf8"), before, "change.json is untouched");
 });

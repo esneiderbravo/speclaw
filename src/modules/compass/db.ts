@@ -275,7 +275,7 @@ export function probeFts5Support(): boolean {
 }
 
 /** Schema version stamped into the `meta` table on first creation. */
-export const SCHEMA_VERSION = "11";
+export const SCHEMA_VERSION = "12";
 
 /**
  * `nodes.kind` of the synthetic per-file owner node. It owns the references that
@@ -297,7 +297,7 @@ function readSchemaVersion(db: DatabaseSync): string | null {
 
 /**
  * Decide whether an existing database is from an incompatible schema and must be
- * rebuilt. Schema 8→9, 9→10, and 10→11 are handled by migrators instead of a wipe.
+ * rebuilt. Schema 8→9, 9→10, 10→11, and 11→12 are handled by migrators instead of a wipe.
  */
 function isStale(db: DatabaseSync): boolean {
   const hasEdges = db
@@ -305,8 +305,7 @@ function isStale(db: DatabaseSync): boolean {
     .get();
   if (!hasEdges) return false;
   const ver = readSchemaVersion(db);
-  if (ver === "8" || ver === "9" || ver === "10") return false; // migrate in openDb
-  if (ver === "11" && !hasEdgeSpec(db)) return false; // pre-release 11: migrate in openDb
+  if (ver === "8" || ver === "9" || ver === "10" || ver === "11") return false; // migrate in openDb
   if (ver !== SCHEMA_VERSION) return true;
   const edgeCols = (db.prepare("PRAGMA table_info(edges)").all() as { name: string }[]).map(
     (c) => c.name,
@@ -564,12 +563,62 @@ export function migrate10to11(db: DatabaseSync): void {
   }
 }
 
+/** Reason recorded with the needs-reindex marker by the 11→12 migration. */
+export const SCHEMA_12_REINDEX_REASON =
+  "schema 12 adds type-reference (ref) edges for explore callers; reindex required";
+
+/**
+ * Migrate schema 11 → 12: set the needs-reindex marker (its reason names
+ * schema 12, after any reason an earlier step of the same chain recorded) and
+ * stamp `"12"`, in one `BEGIN IMMEDIATE` transaction. No column changes
+ * (`edges.kind` is text); the next index run re-extracts every file so `ref`
+ * edges exist, while `embedding_cache` is untouched so unchanged symbols reuse
+ * their vectors.
+ *
+ * @param db - Open connection already at schema 11 (with `edges.spec`).
+ * @throws If any step fails; the transaction is rolled back and the stamp stays `"11"`.
+ */
+export function migrate11to12(db: DatabaseSync): void {
+  // Covers: req~schema-ref-edges~1
+  db.exec("BEGIN IMMEDIATE");
+  try {
+    const pending = db.prepare("SELECT value FROM meta WHERE key = 'needs_reindex'").get() as
+      { value: string } | undefined;
+    const prior = db.prepare("SELECT value FROM meta WHERE key = 'reindex_reason'").get() as
+      { value: string } | undefined;
+    const reason =
+      pending?.value === "1" && prior?.value && prior.value !== SCHEMA_12_REINDEX_REASON
+        ? `${prior.value}; ${SCHEMA_12_REINDEX_REASON}`
+        : SCHEMA_12_REINDEX_REASON;
+    db.prepare(
+      "INSERT INTO meta(key, value) VALUES ('needs_reindex', '1') ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+    ).run();
+    db.prepare(
+      "INSERT INTO meta(key, value) VALUES ('reindex_reason', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+    ).run(reason);
+    db.prepare(
+      "INSERT INTO meta(key, value) VALUES ('schema_version', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+    ).run("12");
+    db.exec("COMMIT");
+  } catch (err) {
+    try {
+      db.exec("ROLLBACK");
+    } catch {
+      /* already rolled back */
+    }
+    throw new Error(
+      `schema 11→12 migration failed — delete .speclaw/index.db to rebuild: ${(err as Error).message}`,
+      { cause: err },
+    );
+  }
+}
+
 /**
  * Open (creating if needed) the index database at `<projectPath>/.speclaw/index.db`.
  *
  * Ensures the `.speclaw` directory exists, enables WAL journaling and foreign
- * keys, and applies the schema. Schema 8→9, 9→10, and 10→11 migrate in place
- * and chain forward (embeddings preserved). Other incompatible schemas are wiped
+ * keys, and applies the schema. Schema 8→9, 9→10, 10→11, and 11→12 migrate in
+ * place and chain forward (embeddings preserved). Other incompatible schemas are wiped
  * and rebuilt.
  *
  * @param projectPath - Absolute path to the project root.
@@ -590,11 +639,13 @@ export function openDb(projectPath: string): DatabaseSync {
     }
   })();
 
-  if (ver === "8" || ver === "9" || ver === "10" || (ver === "11" && !hasEdgeSpec(db))) {
+  if (ver === "8" || ver === "9" || ver === "10" || ver === "11") {
     try {
       if (ver === "8") migrate8to9(db, projectPath);
       if (ver === "8" || ver === "9") migrate9to10(db);
-      migrate10to11(db);
+      // A pre-release schema-11 index (no `edges.spec`) takes the 10→11 step too.
+      if (ver !== "11" || !hasEdgeSpec(db)) migrate10to11(db);
+      migrate11to12(db);
     } catch (err) {
       db.close();
       throw err;

@@ -71,7 +71,7 @@ function seedSchema10(root: string, cacheRows: number): void {
 }
 
 // Covers: req~schema-edge-membership~1
-test("schema 10 migrates to 11 and forces a reindex keeping embeddings", (t) => {
+test("schema 10 migrates past 11 and forces a reindex keeping embeddings", (t) => {
   const root = tmpRepo(t);
   seedSchema10(root, 12);
 
@@ -89,7 +89,7 @@ test("schema 10 migrates to 11 and forces a reindex keeping embeddings", (t) => 
 
   assert.ok(cols.includes("is_member"));
   assert.ok(cols.includes("spec"));
-  assert.equal(meta.get("schema_version"), "11");
+  assert.equal(meta.get("schema_version"), SCHEMA_VERSION);
   assert.equal(meta.get("needs_reindex"), "1");
   assert.match(meta.get("reindex_reason") ?? "", /schema 11/);
   assert.equal(cache.n, 12);
@@ -177,7 +177,7 @@ test("reindex after migration recomputes no unchanged embedding", async (t) => {
 });
 
 // Covers: req~schema-edge-membership~1
-test("schema 9 migrates through 10 to 11 via openDb keeping embeddings", async (t) => {
+test("schema 9 migrates through 10 and 11 to 12 via openDb keeping embeddings", async (t) => {
   const root = tmpRepo(t);
   write(root, "src/a.ts", "export function alpha(): number { return 1; }\n");
   await buildIndex(root);
@@ -221,4 +221,105 @@ test("schema 9 migrates through 10 to 11 via openDb keeping embeddings", async (
   assert.ok(nodeText, "the 9→10 step ran");
   assert.equal(marker.value, "1");
   assert.equal(after, cached, "embedding cache rows are kept");
+});
+
+/** Rewind a freshly created index to a schema-11 stamp (with `edges.spec`). */
+function seedSchema11(root: string, cacheRows: number): void {
+  openDb(root).close();
+  const raw = new DatabaseSync(indexPath(root));
+  raw.prepare("UPDATE meta SET value = '11' WHERE key = 'schema_version'").run();
+  raw.prepare("DELETE FROM meta WHERE key IN ('needs_reindex', 'reindex_reason')").run();
+  const ins = raw.prepare(
+    "INSERT INTO embedding_cache(content_hash, model, dim, vec, created_at, last_seen_at) VALUES (?, 'm', 1, ?, 0, 0)",
+  );
+  for (let i = 0; i < cacheRows; i++) ins.run(`k${i}`, new Uint8Array([i]));
+  raw.close();
+}
+
+function metaOf(db: DatabaseSync): Map<string, string> {
+  return new Map(
+    (db.prepare("SELECT key, value FROM meta").all() as Array<{ key: string; value: string }>).map(
+      (r) => [r.key, r.value],
+    ),
+  );
+}
+
+// Covers: req~schema-ref-edges~1
+test("schema 11 migrates to 12 and keeps embeddings", (t) => {
+  const root = tmpRepo(t);
+  seedSchema11(root, 10);
+  const db = openDb(root);
+  const meta = metaOf(db);
+  const cache = db.prepare("SELECT COUNT(*) AS n FROM embedding_cache").get() as { n: number };
+  db.close();
+  assert.equal(meta.get("schema_version"), "12");
+  assert.equal(meta.get("needs_reindex"), "1");
+  assert.match(meta.get("reindex_reason") ?? "", /schema 12/);
+  assert.equal(cache.n, 10);
+});
+
+// Covers: req~schema-ref-edges~1
+test("failed 11 to 12 migration rolls back", (t) => {
+  const root = tmpRepo(t);
+  seedSchema11(root, 0);
+  const raw = new DatabaseSync(indexPath(root));
+  raw.exec(`CREATE TRIGGER fail_stamp_12 BEFORE UPDATE ON meta
+    WHEN new.key = 'schema_version' AND new.value = '12'
+    BEGIN SELECT RAISE(ABORT, 'forced failure'); END;`);
+  raw.close();
+
+  assert.throws(() => openDb(root), /11→12/);
+
+  const check = new DatabaseSync(indexPath(root));
+  const meta = metaOf(check);
+  check.close();
+  assert.equal(meta.get("schema_version"), "11");
+  assert.equal(meta.has("needs_reindex"), false);
+});
+
+// Covers: req~schema-edge-membership~1, req~schema-ref-edges~1
+test("schema 10 migrates through 11 to 12 keeping embeddings", (t) => {
+  const root = tmpRepo(t);
+  seedSchema10(root, 7);
+  const db = openDb(root);
+  const meta = metaOf(db);
+  const cache = db.prepare("SELECT COUNT(*) AS n FROM embedding_cache").get() as { n: number };
+  db.close();
+  assert.equal(meta.get("schema_version"), "12");
+  assert.equal(meta.get("needs_reindex"), "1");
+  assert.match(meta.get("reindex_reason") ?? "", /schema 12/);
+  assert.equal(cache.n, 7);
+});
+
+// Covers: req~schema-ref-edges~1
+test("reindex after the 12 migration adds ref edges without re-embedding", async (t) => {
+  const root = tmpRepo(t);
+  write(root, "src/types.ts", "export interface Props {\n  id: string;\n}\n");
+  write(
+    root,
+    "src/view.ts",
+    'import type { Props } from "./types.js";\nexport function render(p: Props): string {\n  return p.id;\n}\n',
+  );
+  const first = await buildIndex(root);
+  assert.ok(first.computed > 0);
+
+  // Rewind the built index to schema 11: no ref edges, no reindex marker.
+  const raw = new DatabaseSync(indexPath(root));
+  raw.exec("DELETE FROM edges WHERE kind = 'ref'");
+  raw.prepare("UPDATE meta SET value = '11' WHERE key = 'schema_version'").run();
+  raw.prepare("DELETE FROM meta WHERE key IN ('needs_reindex', 'reindex_reason')").run();
+  raw.close();
+
+  const second = await buildIndex(root);
+  assert.equal(second.files, 2, "every file is re-extracted");
+  assert.equal(second.unchanged, 0);
+  assert.equal(second.computed, 0, "embeddings computed: 0");
+  const db = openDb(root);
+  const refs = db.prepare("SELECT COUNT(*) AS n FROM edges WHERE kind = 'ref'").get() as {
+    n: number;
+  };
+  const ver = metaOf(db).get("schema_version");
+  db.close();
+  assert.equal(ver, "12");
+  assert.ok(refs.n >= 1, "ref edges exist after the reindex");
 });

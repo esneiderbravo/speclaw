@@ -210,7 +210,9 @@ speclaw index, compass_index, watch). Prints nothing and always exits 0.
     name: "explore",
     usage: `Usage: speclaw explore <node> [options]
 
-A symbol's source plus its callers and callees.
+A symbol's source plus its callers and callees. Each caller carries
+via: call (it calls the symbol) or ref (it names the type in an annotation
+or an extends/implements clause).
 
 Options
   --json               Print the result as JSON
@@ -346,7 +348,8 @@ Options
   --verdict <v>        PASS or FAIL (advance from reviewing/testing)
   --note <text>        A history note
   --question <text>    One open question, commas included; repeat for more
-  --pause-questions    Pause the loop for open questions
+  --pause-questions    From planning only: pause for the --question list
+                       (any other stage is rejected, exit 1)
   --json               Print the result as JSON
 `,
   },
@@ -358,7 +361,8 @@ Options
   list                         Active/archived changes and capabilities
   level <mode> [change]        propose|set|promote|explain ceremony level (--level, --reason)
   draft <name>                 Scaffold a feature change (--level N, --capability C)
-  draft --bug <name>           Scaffold a bug change (bugfix.md + reports)
+  draft --bug <name>           Scaffold a bug change (bugfix.md + reports;
+                               level unconfirmed unless --level N)
   investigate                  Rank bug suspects (--symptom, --stack-trace, --symbol, --path)
   validate <change>            Validate a change's artifacts
   sync <change>                Promote delta specs to canonical

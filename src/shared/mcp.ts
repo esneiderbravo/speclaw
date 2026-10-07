@@ -3,18 +3,22 @@ import type { z } from "zod";
 import { loadDeclaredBudget, type RegisterOpts } from "./exposure.js";
 import { toolDefinitionTokens } from "./schema-tokens.js";
 import { countWords } from "./tokens.js";
-import { applyTextBudget, type OutputMode } from "./output-budget.js";
+import { applyTextBudget, type TextBudget } from "./output-budget.js";
+
+export type { TextBudget } from "./output-budget.js";
 
 /**
- * Wrap a value as an MCP text tool-result, optionally applying an output budget.
+ * Wrap a value as an MCP text tool-result, applying an output budget.
  *
  * @param value - Payload to return; strings are emitted verbatim, other values are pretty-printed as JSON.
- * @param mode - Output mode (`brief` default) for token budgeting.
+ * @param budget - Output mode (`brief` default, unchanged for callers that pass
+ *   none) or an explicit `{ maxTokens }` cap a handler opted into.
  * @returns An MCP result object with a single text content block.
  */
-export function text(value: unknown, mode: OutputMode = "brief") {
+// Covers: req~find-response-budget~1
+export function text(value: unknown, budget: TextBudget = "brief") {
   const raw = typeof value === "string" ? value : JSON.stringify(value, null, 2);
-  const budgeted = applyTextBudget(raw, mode);
+  const budgeted = applyTextBudget(raw, budget);
   return {
     content: [
       {

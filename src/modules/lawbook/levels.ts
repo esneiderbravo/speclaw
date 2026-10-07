@@ -18,7 +18,13 @@ export type CeremonyLevel = 0 | 1 | 2 | 3;
 /** Feature-shaped vs bug-shaped change artifacts. */
 export type ChangeType = "feature" | "bug";
 
-export type CeremonyDegraded = "no-index" | "no-git" | "unresolved-symbols" | "no-hotspots";
+export type CeremonyDegraded =
+  | "no-index"
+  | "no-git"
+  | "unresolved-symbols"
+  | "no-hotspots"
+  /** No path and no symbol were given: nothing was measured, so no level is proposed. */
+  | "no-targets";
 
 /** Explicit targets for a level proposal. */
 export interface CeremonyTargets {
@@ -277,7 +283,12 @@ export function proposeLevel(
   s: CeremonySignals,
   t: LevelThresholds = DEFAULT_THRESHOLDS,
 ): CeremonyProposal {
-  if (s.degraded.includes("no-index") && s.filesTouched === 0 && s.blastRadiusNodes === 0) {
+  // Covers: req~level-proposal-preserved~1
+  // An empty target set measured nothing: never a "small level from ignorance".
+  if (
+    s.degraded.includes("no-targets") ||
+    (s.degraded.includes("no-index") && s.filesTouched === 0 && s.blastRadiusNodes === 0)
+  ) {
     return {
       level: null,
       score: 0,
@@ -325,7 +336,8 @@ export function countModules(paths: string[]): number {
 
 /**
  * Build signals from an explicit target list. When the Compass index is missing,
- * marks `no-index` and does not invent a small blast radius.
+ * marks `no-index` and does not invent a small blast radius; an empty target
+ * list marks `no-targets` (so {@link proposeLevel} proposes no level).
  */
 export function gatherSignals(
   projectPath: string,
@@ -333,6 +345,7 @@ export function gatherSignals(
   t: LevelThresholds = DEFAULT_THRESHOLDS,
 ): CeremonySignals {
   const degraded: CeremonyDegraded[] = [];
+  if (targets.paths.length === 0 && targets.symbols.length === 0) degraded.push("no-targets");
   const paths = new Set(targets.paths.map((p) => p.replace(/^\.\//, "").split("\\").join("/")));
 
   if (!indexExists(projectPath)) {
@@ -491,6 +504,22 @@ export function writeCeremonyRecord(
   fs.writeFileSync(p, JSON.stringify(record, null, 2) + "\n");
 }
 
+/**
+ * The proposal fields stored in a change's `change.json`, or null when there
+ * is none (no file, or a record without a proposal).
+ */
+export function readStoredProposal(projectPath: string, change: string): CeremonyProposal | null {
+  const rec = readCeremonyRecord(projectPath, change);
+  if (!rec || rec.signals === undefined) return null;
+  return {
+    level: rec.level ?? null,
+    score: rec.score ?? 0,
+    signals: rec.signals,
+    rationale: rec.rationale ?? "",
+    degraded: rec.degraded ?? [],
+  };
+}
+
 export function setCeremonyLevel(
   projectPath: string,
   change: string,
@@ -520,23 +549,33 @@ export function setCeremonyLevel(
   return record;
 }
 
+/**
+ * Raise a confirmed level, appending a promotion. The stored proposal fields
+ * are kept unless `proposal` (measured from explicit targets) replaces them.
+ */
+// Covers: req~level-proposal-preserved~1
 export function promoteCeremonyLevel(
   projectPath: string,
   change: string,
   to: CeremonyLevel,
   reason: string,
+  proposal?: CeremonyProposal,
 ): CeremonyRecord {
   const prev = readCeremonyRecord(projectPath, change);
   if (!prev) throw new Error(`change "${change}" has no change.json to promote`);
+  if (prev.confirmedLevel === undefined) {
+    throw new Error(`change "${change}" has no confirmed level to promote — use mode 'set'`);
+  }
   if (to <= prev.confirmedLevel) {
     throw new Error(`promote requires a higher level than ${prev.confirmedLevel}`);
   }
   const record: CeremonyRecord = {
     ...prev,
+    ...(proposal ?? {}),
     confirmedLevel: to,
     confirmedAt: new Date().toISOString(),
     promotions: [
-      ...prev.promotions,
+      ...(prev.promotions ?? []),
       { from: prev.confirmedLevel, to, at: new Date().toISOString(), reason },
     ],
   };

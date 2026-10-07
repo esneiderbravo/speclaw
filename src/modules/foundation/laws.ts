@@ -47,9 +47,15 @@ export interface DepsRule {
   toNot?: string;
   /** `forbidden` (default): a match is a violation. `required`: absence is. */
   type?: "forbidden" | "required";
-  /** Edge kinds to consider; defaults to every kind present in the index. */
+  /** Edge kinds to consider; defaults to {@link DEFAULT_EDGE_KINDS}. */
   edgeKinds?: string[];
 }
+
+/**
+ * Edge kinds a `deps`/`graph` law reads when it names none: calls and
+ * imports. Compass type-reference (`ref`) edges only feed explore callers.
+ */
+export const DEFAULT_EDGE_KINDS: readonly string[] = ["call", "import"];
 
 /**
  * A rule for the `graph` backend: dependency cycles and transitive reachability
@@ -67,7 +73,8 @@ export interface GraphRule {
   /** Regex on the destination file path (used by `reachable`). */
   to?: string;
   /**
-   * Edge kinds to consider when building the file graph. Prefer `["import"]`
+   * Edge kinds to consider when building the file graph (default
+   * {@link DEFAULT_EDGE_KINDS}). Prefer `["import"]`
    * for module-boundary laws — unresolved `call` name matches create false
    * cycles (e.g. two local helpers both named `push`).
    */

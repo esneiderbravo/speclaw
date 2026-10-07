@@ -1,11 +1,13 @@
 import { explore, impact, trace, type ExploreResult } from "./query.js";
 import { affectedTests, type AffectedTestCommand } from "./affected.js";
-import { FILE_NODE_KIND } from "./db.js";
+import { FILE_NODE_KIND, indexExists, openDb } from "./db.js";
+import type { FindResult } from "./find-output.js";
 import { hotspots } from "./hotspots.js";
 import { summarizeImpact, type BlastRadiusSummary } from "./impact-summary.js";
 import {
   budgetExploreShape,
   applyTextBudget,
+  OUTPUT_BUDGET,
   type OutputMode,
   type TruncationEntry,
 } from "../../shared/output-budget.js";
@@ -73,7 +75,7 @@ export async function exploreRich(query: ExploreRichQuery): Promise<ExploreRichR
 
   if (query.to) {
     const pathResult = trace(query.projectPath, query.node, query.to, query.maxDepth ?? 8);
-    const base = explore(query.projectPath, query.node);
+    const base = explore(query.projectPath, query.node, { includeRefs: true });
     const out: ExploreRichResult = {
       ...base,
       path: pathResult.path,
@@ -93,7 +95,7 @@ export async function exploreRich(query: ExploreRichQuery): Promise<ExploreRichR
     return out;
   }
 
-  const base = explore(query.projectPath, query.node);
+  const base = explore(query.projectPath, query.node, { includeRefs: true });
   const out: ExploreRichResult = { ...base, truncated, degraded };
 
   if (!includes.includes("source") && out.symbol) out.symbol = withoutSource(out.symbol);
@@ -169,22 +171,64 @@ export async function exploreRich(query: ExploreRichQuery): Promise<ExploreRichR
   return out;
 }
 
-/** Merge lexical and semantic search behind one surface. */
+/**
+ * Merge lexical and semantic search behind one surface (the MCP find path).
+ * The focus is resolved against the index first so dropped paths can be
+ * reported; exact mode keeps only symbols named exactly a query term and
+ * reports `found`, `terms`, and, when nothing matches, `nearest`.
+ *
+ * @param projectPath - Indexed project root.
+ * @param query - Identifier(s) or prose.
+ * @param mode - `exact` (name lookup) or `concept` (fuzzy, dense-heavy).
+ * @param limit - Seed limit (default 50).
+ * @param opts - Focus paths and the response token cap (default: brief ceiling).
+ */
+// Covers: req~find-exact-not-found~1, req~task-relative-ranking~1
 export async function findSymbols(
   projectPath: string,
   query: string,
   mode: "exact" | "concept",
   limit?: number,
   opts?: { focus?: string[]; maxTokens?: number },
-): Promise<unknown> {
-  const { hybridSearch } = await import("./hybrid.js");
+): Promise<FindResult> {
+  const { hybridSearch, resolveSearchFocus, exactTerms, nearestSymbols } =
+    await import("./hybrid.js");
+  if (!indexExists(projectPath)) {
+    throw new Error(
+      "No index found. Build it first with the index_build tool (creates .speclaw/index.db).",
+    );
+  }
+  const db = openDb(projectPath);
+  let resolvedFocus;
+  try {
+    resolvedFocus = resolveSearchFocus(db, projectPath, opts?.focus);
+  } finally {
+    db.close();
+  }
+  const cap = opts?.maxTokens ?? OUTPUT_BUDGET.brief;
+  const terms = mode === "exact" ? exactTerms(query) : undefined;
+  const report = { ranked: 0, knnIds: [] as number[] };
   const result = await hybridSearch(projectPath, query, {
     mode,
-    focus: opts?.focus,
-    maxTokens: opts?.maxTokens,
+    maxTokens: cap,
     seedLimit: limit ?? 50,
+    resolvedFocus,
+    exactNames: terms,
+    report,
   });
-  return result;
+  const out: FindResult = {
+    ...result,
+    mode,
+    focusIgnored: resolvedFocus.ignored,
+    cap,
+    capped: report.ranked > result.hits.length,
+  };
+  if (terms) {
+    out.terms = terms;
+    out.found = result.hits.length > 0;
+    if (!out.found) out.nearest = nearestSymbols(projectPath, terms, report.knnIds);
+  }
+  return out;
 }
 
 /** Serialize explore-rich with output budget applied. */

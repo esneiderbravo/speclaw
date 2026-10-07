@@ -40,3 +40,22 @@ test("cortex advance records each repeated --question as one open question", { s
     assert.deepEqual(state.openQuestions, ["a", "b, c"], cmd.join(" "));
   }
 });
+
+// Covers: req~harness-pause-questions~1
+test("advance --pause-questions from implementing exits non-zero", { skip }, (t) => {
+  const root = tmpRepo(t);
+  seedPlanning(root);
+  const toImpl = runCli(["cortex", "advance", "--change", "demo"], { cwd: root });
+  assert.equal(toImpl.code, 0, toImpl.stderr);
+  assert.equal(harness(root).stage, "implementing");
+  const before = read(root, "lawbook/changes/demo/harness.json");
+  for (const cmd of [
+    ["cortex", "advance", "--change", "demo"],
+    ["lawbook", "harness", "advance", "--change", "demo"],
+  ]) {
+    const r = runCli([...cmd, "--pause-questions", "--question", "q1"], { cwd: root });
+    assert.notEqual(r.code, 0, `${cmd.join(" ")}: ${r.stdout}`);
+    assert.match(r.stderr + r.stdout, /planning/);
+    assert.equal(read(root, "lawbook/changes/demo/harness.json"), before, cmd.join(" "));
+  }
+});

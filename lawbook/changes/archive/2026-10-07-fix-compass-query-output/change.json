@@ -1,0 +1,30 @@
+{
+  "level": 0,
+  "score": 0,
+  "signals": {
+    "filesTouched": 0,
+    "modulesTouched": 0,
+    "blastRadiusNodes": 0,
+    "affectedTests": 0,
+    "touchesPublicApi": false,
+    "maxHotspotScore": 0,
+    "touchesGlobalFile": false,
+    "onlyDocs": false,
+    "degraded": []
+  },
+  "rationale": "0 file(s), 0 module(s), 0 affected test(s), 0 blast node(s), no public API, no global file, hotspot=0.00 → score 0 → level 0 (cuts 3/8/15)",
+  "degraded": [],
+  "confirmedLevel": 3,
+  "confirmedBy": "human",
+  "confirmedAt": "2026-10-07T15:18:28.891Z",
+  "promotions": [
+    {
+      "from": 0,
+      "to": 3,
+      "at": "2026-10-07T15:18:28.891Z",
+      "reason": "Human confirmed level 3 on 2026-10-07. Proposal score 23 (12 files, 3 modules, 68 affected tests, 258 blast nodes, global file). Scaffold had level 0 with confirmedBy human without human confirmation. Answers: exact not-found -> found:false + nearest[] (multi-term split into OR identifiers, report terms); defect 4 -> 'ref' edges, schema 11->12, refs only in explore callers (via:\"ref\"), impact unchanged; defaults accepted: compact MCP hits, maxTokens caps whole response with truncated flag, MCP-only (CLI --json unchanged), focus filtered to indexed files incl. explicit with focusIgnored[], fix explore/diff_context mode:full, bump 2.0.13 in this PR. Scope additionally includes the harness bugs: bug scaffold self-confirming level 0 and advance ignoring pauseForQuestions/skipping planning."
+    }
+  ],
+  "changeType": "bug",
+  "resolution": "fixed"
+}
