@@ -71,7 +71,7 @@ test("summary reports role, elapsed, tasks, rework and pending verdicts", (t) =>
   assert.equal(s.maxRework, 3);
   assert.deepEqual(s.pendingVerdicts, ["review", "test"]);
   assert.equal(s.openQuestions, 0);
-  assert.equal(s.statusIntervalMinutes, 5);
+  assert.equal(s.statusIntervalMinutes, 0);
   assert.equal(
     s.line,
     "feat · implementing (implementer) · 12m in stage · tasks 3/9 · rework 0/3 · pending: review, test",
@@ -164,22 +164,22 @@ test("questions stage says the human owes answers", (t) => {
 // Covers: req~cortex-status-interval~1
 test("status interval reads cortex.statusIntervalMinutes with a safe default", (t) => {
   const root = tmpRepo(t);
-  assert.equal(readStatusIntervalMinutes(root), 5, "missing file");
+  assert.equal(readStatusIntervalMinutes(root), 0, "missing file");
 
   const cfg = (body: string): number => {
     write(root, "lawbook/config.yaml", body);
     return readStatusIntervalMinutes(root);
   };
-  assert.equal(cfg("schema: lawbook\ncompassGate: warn\n"), 5, "no cortex block");
-  assert.equal(cfg("cortex:\n  other: 1\nnext: x\n  statusIntervalMinutes: 9\n"), 5, "key outside");
+  assert.equal(cfg("schema: lawbook\ncompassGate: warn\n"), 0, "no cortex block");
+  assert.equal(cfg("cortex:\n  other: 1\nnext: x\n  statusIntervalMinutes: 9\n"), 0, "key outside");
   assert.equal(cfg("cortex:\n  statusIntervalMinutes: 10\n"), 10);
   assert.equal(cfg("cortex:\n  # cadence\n\n  statusIntervalMinutes: 0 # off\n"), 0);
   assert.equal(cfg('cortex: # block\n  statusIntervalMinutes: "15"\n'), 15);
-  assert.equal(cfg("cortex:\n  statusIntervalMinutes: -1\n"), 5);
-  assert.equal(cfg("cortex:\n  statusIntervalMinutes: abc\n"), 5);
-  assert.equal(cfg("cortex:\n  statusIntervalMinutes: 2.5\n"), 5);
-  assert.equal(cfg("# cortex:\n#   statusIntervalMinutes: 7\n"), 5, "commented out");
-  assert.equal(cfg("statusIntervalMinutes: 7\n"), 5, "top-level key is not the cortex block");
+  assert.equal(cfg("cortex:\n  statusIntervalMinutes: -1\n"), 0);
+  assert.equal(cfg("cortex:\n  statusIntervalMinutes: abc\n"), 0);
+  assert.equal(cfg("cortex:\n  statusIntervalMinutes: 2.5\n"), 0);
+  assert.equal(cfg("# cortex:\n#   statusIntervalMinutes: 7\n"), 0, "commented out");
+  assert.equal(cfg("statusIntervalMinutes: 7\n"), 0, "top-level key is not the cortex block");
   assert.equal(cfg("cortex:\n  statusIntervalMinutes: 60\n"), 60, "hourly is the maximum");
   assert.equal(cfg("cortex:\n  statusIntervalMinutes: 61\n"), 60, "clamped to 60");
   assert.equal(cfg("cortex:\n  statusIntervalMinutes: 1440\n"), 60, "clamped to 60");
@@ -244,7 +244,7 @@ test("MCP cortex status keeps the full summary and valid JSON on a long history"
   for (const [key, value] of Object.entries(stable)) {
     assert.deepEqual(parsed.summary[key], value, `summary.${key}`);
   }
-  assert.equal(parsed.summary.statusIntervalMinutes, 5);
+  assert.equal(parsed.summary.statusIntervalMinutes, 0);
   assert.equal(typeof parsed.summary.line, "string");
   assert.ok(parsed.historyOmitted > 0);
   assert.equal(parsed.historyOmitted + parsed.state.history.length, 30);

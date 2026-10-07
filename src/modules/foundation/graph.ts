@@ -1,5 +1,5 @@
 import type { DatabaseSync } from "node:sqlite";
-import { GraphRule, Law, matchesScope } from "./laws.js";
+import { DEFAULT_EDGE_KINDS, GraphRule, Law, matchesScope } from "./laws.js";
 import type { Finding } from "./verify-model.js";
 import type { EngineResult } from "./deps.js";
 import { underPaths } from "./verify-model.js";
@@ -22,10 +22,9 @@ function buildGraph(
   edgeKinds: string[] | undefined,
   scope: string[],
 ): Adj {
-  const kindFilter =
-    edgeKinds && edgeKinds.length > 0
-      ? ` AND e.kind IN (${edgeKinds.map(() => "?").join(", ")})`
-      : "";
+  // No explicit kinds: calls and imports only (`ref` edges never form a law cycle).
+  const kinds = edgeKinds && edgeKinds.length > 0 ? edgeKinds : DEFAULT_EDGE_KINDS;
+  const kindFilter = ` AND e.kind IN (${kinds.map(() => "?").join(", ")})`;
   const rows = db
     .prepare(
       `SELECT DISTINCT sf.path AS src, df.path AS dst
@@ -35,7 +34,7 @@ function buildGraph(
        JOIN files df ON df.id = dn.file_id
        WHERE e.dst_node_id IS NOT NULL AND sf.path <> df.path${kindFilter}`,
     )
-    .all(...(edgeKinds && edgeKinds.length > 0 ? edgeKinds : [])) as unknown as Array<{
+    .all(...kinds) as unknown as Array<{
     src: string;
     dst: string;
   }>;

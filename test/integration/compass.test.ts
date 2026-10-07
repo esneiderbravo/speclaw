@@ -4,7 +4,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { tmpRepo, has, write } from "../helpers/env.js";
 import { seedSampleRepo } from "../helpers/fixtures.js";
-import { buildIndex } from "../../src/modules/compass/indexer.js";
+import { buildIndex, indexFiles } from "../../src/modules/compass/indexer.js";
 import { search, explore, recall, impact, trace } from "../../src/modules/compass/query.js";
 import { graphData, visualize } from "../../src/modules/compass/visualize.js";
 import { generateCompactMap } from "../../src/modules/compass/map.js";
@@ -473,4 +473,169 @@ test("path explore of a declaration-less file resolves to its file-owner node", 
   );
   const rich = await exploreRich({ projectPath: root, node: "test/a.test.ts" });
   assert.deepEqual(rich.affectedTests?.files, ["test/a.test.ts"]);
+});
+
+/** The `Props` fixture: an interface used as a parameter type, in `implements`, and by name only. */
+function seedPropsRepo(root: string): void {
+  write(root, "src/types.ts", "export interface Props {\n  id: string;\n}\n");
+  write(
+    root,
+    "src/view.ts",
+    `import type { Props } from "./types.js";
+
+export function render(p: Props): string {
+  return p.id;
+}
+
+export class Widget implements Props {
+  id = "w";
+}
+
+export function multi(a: string, b: Props, c: Props): string {
+  return a + b.id + c.id;
+}
+
+export function main(): string {
+  return render({ id: "x" });
+}
+`,
+  );
+  write(
+    root,
+    "src/other.ts",
+    "export function stray(p: Props): string {\n  return String(p);\n}\n",
+  );
+}
+
+type ViaCaller = { name: string; kind: string; file: string; line: number; via?: string };
+
+// Covers: req~type-ref-edges~1
+test("explore lists type references as callers via ref", async (t) => {
+  const root = tmpRepo(t);
+  seedPropsRepo(root);
+  await buildIndex(root);
+
+  const props = await exploreRich({ projectPath: root, node: "Props", include: ["callers"] });
+  const callers = (props.callers ?? []) as ViaCaller[];
+  const byName = new Map(callers.map((c) => [c.name, c]));
+  assert.equal(byName.get("render")?.via, "ref", JSON.stringify(callers));
+  assert.equal(byName.get("Widget")?.via, "ref", JSON.stringify(callers));
+  assert.equal(byName.get("multi")?.via, "ref", JSON.stringify(callers));
+  assert.equal(callers.filter((c) => c.name === "multi").length, 1, "one entry per caller");
+  assert.ok(!callers.some((c) => c.file === "src/other.ts"), "no cross-file bare-name binding");
+
+  const render = await exploreRich({ projectPath: root, node: "render", include: ["callers"] });
+  const main = ((render.callers ?? []) as ViaCaller[]).find((c) => c.name === "main");
+  assert.equal(main?.via, "call");
+
+  // The low-level explore used by investigate and ceremony signals stays call-only.
+  assert.deepEqual(explore(root, "Props").callers, []);
+
+  const db = openDb(root);
+  const strays = db
+    .prepare(
+      `SELECT e.dst_node_id AS dst FROM edges e JOIN files f ON f.id = e.src_file_id
+       WHERE e.kind = 'ref' AND f.path = 'src/other.ts'`,
+    )
+    .all() as Array<{ dst: number | null }>;
+  const multiRefs = db
+    .prepare(
+      `SELECT e.dst_name AS name FROM edges e JOIN nodes n ON n.id = e.src_node_id
+       WHERE e.kind = 'ref' AND n.name = 'multi'`,
+    )
+    .all() as Array<{ name: string }>;
+  db.close();
+  assert.equal(strays.length, 1, "the unimported Props annotation is stored");
+  assert.equal(strays[0]!.dst, null, "and stays unresolved");
+  assert.deepEqual(
+    multiRefs.map((r) => r.name),
+    ["Props"],
+    "built-ins and repeats add no edge",
+  );
+});
+
+// Covers: req~type-ref-edges~1
+test("ref edges change neither impact nor affected tests", async (t) => {
+  const root = tmpRepo(t);
+  seedPropsRepo(root);
+  write(root, "test/view.test.ts", 'import { main } from "../src/view.js";\nmain();\n');
+  await buildIndex(root);
+
+  const withRefs = {
+    impact: impact(root, { symbol: "Props", format: "flat" }),
+    tests: affectedTests(root, { files: ["src/types.ts"] }),
+  };
+  const db = openDb(root);
+  const refs = Number(
+    (db.prepare("SELECT COUNT(*) AS n FROM edges WHERE kind = 'ref'").get() as { n: number }).n,
+  );
+  db.exec("DELETE FROM edges WHERE kind = 'ref'");
+  db.close();
+  const withoutRefs = {
+    impact: impact(root, { symbol: "Props", format: "flat" }),
+    tests: affectedTests(root, { files: ["src/types.ts"] }),
+  };
+  assert.ok(refs > 0, "the fixture produced ref edges");
+  assert.deepEqual(withRefs, withoutRefs);
+});
+
+/** Resolved `ref` edges as `owner -> target file:name` rows, for index comparison. */
+function refRows(root: string): string[] {
+  const db = openDb(root);
+  try {
+    const rows = db
+      .prepare(
+        `SELECT s.name AS src, e.dst_name AS name, f.path AS dstFile
+         FROM edges e
+         JOIN nodes s ON s.id = e.src_node_id
+         LEFT JOIN nodes d ON d.id = e.dst_node_id
+         LEFT JOIN files f ON f.id = d.file_id
+         WHERE e.kind = 'ref'`,
+      )
+      .all() as Array<{ src: string; name: string; dstFile: string | null }>;
+    return rows.map((r) => `${r.src} -> ${r.dstFile ?? "NULL"}:${r.name}`).sort();
+  } finally {
+    db.close();
+  }
+}
+
+/** `Props` callers as sorted `name:via:file` strings. */
+async function propsCallers(root: string): Promise<string[]> {
+  const res = await exploreRich({ projectPath: root, node: "Props", include: ["callers"] });
+  return ((res.callers ?? []) as ViaCaller[]).map((c) => `${c.name}:${c.via}:${c.file}`).sort();
+}
+
+// Covers: req~type-ref-edges~1
+test("a per-file reindex resolves ref edges like a full index", async (t) => {
+  const MOVED = "// moved down\n\n\nexport interface Props {\n  id: string;\n}\n";
+  const VIEW_EDIT = (root: string) =>
+    write(
+      root,
+      "src/view.ts",
+      fs.readFileSync(path.join(root, "src/view.ts"), "utf8") +
+        "\nexport function extra(p: Props): string {\n  return p.id;\n}\n",
+    );
+
+  const incremental = tmpRepo(t);
+  seedPropsRepo(incremental);
+  await buildIndex(incremental);
+  write(incremental, "src/types.ts", MOVED);
+  const typesRun = await indexFiles(incremental, ["src/types.ts"]);
+  assert.equal(typesRun.stale, false);
+  VIEW_EDIT(incremental);
+  const viewRun = await indexFiles(incremental, [path.join(incremental, "src/view.ts")]);
+  assert.equal(viewRun.stale, false);
+
+  const full = tmpRepo(t);
+  seedPropsRepo(full);
+  write(full, "src/types.ts", MOVED);
+  VIEW_EDIT(full);
+  await buildIndex(full);
+
+  const callers = await propsCallers(incremental);
+  for (const name of ["render", "Widget", "multi", "extra"]) {
+    assert.ok(callers.includes(`${name}:ref:src/view.ts`), JSON.stringify(callers));
+  }
+  assert.deepEqual(callers, await propsCallers(full));
+  assert.deepEqual(refRows(incremental), refRows(full));
 });

@@ -10,11 +10,13 @@ No non-trivial change lands without a lawbook change. Artifact volume follows
 the **confirmed ceremony level** in `change.json` (0=quick … 3=full). Missing
 `change.json` means level 3 (today's full set).
 
-The default execution model is **Cortex** (*One brain. Many agents.*): the host
-primary agent is the **coordinator** and dispatches (or role-plays) specialized
-roles via the `cortex` skill. State lives in `lawbook/changes/<name>/harness.json`
-(`speclaw cortex` / MCP tool `cortex`). Lawbook owns specs, ceremony, coverage,
-and drift; Cortex owns the multi-agent loop.
+The execution model is **Cortex** (*One brain. Many agents.*). By default one
+agent does the critical path and the `Stop` hook (`speclaw ship-on-stop`, or
+`speclaw ship` on agents without hooks) produces the record, the gate report,
+and the level-0 archive — see [`docs/cortex.md`](../cortex.md). The staged
+roles below are the **spec lane**, for multi-day, cross-module features that
+need a written spec first; their state lives in
+`lawbook/changes/<name>/harness.json` (`speclaw cortex` / MCP tool `cortex`).
 
 1. **explore** (explorer) — think an idea through before committing (writes
    nothing). Bugs use **investigate** first.

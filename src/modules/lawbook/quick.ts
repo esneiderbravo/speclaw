@@ -3,6 +3,7 @@ import {
   loadCeremonyConfig,
   promoteCeremonyLevel,
   proposeLevel,
+  readStoredProposal,
   setCeremonyLevel,
   type CeremonyProposal,
   type CeremonyRecord,
@@ -63,7 +64,13 @@ export function scaffoldQuick(
 
 /**
  * Handle `lawbook_level` modes: propose / set / promote / explain.
+ *
+ * A proposal is measured only when the call names paths or symbols. Without
+ * targets, `propose`/`explain` return the `no-targets` proposal (level null),
+ * and `set`/`promote` keep the proposal already stored in `change.json`
+ * (`set` falls back to the `no-targets` proposal when none is stored).
  */
+// Covers: req~level-proposal-preserved~1
 export function handleLevel(args: {
   projectPath: string;
   mode: "propose" | "set" | "promote" | "explain";
@@ -77,16 +84,21 @@ export function handleLevel(args: {
     paths: args.paths ?? [],
     symbols: args.symbols ?? [],
   };
-  const { thresholds } = loadCeremonyConfig(args.projectPath);
-  const signals = gatherSignals(args.projectPath, targets, thresholds);
-  const proposal = proposeLevel(signals, thresholds);
+  const measured = targets.paths.length > 0 || targets.symbols.length > 0;
+  const measure = (): CeremonyProposal => {
+    const { thresholds } = loadCeremonyConfig(args.projectPath);
+    return proposeLevel(gatherSignals(args.projectPath, targets, thresholds), thresholds);
+  };
 
   if (args.mode === "propose" || args.mode === "explain") {
-    return { mode: args.mode, proposal };
+    return { mode: args.mode, proposal: measure() };
   }
   if (!args.change) throw new Error(`mode '${args.mode}' requires 'change'`);
   if (args.mode === "set") {
     if (args.level === undefined) throw new Error("mode 'set' requires 'level'");
+    const proposal = measured
+      ? measure()
+      : (readStoredProposal(args.projectPath, args.change) ?? measure());
     return setCeremonyLevel(args.projectPath, args.change, {
       proposal,
       level: args.level,
@@ -101,5 +113,6 @@ export function handleLevel(args: {
     args.change,
     args.level,
     args.reason ?? "scope grew",
+    measured ? measure() : undefined,
   );
 }

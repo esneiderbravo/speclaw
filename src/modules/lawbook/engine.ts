@@ -588,8 +588,11 @@ export function specArchive(projectPath: string, change: string, date: string): 
   }
 
   const bugPath = path.join(changeDir, "bugfix.md");
+  // A change that carries delta specs always promotes them; skipping would
+  // archive the change while canonical specs silently stay stale.
   const shouldSync =
     needs.deltaSpecs ||
+    fs.existsSync(path.join(changeDir, "specs")) ||
     (changeType === "bug" &&
       fs.existsSync(bugPath) &&
       preventionRequiresDelta(fs.readFileSync(bugPath, "utf8")));

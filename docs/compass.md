@@ -29,9 +29,9 @@ a request, not whole files.
 
 | Tool | Use it to |
 |------|-----------|
-| `compass_index` | Build/refresh the graph (`.speclaw/index.db`); optional watch actions (`start`/`stop`/`status`). Schema **11** adds `edges.is_member`, `edges.spec`, and hidden file-owner nodes (10→11 migrates and forces one full re-extract; embedding cache reused). Schema 10 added FTS5 `nodes_fts` + `node_text` + `pagerank`. Also: `embedding_cache`, Merkle, `node_metrics`, test/module flags. |
+| `compass_index` | Build/refresh the graph (`.speclaw/index.db`); optional watch actions (`start`/`stop`/`status`). Schema **12** adds type-reference (`ref`) edges (11→12 migrates and forces one full re-extract; embedding cache reused). Schema 11 added `edges.is_member`, `edges.spec`, and hidden file-owner nodes. Schema 10 added FTS5 `nodes_fts` + `node_text` + `pagerank`. Also: `embedding_cache`, Merkle, `node_metrics`, test/module flags. |
 | `compass_explore` | Read a node's source plus callers, callees, blast radius, affected tests, and hotspot — in one call. `node` may be a symbol name or a repo-relative file path. Use `to:` for trace-style paths. See [Callers, callees, and affected tests](#callers-callees-and-affected-tests). |
-| `compass_find` | **Hybrid** search always: BM25 + vectors + name match → RRF → task-relative rank. `mode: exact|concept` only adjusts fusion weights. Optional `focus` / `maxTokens`. |
+| `compass_find` | **Hybrid** search always: BM25 + vectors + name match → RRF → task-relative rank. `mode: concept` is dense-heavy and fuzzy; `mode: exact` is sparse/name-heavy and keeps only symbols named exactly a query term. Optional `focus` / `maxTokens`. See [The compass_find response](#the-compass_find-response). |
 | `compass_diff_context` | Graph context for a change set (working tree, git rev, or explicit paths): symbols touched, blast radius, tests (same `command` contract as explore), hotspots. |
 | `cortex` | CORTEX — multi-agent loop brain (*One brain. Many agents.*). Actions: `status` \| `start` \| `advance` \| `rework` \| `brief`. Also CLI `speclaw cortex`. |
 | `lawbook_change` | Lawbook lifecycle: init, list, draft, validate, sync, archive, level, coverage, drift. `draft` scaffolds a change (`change`, optional `level`, optional `bug`); CLI twin `speclaw lawbook draft <name> [--level N] [--capability C] [--json]` (`--bug` for bug changes). |
@@ -54,6 +54,42 @@ always explicit. The only legitimate fallbacks
 to Grep/Read: a Compass call returned nothing useful for your query, or the
 target isn't indexed code (stylesheets, JSON/config, markdown, logs).
 
+## The compass_find response
+
+`compass_find` (and the deprecated `compass_search` / `compass_recall`
+aliases) returns one JSON document, never pretty-printed and never cut
+mid-string:
+
+```json
+{"mode":"exact","found":true,"terms":["alpha","beta"],"rendered":"# src/a.ts\n1| export function alpha() {",
+ "hits":[{"name":"alpha","kind":"function","file":"src/a.ts","line":1}],
+ "focus":["src/a.ts"],"tokens":95,"budget":1500}
+```
+
+- **The whole response fits `maxTokens`** (default: the brief ceiling, 1500)
+  and `budget` reports that cap. Over the cap `focusIgnored`, `focus`, and
+  `terms` are cut from the end first, each reporting its original length in
+  `focusIgnoredTotal` / `focusTotal` / `termsTotal`; only then do the
+  lowest-ranked hits go, together with their `rendered` blocks; then the last
+  block is shortened; then `nearest` entries are dropped. `truncated: true` appears
+  only when something was removed to fit the cap (by the search fit or the
+  formatter). `tokens` is the estimate of the whole emitted text.
+- **Hits are compact:** `name`, `kind`, `file`, `line`. No node ids,
+  signatures, ranking signals, or route — use `speclaw search --explain` (or
+  `--json`, whose `HybridSearchResult` shape is unchanged) to debug ranking.
+- **Exact mode answers "does this name exist".** The query is split on
+  whitespace, commas, `|`, and `;` into identifier `terms` (an OR, so
+  `alpha beta` returns both). Only symbols named exactly a term are hits
+  (`found: true`). When none is, the response has `found: false`, empty
+  `hits` and `rendered`, and up to five `nearest` names: names contained in a
+  term first (`RequestDetail` for `RequestDetailScreen`), then
+  case-insensitive or shared-subtoken matches, then vector neighbours.
+- **Focus is indexed files only.** Explicit `focus` and the worktree changes
+  used when `focus` is omitted are normalised and kept only when the index has
+  the file; the rest are listed in `focusIgnored`. An empty filtered set uses
+  the no-focus defaults (budget and uniform personalization).
+  `compass_diff_context` still lists every changed file.
+
 ## Callers, callees, and affected tests
 
 - **File-owner nodes.** A reference outside any definition — a top-level
@@ -65,6 +101,18 @@ target isn't indexed code (stylesheets, JSON/config, markdown, logs).
   `node_metrics`, hotspots, the compact map, drift anchors, or `totals.nodes`.
   It does appear as a caller (`kind: "file"`) and in blast radius, and
   exploring a declaration-less file's path resolves to it.
+- **Type references (`via`).** TS/JS type annotations (parameters,
+  variables, properties, return types, generic arguments) and
+  `extends`/`implements` clauses are stored as `ref` edges, one per owner and
+  type name, built-in types (`string`, `Promise`, `Record`, …) excluded. A
+  `ref` resolves only through the file's own import binding (barrel rules as
+  for calls) or a same-file definition — never by a bare global name, so a
+  `Props` in an unrelated file does not bind. `compass_explore` and
+  `speclaw explore` list them among callers: every caller carries
+  `via: "call"` or `via: "ref"`, one entry per caller node (`call` wins).
+  Nothing else reads `ref` edges: blast radius, affected tests,
+  `compass_diff_context`, PageRank, hotspots, coupling, the compact map,
+  visualize, and `deps`/`graph` laws are unchanged.
 - **Callees** list only references resolved to an indexed node, one entry per
   node. Everything else (builtins, member calls on locals, package calls) is
   summarized as `unresolvedCallees: { count, sample }` (at most 10 names).
@@ -120,12 +168,13 @@ target isn't indexed code (stylesheets, JSON/config, markdown, logs).
   dropped with theirs (`--test-coverage-lines 80`), and a directory argument
   (`test/`) matches every file under it. The default `test` target also
   admits workspace paths (`**/src/**`, `**/test/**`, `**/tests/**`).
-- **Upgrading to schema 11: pin every speclaw to 2.0.10.** speclaw 2.0.9 or
-  older — including an MCP entry pinned at `@2.0.9` or a stale global CLI —
-  treats a schema-11 index as incompatible and rebuilds it from scratch,
-  dropping the embedding cache; the next 2.0.10 run then rebuilds it again.
-  Run `speclaw update` so the pinned MCP entry moves to 2.0.10, and upgrade
-  any global install.
+- **Upgrading to schema 12: pin every speclaw to 2.0.13.** The first index
+  after upgrading migrates 11→12 and re-extracts every file once (embeddings
+  reused). speclaw 2.0.12 or older — including an MCP entry pinned at
+  `@2.0.12` or a stale global CLI — treats a schema-12 index as incompatible
+  and rebuilds it from scratch, dropping the embedding cache; the next 2.0.13
+  run then rebuilds it again. Run `speclaw update` so the pinned MCP entry
+  moves to 2.0.13, and upgrade any global install.
 
 ## Index totals and next step
 
@@ -317,9 +366,9 @@ rejects `reindex-file` as unknown and exits before touching the index.
 See [`cortex.md`](cortex.md#compass-first-evidence-gate-compassgate).
 
 <!-- speclaw:map:start -->
-speclaw · 238 files · 990 nodes
-src/ (122)  test/ (109)  scripts/ (6)  eslint.config.js/ (1)
-hubs: tmpRepo 378 · write 324 · has 157 · parse 116 · log 79 · run 68 · runCli 59 · commit 52 · read 52 · recordCompassCall 36 · text 34 · gitInit 33
+speclaw · 263 files · 1231 nodes
+src/ (131)  test/ (124)  scripts/ (7)  eslint.config.js/ (1)
+hubs: write 555 · tmpRepo 527 · buildIndex 158 · read 137 · openDb 123 · runCli 91 · has 69 · specInit 64 · commit 55 · handleHarness 44 · estimateTokens 44 · explore 42
 entry: src/server.ts (mcp) · src/cli/index.ts (bin)
 <!-- speclaw:map:end -->
 

@@ -55,7 +55,7 @@ test("indexer persists node_metrics under the current schema", async (t) => {
     value: string;
   };
   assert.equal(ver.value, SCHEMA_VERSION);
-  assert.equal(SCHEMA_VERSION, "11");
+  assert.equal(SCHEMA_VERSION, "12");
   const row = db
     .prepare(
       `SELECT m.loc, m.max_nesting, m.branches FROM node_metrics m

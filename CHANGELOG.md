@@ -5,6 +5,75 @@ All notable changes to this project are documented here. Speclaw follows
 
 ## [Unreleased]
 
+## [2.0.13] — 2026-10-07
+
+### Changed
+
+- Cortex is as fast as one agent: one brain does the critical path and the
+  installed `Stop` hook (`speclaw ship-on-stop`) records the change, runs the
+  gates once, writes the report from their real output, and archives level-0
+  work with no agent turns. Measured: 18.1 s median vs 15.8 s for an agent
+  alone on the same bug, down from 74–154 s (`docs/benchmarks/cortex-speed.md`).
+  Extra agents run only in parallel for large independent parts; review
+  happens on the PR. Cortex status updates are off by default.
+
+### Added
+
+- `speclaw ship <change>` / `lawbook_change` action `ship`: one call for
+  finished work. It never records a review verdict.
+- `scripts/bench-workflow.sh`: reproducible agent benchmark.
+
+### Fixed
+
+- `compass_find` (and the `compass_search` / `compass_recall` aliases) returns
+  one compact JSON document that always parses and fits `maxTokens` as a
+  whole (default 1500): hits carry only `name`, `kind`, `file`, `line`
+  (no node ids, signatures, ranking signals, or route); `tokens` counts the
+  emitted text; `truncated: true` appears only when hits, rendered blocks,
+  nearest entries, or entries of `focusIgnored` / `focus` / `terms` were
+  removed (a cut list reports its original length in `focusIgnoredTotal` /
+  `focusTotal` / `termsTotal`), so a worktree with many changes or a long
+  exact query no longer overflows the cap. `speclaw search|recall --json` keep
+  their shape.
+- `compass_explore` and `compass_diff_context` with `mode: "full"` are no
+  longer cut at the brief ceiling, and a full-mode truncation hint no longer
+  tells you to use `mode:"full"`. `text()` gains an opt-in budget (an output
+  mode or `{ maxTokens }`); its default stays brief.
+- Search focus keeps only indexed files: unindexed worktree changes and
+  explicit focus paths no longer switch the budget and personalization to the
+  focused defaults; `compass_find` lists them in `focusIgnored`.
+- Exact `compass_find` answers whether a name exists: hits are only symbols
+  named exactly a query term (`alpha beta` is an OR, reported as `terms`); a
+  missing name returns `found: false`, empty `hits`, and up to five `nearest`
+  names.
+- Types now have callers: TS/JS type annotations and `extends`/`implements`
+  clauses become `ref` edges, resolved only through the file's import binding
+  or a same-file definition. `compass_explore` and `speclaw explore` list them
+  with `via: "ref"` (calls carry `via: "call"`); impact, affected tests,
+  PageRank, hotspots, coupling, the map, visualize, and `deps`/`graph` laws
+  ignore them. **Compass schema 12**: the first index after upgrading
+  re-extracts every file once (embeddings reused); speclaw 2.0.12 or older
+  rebuilds a schema-12 index from scratch, so pin every speclaw and the MCP
+  entry to 2.0.13.
+- `speclaw lawbook draft --bug` (and `lawbook_change` action `draft` with
+  `bug: true`) without a level no longer confirms its own level: `change.json`
+  carries no `confirmedLevel`/`confirmedBy`/`confirmedAt`, `bugfix.md` says
+  `Level: unconfirmed`, and validate applies level-3 bug rules until a level
+  is set.
+- Cortex `advance` and `rework` re-read the confirmed level from
+  `change.json` (unconfirmed → 3), so a level set after `start` takes effect
+  and an unconfirmed change never skips planning. `pauseForQuestions` outside
+  stage `planning` is rejected with an error (exit 1 on the CLI) instead of
+  advancing and dropping the questions.
+- An empty target set proposes no level (`level: null`, `degraded:
+  ["no-targets"]`) instead of a measured level 0, and `lawbook_change` action
+  `level` mode `set` / `promote` without paths or symbols keeps the proposal
+  already stored in `change.json`. `promote` on a change with no confirmed
+  level is rejected ("use mode 'set'") instead of recording a promotion from
+  an undefined level.
+- A generic type parameter (`<Props>`) now hides a same-named type only inside
+  its own declaration, not across the whole file.
+
 ## [2.0.12] — 2026-10-07
 
 ### Fixed

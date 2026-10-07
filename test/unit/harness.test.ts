@@ -324,3 +324,61 @@ test("the shipped skill and archiver agent do not advance after archive", () => 
     assert.match(body, /harnessCompleted/, rel);
   }
 });
+
+// Covers: req~harness-pause-questions~1
+test("pauseForQuestions outside planning is rejected", (t) => {
+  const root = tmpRepo(t);
+  specInit(root);
+  seedMinimal(root, "feat");
+  handleHarness({ projectPath: root, change: "feat", harnessOp: "start" });
+  const pause = () =>
+    handleHarness({
+      projectPath: root,
+      change: "feat",
+      harnessOp: "advance",
+      pauseForQuestions: true,
+      openQuestions: ["q1"],
+    });
+
+  const atExploring = read(root, "lawbook/changes/feat/harness.json");
+  assert.throws(pause, /planning[\s\S]*exploring|exploring[\s\S]*planning/);
+  assert.equal(read(root, "lawbook/changes/feat/harness.json"), atExploring);
+
+  handleHarness({ projectPath: root, change: "feat", harnessOp: "advance" });
+  handleHarness({ projectPath: root, change: "feat", harnessOp: "advance" });
+  const atImplementing = read(root, "lawbook/changes/feat/harness.json");
+  assert.equal(JSON.parse(atImplementing).stage, "implementing");
+  assert.throws(pause, /planning[\s\S]*implementing|implementing[\s\S]*planning/);
+  assert.equal(read(root, "lawbook/changes/feat/harness.json"), atImplementing);
+});
+
+// Covers: req~harness-level-current~1
+test("advance follows the level confirmed after start", (t) => {
+  const root = tmpRepo(t);
+  specInit(root);
+  seedMinimal(root, "feat", 0);
+  handleHarness({ projectPath: root, change: "feat", harnessOp: "start" });
+  seedMinimal(root, "feat", 2);
+  const next = handleHarness({ projectPath: root, change: "feat", harnessOp: "advance" }) as {
+    stage: string;
+    level: number;
+  };
+  assert.equal(next.stage, "planning");
+  assert.equal(next.level, 2);
+  assert.equal(JSON.parse(read(root, "lawbook/changes/feat/harness.json")).level, 2);
+});
+
+// Covers: req~harness-level-current~1
+test("an unconfirmed level never skips planning", (t) => {
+  const root = tmpRepo(t);
+  specInit(root);
+  seedMinimal(root, "feat", 0);
+  handleHarness({ projectPath: root, change: "feat", harnessOp: "start" });
+  write(root, "lawbook/changes/feat/change.json", JSON.stringify({ level: 0, score: 0 }));
+  const next = handleHarness({ projectPath: root, change: "feat", harnessOp: "advance" }) as {
+    stage: string;
+    level: number;
+  };
+  assert.equal(next.stage, "planning");
+  assert.equal(next.level, 3);
+});

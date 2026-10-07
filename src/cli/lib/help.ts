@@ -25,6 +25,7 @@ Setup
 Compass (code intelligence — the same surface agents use via MCP)
   index                    (Re)build the local code graph (--force / --prune / --json)
   session-start            Silent, fail-safe refresh of an existing index (SessionStart hook)
+  ship-on-stop             Ship the branch's change when work changed (Stop hook)
   reindex-file [paths...]  Silent re-index of edited files (PostToolUse hook; stdin JSON)
   watch                    Keep the index fresh on file changes
   explore <node>           A node's source + callers/callees
@@ -42,6 +43,7 @@ Cortex (One brain. Many agents. — multi-agent loop)
   cortex <op>              status|start|advance|rework|brief — drive harness.json (--change)
 
 Lawbook (spec-driven workflow)
+  ship <name>              Fast path: gates once → report → archive (level 0)
   quick <name>             Scaffold a level-0 change (record.md + reports)
   lawbook init             Create the lawbook/ workspace
   lawbook list             Active/archived changes and capabilities
@@ -181,6 +183,15 @@ Keep the Compass index fresh: re-index changed files until interrupted (Ctrl-C).
 `,
   },
   {
+    name: "ship-on-stop",
+    usage: `Usage: speclaw ship-on-stop
+
+The Claude Code Stop hook. On a feature branch whose work changed since the
+last ship, runs \`speclaw ship\` for the change named after the branch. Prints
+nothing on stdout; a failing gate goes to stderr with exit 2 once.
+`,
+  },
+  {
     name: "session-start",
     usage: `Usage: speclaw session-start
 
@@ -210,7 +221,9 @@ speclaw index, compass_index, watch). Prints nothing and always exits 0.
     name: "explore",
     usage: `Usage: speclaw explore <node> [options]
 
-A symbol's source plus its callers and callees.
+A symbol's source plus its callers and callees. Each caller carries
+via: call (it calls the symbol) or ref (it names the type in an annotation
+or an extends/implements clause).
 
 Options
   --json               Print the result as JSON
@@ -324,6 +337,23 @@ Options
 `,
   },
   {
+    name: "ship",
+    usage: `Usage: speclaw ship <name> [options]
+
+Fast path for finished work: scaffold a level-0 record if the change is new,
+run the project's gates once, write reports/<discipline>.md from their real
+output, and archive at level 0. Level 1+ stops after the evidence: review
+happens on the PR. Ship never records a review verdict.
+
+Options
+  --summary <text>     What changed (default: the changed-file list)
+  --gate <cmd>         Gate command (repeatable; default ship.gates or package.json)
+  --discipline <name>  Report name (default ship.discipline or "change")
+  --no-archive         Stop after the report
+  --json               Print the result as JSON
+`,
+  },
+  {
     name: "quick",
     usage: `Usage: speclaw quick <name> [options]
 
@@ -346,7 +376,8 @@ Options
   --verdict <v>        PASS or FAIL (advance from reviewing/testing)
   --note <text>        A history note
   --question <text>    One open question, commas included; repeat for more
-  --pause-questions    Pause the loop for open questions
+  --pause-questions    From planning only: pause for the --question list
+                       (any other stage is rejected, exit 1)
   --json               Print the result as JSON
 `,
   },
@@ -358,7 +389,8 @@ Options
   list                         Active/archived changes and capabilities
   level <mode> [change]        propose|set|promote|explain ceremony level (--level, --reason)
   draft <name>                 Scaffold a feature change (--level N, --capability C)
-  draft --bug <name>           Scaffold a bug change (bugfix.md + reports)
+  draft --bug <name>           Scaffold a bug change (bugfix.md + reports;
+                               level unconfirmed unless --level N)
   investigate                  Rank bug suspects (--symptom, --stack-trace, --symbol, --path)
   validate <change>            Validate a change's artifacts
   sync <change>                Promote delta specs to canonical

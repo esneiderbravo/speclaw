@@ -1,11 +1,21 @@
 # Cortex — One brain. Many agents.
 
-**Cortex** is speclaw's multi-agent coordination brain: one coordinator dispatches
-specialized roles (explorer → planner → implementer → reviewer → tester →
-archiver) through a durable harness. It is a first-class module — MCP tool
-`cortex`, CLI `speclaw cortex`, skill `/lawbook/cortex` — not a metaphor and not
-an LLM runtime. Speclaw stays 100% local; the host agent (Cursor, Claude Code,
-…) spawns or adopts each role.
+**Cortex** is how every change is built, and it costs no more time than one
+agent working alone (`docs/benchmarks/cortex-speed.md`: 18.1 s median vs
+15.8 s on the same bug). **One brain does the critical path** — the primary
+agent locates with Compass, implements, runs the tests, and stops. Everything
+mechanical runs without agent turns: the Claude Code `Stop` hook runs
+`speclaw ship-on-stop`, which records the change, runs the gates once, writes
+the report from their real output, records the test verdict from the exit
+codes, and archives level-0 work. Agents without hooks call `speclaw ship
+<change>` (MCP `lawbook_change` action `ship`) once, last. Ship never records a
+review verdict: review happens on the PR.
+
+**Many agents** run only in parallel: the fan-out lane launches one implementer
+per large, independent part (three or more), and the spec lane (planner →
+parallel implementers → reviewer, below) is for multi-day, cross-module
+features that need a written spec first. Chaining agents on small work measured
+2–4× the cost with no speed gain.
 
 Lawbook owns **specs, ceremony, coverage, and drift**. Cortex owns the
 **loop** — who acts when, what they may do, and whether archive is allowed.
@@ -37,6 +47,22 @@ Lawbook owns **specs, ceremony, coverage, and drift**. Cortex owns the
 | archiving | archiver | Sync + `lawbook_archive` in the same PR |
 
 Max **3** review/test → implement reworks; then the coordinator asks the human.
+
+**The level is re-read on every move.** `advance` and `rework` read
+`confirmedLevel` from `change.json` before routing and store it as the harness
+`level`, so a `lawbook_change` action `level` set after `start` governs the
+next step. A missing `change.json` or a `change.json` without `confirmedLevel`
+counts as level 3, so an unconfirmed change never skips `planning`. A bug
+draft (`speclaw lawbook draft --bug <name>`) without `--level` starts
+unconfirmed: its `bugfix.md` says `Level: unconfirmed` and validate holds it to
+level-3 bug rules until a human sets a level.
+
+**Questions pause only from `planning`.** `advance` with `pauseForQuestions`
+(CLI `--pause-questions --question …`) moves `planning` to `questions` and
+records the questions. From any other stage it is rejected with
+`pauseForQuestions is only valid from stage planning (current: <stage>)`,
+`harness.json` stays byte-identical, and the CLI exits 1 — nothing advances
+and no question is dropped.
 
 **Archive completes the harness.** `lawbook_archive` / `speclaw lawbook archive`
 moves the harness from `archiving` to `done` (one `history[]` entry) just before
@@ -102,7 +128,7 @@ Set the interval in `lawbook/config.yaml`:
 
 ```yaml
 cortex:
-  statusIntervalMinutes: 5 # minutes; 0 disables (default 5, at most 60)
+  statusIntervalMinutes: 5 # minutes; 0 disables (default 0, at most 60)
 ```
 
 A missing file, block, or key, or a value that is not a whole number ≥ 0,

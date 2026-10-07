@@ -17,6 +17,7 @@ import {
   type ExploreInclude,
 } from "./explore-rich.js";
 import { diffContext, formatDiffContext } from "./diff-context.js";
+import { formatFindResponse } from "./find-output.js";
 import type { OutputMode } from "../../shared/output-budget.js";
 
 const includeEnum = z.array(
@@ -63,7 +64,7 @@ export function registerCompass(server: McpServer, opts: RegisterOpts = {}): voi
         mode: (mode ?? "brief") as OutputMode,
         maxDepth,
       });
-      return text(formatExploreRich(result, (mode ?? "brief") as OutputMode));
+      return text(formatExploreRich(result, (mode ?? "brief") as OutputMode), mode ?? "brief");
     },
   );
 
@@ -78,14 +79,10 @@ export function registerCompass(server: McpServer, opts: RegisterOpts = {}): voi
       focus: z.array(z.string()).optional(),
       maxTokens: z.number().int().min(256).max(32_000).optional(),
     },
-    async ({ projectPath, query, mode, limit, focus, maxTokens }) =>
-      text(
-        JSON.stringify(
-          await findSymbols(projectPath, query, mode, limit, { focus, maxTokens }),
-          null,
-          2,
-        ),
-      ),
+    async ({ projectPath, query, mode, limit, focus, maxTokens }) => {
+      const found = await findSymbols(projectPath, query, mode, limit, { focus, maxTokens });
+      return text(formatFindResponse(found), { maxTokens: found.cap });
+    },
   );
 
   add(
@@ -106,7 +103,7 @@ export function registerCompass(server: McpServer, opts: RegisterOpts = {}): voi
         mode: (mode ?? "brief") as OutputMode,
         maxDepth,
       });
-      return text(formatDiffContext(result, (mode ?? "brief") as OutputMode));
+      return text(formatDiffContext(result, (mode ?? "brief") as OutputMode), mode ?? "brief");
     },
   );
 
@@ -141,8 +138,9 @@ export function registerCompass(server: McpServer, opts: RegisterOpts = {}): voi
     handler: async ({ projectPath, query, limit }) => {
       logDeprecatedCall(projectPath, "compass_search");
       recordCompassCall(projectPath, "compass_search");
-      const body = JSON.stringify(await findSymbols(projectPath, query, "exact", limit), null, 2);
-      return text(prefixDeprecated("compass_search", body));
+      const found = await findSymbols(projectPath, query, "exact", limit);
+      const prefix = prefixDeprecated("compass_search", "");
+      return text(formatFindResponse(found, { prefix }), { maxTokens: found.cap });
     },
   });
 
@@ -153,8 +151,9 @@ export function registerCompass(server: McpServer, opts: RegisterOpts = {}): voi
     handler: async ({ projectPath, query, limit }) => {
       logDeprecatedCall(projectPath, "compass_recall");
       recordCompassCall(projectPath, "compass_recall");
-      const body = JSON.stringify(await findSymbols(projectPath, query, "concept", limit), null, 2);
-      return text(prefixDeprecated("compass_recall", body));
+      const found = await findSymbols(projectPath, query, "concept", limit);
+      const prefix = prefixDeprecated("compass_recall", "");
+      return text(formatFindResponse(found, { prefix }), { maxTokens: found.cap });
     },
   });
 

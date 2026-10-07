@@ -17,7 +17,7 @@ import { OUTPUT_BUDGET, estimateTokens } from "../../shared/output-budget.js";
 import { resolveChangeDir } from "./paths.js";
 
 /** Interval used when the key is missing or invalid. */
-export const DEFAULT_STATUS_INTERVAL_MINUTES = 5;
+export const DEFAULT_STATUS_INTERVAL_MINUTES = 0;
 
 /**
  * Largest interval reported. A session timer is a cron expression, and

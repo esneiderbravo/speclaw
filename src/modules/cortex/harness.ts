@@ -6,7 +6,8 @@
  * ops via `speclaw cortex` or the `cortex` MCP tool.
  *
  * Cortex must not import from the lawbook module (no cycles). Ceremony level
- * is read locally from `change.json` `confirmedLevel` (default 3).
+ * is read locally from `change.json` `confirmedLevel` (default 3) at start and
+ * again on every advance and rework.
  */
 
 import fs from "node:fs";
@@ -179,7 +180,7 @@ export type HarnessHandleArgs = {
   verdict?: HarnessVerdict | null;
   /** Planner → questions: set open questions; clearing happens on advance from questions. */
   openQuestions?: string[];
-  /** planning → questions without a "to" field: use goToQuestions */
+  /** planning → questions; rejected (no write) from any other stage. */
   pauseForQuestions?: boolean;
 };
 
@@ -243,9 +244,21 @@ export function handleHarness(args: HarnessHandleArgs): HarnessAdvanceResult | H
     throw new Error(`no harness.json for "${change}" — run cortex start first`);
   }
 
+  // Covers: req~harness-level-current~1
+  // The level is re-read on every mutating op, so a `level set` after start
+  // governs the next route; unconfirmed or missing → 3 (never skips planning).
+  const level = readConfirmedLevel(projectPath, change);
+
   if (harnessOp === "advance") {
-    // Planner may pause for questions instead of advancing to implement.
-    if (current.stage === "planning" && args.pauseForQuestions) {
+    // Covers: req~harness-pause-questions~1
+    // Only the planner may pause for questions; anywhere else the pause would
+    // be dropped silently, so it is rejected before any write.
+    if (args.pauseForQuestions && current.stage !== "planning") {
+      throw new Error(
+        `pauseForQuestions is only valid from stage planning (current: ${current.stage})`,
+      );
+    }
+    if (args.pauseForQuestions) {
       const questions = args.openQuestions ?? [];
       if (questions.length === 0) {
         throw new Error(`pauseForQuestions requires at least one openQuestions entry`);
@@ -253,6 +266,7 @@ export function handleHarness(args: HarnessHandleArgs): HarnessAdvanceResult | H
       const next: HarnessState = {
         ...current,
         stage: "questions",
+        level,
         openQuestions: questions,
         history: [
           ...current.history,
@@ -269,7 +283,7 @@ export function handleHarness(args: HarnessHandleArgs): HarnessAdvanceResult | H
       return next;
     }
 
-    const to = allowedAdvance(current.stage, current.level, args.verdict ?? undefined);
+    const to = allowedAdvance(current.stage, level, args.verdict ?? undefined);
 
     // Compass-first gate: runs before any write, so a strict rejection leaves
     // harness.json byte-identical.
@@ -290,6 +304,7 @@ export function handleHarness(args: HarnessHandleArgs): HarnessAdvanceResult | H
     const next: HarnessState = {
       ...current,
       stage: to,
+      level,
       verdicts,
       openQuestions: current.stage === "questions" ? [] : current.openQuestions,
       history: [
@@ -327,6 +342,7 @@ export function handleHarness(args: HarnessHandleArgs): HarnessAdvanceResult | H
     const next: HarnessState = {
       ...current,
       stage: "implementing",
+      level,
       iteration: current.iteration + 1,
       verdicts,
       history: [

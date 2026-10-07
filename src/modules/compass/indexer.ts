@@ -269,8 +269,9 @@ export interface ResolveEdgesStats {
 }
 
 /**
- * Resolve call and import edges to node ids — the one place edge resolution
- * lives, shared by the full index run and incremental re-indexing.
+ * Resolve call, import, and type-reference (`ref`) edges to node ids — the one
+ * place edge resolution lives, shared by the full index run and incremental
+ * re-indexing.
  *
  * - Edges whose `dst_node_id` points at a node that no longer exists (its file
  *   was re-extracted) are reset to unresolved first.
@@ -288,6 +289,10 @@ export interface ResolveEdgesStats {
  *   never call targets. An import of a symbol-less or re-exporting file (a
  *   barrel) resolves to that file's file-owner node, so member calls through
  *   it bind by name like this.
+ * - A `ref` resolves only to the definition its same-file import binding's
+ *   target file holds (barrel subtree as for calls), else to a same-file
+ *   definition; never by a bare global name (`ref` edges are not counted in
+ *   the returned stats).
  * - Imports resolve their specifier relative to the importing file, then
  *   through the nearest `tsconfig.json`/`jsconfig.json` `paths`/`baseUrl`, and
  *   point at the target file's file-owner node when it has one, otherwise at
@@ -371,6 +376,28 @@ export function resolveEdges(db: DatabaseSync, fileIds?: number[]): ResolveEdges
        ${callScope}`,
   ).run(...(narrow ? [...ids, ...importScope, ...ids] : []));
   const calls = resolvedCalls() - before;
+
+  // Covers: req~type-ref-edges~1
+  // A type reference resolves only through its own file: the definition its
+  // import binding's target file (or that barrel's subtree) holds, else a
+  // same-file definition. Never by a bare global name, so a generic `Props`
+  // in an unrelated file stays NULL. `is_member = 1` (`a.b.Type`, a
+  // non-import qualifier) never resolves.
+  db.prepare(
+    `UPDATE edges SET dst_node_id = (
+       SELECT n.id FROM nodes n
+       WHERE n.name = edges.dst_name
+         AND n.kind <> '${FILE_NODE_KIND}'
+         AND ((edges.spec IS NOT NULL AND (n.file_id = ${importTarget} OR ${underTargetDir}))
+              OR (edges.is_member = 0 AND n.file_id = edges.src_file_id))
+       ORDER BY CASE WHEN n.file_id = ${importTarget} THEN 0
+                     WHEN edges.spec IS NOT NULL AND ${underTargetDir} THEN 1
+                     ELSE 2 END, n.id
+       LIMIT 1
+     )
+     WHERE kind = 'ref' AND dst_node_id IS NULL AND is_member <> 1
+       ${callScope}`,
+  ).run(...(narrow ? [...ids, ...importScope, ...ids] : []));
   return { calls, imports };
 }
 

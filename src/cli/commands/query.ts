@@ -37,7 +37,7 @@ export async function runQuery(cmd: string, flags: Flags): Promise<void> {
   try {
     switch (cmd) {
       case "explore": {
-        const r = explore(cwd, need(args[0], "explore <node>"));
+        const r = explore(cwd, need(args[0], "explore <node>"), { includeRefs: true });
         if (!r.found) {
           ui.warn(r.message ?? "not found");
           r.otherMatches?.forEach((m) => ui.info(`${m.name} (${m.kind}) ${m.file}:${m.line}`));
@@ -55,7 +55,9 @@ export async function runQuery(cmd: string, flags: Flags): Promise<void> {
         }
         ui.heading("Callers");
         r.callers?.forEach((c) =>
-          ui.info(`${c.kind === "file" ? "(file) " : ""}${c.name} (${c.file}:${c.line})`),
+          ui.info(
+            `${c.kind === "file" ? "(file) " : ""}${c.name} (${c.file}:${c.line})${c.via ? ` via ${c.via}` : ""}`,
+          ),
         );
         return;
       }

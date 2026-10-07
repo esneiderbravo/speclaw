@@ -6,13 +6,19 @@ export const OUTPUT_BUDGET = {
 
 export type OutputMode = keyof typeof OUTPUT_BUDGET;
 
+/** An output mode, or an explicit token cap a caller opted into. */
+export type TextBudget = OutputMode | { maxTokens: number };
+
 export interface TruncationEntry {
   field: string;
   omitted: number;
   hint: string;
 }
 
+/** Brief-mode suffix: the caller can still widen the response with `mode:"full"`. */
 const TRUNCATION_SUFFIX = `\n… [truncated — use mode:"full" or narrow includes]`;
+/** Suffix under the full ceiling or an explicit cap: widening the mode would not help. */
+const FINAL_TRUNCATION_SUFFIX = `\n… [truncated — narrow includes or the query]`;
 
 /** Stable offline token estimate for budgeting (not a real tokenizer). */
 export function estimateTokens(text: string): number {
@@ -20,22 +26,37 @@ export function estimateTokens(text: string): number {
 }
 
 /**
- * Trim `text` to fit `mode` budget; returns the possibly shortened text and
- * whether truncation occurred.
+ * Token ceiling of a {@link TextBudget}.
+ *
+ * @param budget - Output mode or explicit cap.
  */
+export function budgetTokens(budget: TextBudget): number {
+  return typeof budget === "string" ? OUTPUT_BUDGET[budget] : Math.max(1, budget.maxTokens);
+}
+
+/**
+ * Trim `text` to fit `budget`; returns the possibly shortened text and whether
+ * truncation occurred. Under `brief` the suffix suggests `mode:"full"`; under
+ * `full` or an explicit cap it never does, since that would not widen anything.
+ *
+ * @param text - Text to budget.
+ * @param budget - Output mode (`brief` default) or `{ maxTokens }`.
+ */
+// Covers: req~find-response-budget~1
 export function applyTextBudget(
   text: string,
-  mode: OutputMode = "brief",
+  budget: TextBudget = "brief",
 ): { text: string; truncated: boolean; omittedChars: number } {
-  const budget = OUTPUT_BUDGET[mode];
+  const cap = budgetTokens(budget);
   const tokens = estimateTokens(text);
-  if (tokens <= budget) return { text, truncated: false, omittedChars: 0 };
-  const suffixTokens = estimateTokens(TRUNCATION_SUFFIX);
-  const bodyBudget = Math.max(1, budget - suffixTokens);
+  if (tokens <= cap) return { text, truncated: false, omittedChars: 0 };
+  const suffix = budget === "brief" ? TRUNCATION_SUFFIX : FINAL_TRUNCATION_SUFFIX;
+  const suffixTokens = estimateTokens(suffix);
+  const bodyBudget = Math.max(1, cap - suffixTokens);
   const maxChars = bodyBudget * 4;
   const trimmed = text.slice(0, maxChars);
   return {
-    text: trimmed + TRUNCATION_SUFFIX,
+    text: trimmed + suffix,
     truncated: true,
     omittedChars: text.length - maxChars,
   };
@@ -55,8 +76,11 @@ export function budgetExploreShape(
   mode: OutputMode,
   truncated: TruncationEntry[],
 ): void {
-  const maxCallers = mode === "full" ? 40 : 12;
-  const maxSourceLines = mode === "full" ? 120 : 40;
+  // Full mode sizes source to the full-mode token ceiling (~4500 tokens), so a
+  // typical long function arrives whole; its hints cannot point at mode:"full".
+  const full = mode === "full";
+  const maxCallers = full ? 40 : 12;
+  const maxSourceLines = full ? 400 : 40;
 
   const symbol = value.symbol as Record<string, unknown> | undefined;
   if (symbol && typeof symbol.source === "string") {
@@ -67,7 +91,9 @@ export function budgetExploreShape(
       truncated.push({
         field: "symbol.source",
         omitted,
-        hint: 'use mode:"full" or omit source from include',
+        hint: full
+          ? "read the remaining lines from the file by startLine/endLine"
+          : 'use mode:"full" or omit source from include',
       });
     }
   }
@@ -82,7 +108,9 @@ export function budgetExploreShape(
       truncated.push({
         field,
         omitted,
-        hint: 'use mode:"full" or narrow with include',
+        hint: full
+          ? "use compass_impact for the full list"
+          : 'use mode:"full" or narrow with include',
       });
     }
   }

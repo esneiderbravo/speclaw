@@ -92,3 +92,48 @@ test("parseBugfixSections extracts seven sections", () => {
   assert.ok(m.has("1. Observed symptom"));
   assert.ok(m.get("6. Regression test")!.includes("billing.test"));
 });
+
+// Covers: req~bug-draft-unconfirmed~1
+test("bug draft without a level is not self-confirmed", (t) => {
+  const root = tmpRepo(t);
+  specInit(root);
+  const r = scaffoldBugfix(root, "dup-charge");
+  const raw = JSON.parse(fs.readFileSync(path.join(r.dir, "change.json"), "utf8")) as Record<
+    string,
+    unknown
+  >;
+  assert.equal(raw.changeType, "bug");
+  for (const k of ["confirmedLevel", "confirmedBy", "confirmedAt"]) {
+    assert.equal(k in raw, false, `change.json carries ${k}`);
+  }
+  assert.match(
+    fs.readFileSync(path.join(r.dir, "bugfix.md"), "utf8"),
+    /\*\*Level:\*\* unconfirmed/,
+  );
+  assert.deepEqual(fs.readdirSync(r.dir).sort(), [
+    "bugfix.md",
+    "change.json",
+    "reports",
+    "tasks.md",
+  ]);
+  const v = specValidate(root, "dup-charge");
+  assert.equal(v.valid, false);
+  assert.ok(
+    v.issues.some((i) => i.includes("design.md")),
+    `level-3 bug rules name design.md: ${v.issues.join("; ")}`,
+  );
+});
+
+// Covers: req~bug-draft-unconfirmed~1
+test("a bug draft with a supplied level is confirmed", (t) => {
+  const root = tmpRepo(t);
+  specInit(root);
+  const r = scaffoldBugfix(root, "dup-charge", { level: 1 });
+  const raw = JSON.parse(fs.readFileSync(path.join(r.dir, "change.json"), "utf8")) as Record<
+    string,
+    unknown
+  >;
+  assert.equal(raw.confirmedLevel, 1);
+  assert.equal(raw.changeType, "bug");
+  assert.match(fs.readFileSync(path.join(r.dir, "bugfix.md"), "utf8"), /\*\*Level:\*\* 1 /);
+});

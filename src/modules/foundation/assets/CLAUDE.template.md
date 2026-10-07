@@ -50,16 +50,19 @@ target is not indexed code — stylesheets, JSON/config, markdown, logs,
 generated files, lockfiles. Never skip Compass because grep "feels faster."
 See [`docs/compass.md`](docs/compass.md).
 
-## Rule 2 — Spec-driven Cortex loop, always
+## Rule 2 — Cortex, always — one brain on the critical path
 
-No non-trivial change lands without a lawbook change (propose → implement →
-verify → archive) run through **Cortex** (*One brain. Many agents.*). You are the
-**coordinator** unless you were spawned as a role agent: use the `cortex`
-skill / `/lawbook/cortex` and the `cortex` MCP tool; do **not** implement product code yourself.
-Role agents live in `ai-specs/agents/`. The rules are in
-[`docs/standards/lawbook.md`](docs/standards/lawbook.md);
-workflow skills live in `ai-specs/skills/` and `/lawbook` commands wrap them.
-A change is not done until it is archived — archiving belongs in the PR.
+Every change is built with **Cortex** (*One brain. Many agents.*), and Cortex
+costs no more time than working alone: branch `<type>/<slug>`, locate with
+Compass, implement the change and its test yourself, run the tests, finish.
+Then stop: the `Stop` hook (`speclaw ship-on-stop`) records the change, runs
+the gates once, writes the report from their real output, and archives
+level-0 work with no agent turns; a failing gate comes back to you. Do not run
+`speclaw ship` yourself, check the hook, open the archive, edit the generated
+report, read the process docs, or drive the harness by hand. Review happens on the PR, never blocking the
+agent. Add agents only to run three or more large, independent parts in
+parallel. Details: the `cortex` skill and
+[`docs/standards/lawbook.md`](docs/standards/lawbook.md).
 
 ## Rule 3 — Quality gates are non-negotiable
 

@@ -39,10 +39,10 @@ and callees, `compass_impact` (grouped by module; `format: flat` for the old lis
 `compass_hotspots` / `speclaw hotspots` (activity × AST health, default 90d)
 and `compass_coupling` / `speclaw coupling` (Jaccard strength, `in_graph`,
 `isTestPair`). Run `compass_index` first if the graph is missing (Claude Code
-sessions refresh an existing index at start via a `SessionStart` hook). Schema **11**
-stores FTS5/`node_text`/`pagerank` plus `embedding_cache`, Merkle `dir_hashes`, and
-`node_metrics` — reindex with `speclaw index` after a schema bump (10→11 forces a
-reindex; embeddings reused). Each Write/Edit is re-indexed right after the edit;
+sessions refresh an existing index at start via a `SessionStart` hook). Schema **12**
+stores FTS5/`node_text`/`pagerank` plus `embedding_cache`, Merkle `dir_hashes`,
+`node_metrics`, and type-reference (`ref`) edges — reindex with `speclaw index` after a
+schema bump (11→12 forces a reindex; embeddings reused). Each Write/Edit is re-indexed right after the edit;
 PageRank and the compact map in `docs/compass.md` catch up on the next full run;
 files created or renamed by shell commands and edits by agents without hooks are
 picked up at the next session start or `compass_index`.
@@ -59,23 +59,21 @@ target is not indexed code — stylesheets, JSON/config, markdown, logs,
 generated files, lockfiles. Never skip Compass because grep "feels faster."
 See [`docs/compass.md`](docs/compass.md).
 
-## Rule 2 — Spec-driven Cortex loop, always
+## Rule 2 — Cortex, always — one brain on the critical path
 
-No non-trivial change lands without a lawbook change (propose → implement →
-verify → archive) run through **Cortex** (*One brain. Many agents.*). You are the
-**coordinator** unless you were spawned as a role agent: use the `cortex`
-skill / `/lawbook/cortex` and the `cortex` MCP tool; do **not** implement product code yourself.
-Role agents live in `ai-specs/agents/`. Artifact volume follows the
-**confirmed ceremony level** in `change.json` (0=quick … 3=full); missing
-`change.json` is still full ceremony (level 3). Propose/set/promote with
-`lawbook_level` / `speclaw lawbook level`; level 0 scaffolds via `speclaw
-quick`. Bugs use `speclaw lawbook draft --bug` and `bugfix.md` with
-`changeType: bug`; `lawbook_investigate` for graph-backed RCA first. The rules
-are in [`docs/standards/lawbook.md`](docs/standards/lawbook.md); workflow
-skills live in `ai-specs/skills/` and the `/lawbook` commands wrap them. A
-change is not done until it is archived — archiving belongs in the PR.
-Requirement → impl → test coverage is `speclaw coverage` / `lawbook_coverage`.
-Sealed spec↔code drift is `speclaw drift` / `lawbook_drift`.
+Every change is built with **Cortex** (*One brain. Many agents.*), and Cortex
+costs no more time than working alone (measured: `docs/benchmarks/cortex-speed.md`).
+Branch `<type>/<slug>`, locate with Compass, implement the change and its test
+yourself, run the tests, and stop: the `Stop` hook (`speclaw ship-on-stop`)
+records the change, runs the gates once, writes the report from their real
+output, and archives level-0 work with no agent turns; a failing gate comes
+back to you. Do not run `speclaw ship` yourself, edit its report, read the
+process docs, or drive the harness by hand. Review happens on the PR and never
+blocks the agent. Add agents only to run three or more large, independent
+parts in parallel (the `cortex` skill's fan-out lane); multi-day, cross-module
+features that need a written spec first use the spec lane (`speclaw lawbook
+draft`, ceremony levels, `bugfix.md` for bugs). Coverage: `speclaw coverage`;
+drift: `speclaw drift`. Rules: [`docs/standards/lawbook.md`](docs/standards/lawbook.md).
 
 ## Rule 3 — Quality gates are non-negotiable
 
@@ -123,14 +121,14 @@ Planner clarifying questions always go to the human via the coordinator.
   `SPECLAW_NO_SELF_UPDATE=1`. The agent MCP entry is pinned to the installed
   version (`npx -y @esneiderbravo/speclaw@<version> mcp`); `update` re-pins a
   stock entry and keeps a custom one. Run `speclaw update` so the pinned MCP
-  entry moves to 2.0.10; an older speclaw opening this index rebuilds it from
-  scratch.
+  entry moves to 2.0.13 (pin every speclaw to 2.0.13); an older speclaw opening
+  this schema-12 index rebuilds it from scratch.
 - Optional `.speclaw/affected.json` overrides affected-test globals/test globs.
   Affected-test `command` may be `null` (with `commandReason`) when no test is
   reachable; `commands[]` lists one `{ cwd, command, files }` per package — never
   run `command` blindly.
-  After a Compass schema bump (now **11**, FTS5 + pagerank + embedding cache), reindex
-  with `speclaw index` (10→11 forces a reindex; embeddings reused); photograph bodies once with
+  After a Compass schema bump (now **12**, FTS5 + pagerank + embedding cache + `ref`
+  edges), reindex with `speclaw index` (11→12 forces a reindex; embeddings reused); photograph bodies once with
   `speclaw drift --reseal` if anchors are new or stale. Hotspots/coupling
   default history window is 90 days.
 - Ceremony levels 0–3 live in `change.json`. `speclaw quick` scaffolds level 0;
@@ -174,7 +172,7 @@ Planner clarifying questions always go to the human via the coordinator.
 - `speclaw lawbook draft <name> [--level N] [--capability C]` (or
   `lawbook_change` action `draft`) scaffolds a change. Existing installs show
   the updated hooks as `refreshedDiverged` on `speclaw update`.
-- speclaw **2.0**: Foundation (hooks + lock), Compass (schema 11), Lawbook
+- speclaw **2.0**: Foundation (hooks + lock), Compass (schema 12), Lawbook
   (ceremony 0–3), Cortex (multi-agent loop; nine canonical MCP tools), Team
   (`owners --write`). Install: `npx @esneiderbravo/speclaw@latest init`. CI:
   `esneiderbravo/speclaw@v2`.

@@ -142,7 +142,12 @@ export async function runSpec(flags: Flags): Promise<void> {
             console.log(JSON.stringify(result, null, 2));
             return;
           }
-          ui.ok(`bug change "${name}" scaffolded at ${result.dir}`);
+          ui.ok(
+            `bug change "${name}" scaffolded at ${result.dir} ` +
+              (level === undefined
+                ? "(level unconfirmed — run `speclaw lawbook level set`)"
+                : `(level ${level})`),
+          );
           return;
         }
         const name = req(

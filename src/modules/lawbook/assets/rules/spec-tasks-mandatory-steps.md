@@ -5,6 +5,12 @@ alwaysApply: true
 
 # Spec Tasks: Mandatory Steps
 
+> **Scope.** This rule governs spec-lane changes — the ones that carry a
+> `tasks.md` (level 2+, or the Cortex fan-out lane). In the default Cortex lane,
+> `speclaw ship` (or the `Stop` hook) writes the record and the report from the
+> gates' real output: do not hand-write, edit, or restructure them, and do not
+> re-run ship or archive yourself.
+
 When creating or updating a `tasks.md` inside a `lawbook/changes/<name>/`, you MUST:
 
 ## 1. Read lawbook/config.yaml first
