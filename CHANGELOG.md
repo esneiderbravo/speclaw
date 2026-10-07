@@ -5,6 +5,39 @@ All notable changes to this project are documented here. Speclaw follows
 
 ## [Unreleased]
 
+## [2.0.8] — 2026-10-06
+
+### Added
+
+- Cortex status summary. The `cortex` MCP tool's `status` action and
+  `speclaw cortex status` return a `summary` before `state`: the stage, the
+  active role, whole minutes in the stage, tasks done/total (from the
+  `tasks.md` checkboxes, or `record.md` at level 0), the rework
+  iteration/max, the pending verdicts, the open-question count, the
+  configured interval, and a one-line English `line`. `summary` is `null`
+  when the change has no harness yet. The MCP input schema is unchanged.
+- `speclaw cortex status` also prints `summary.line` to stderr; stdout stays
+  one JSON document, and `--json` suppresses the stderr line.
+- Coordinator status updates. During a Cortex run the `cortex` skill posts a
+  compact update after every Cortex op and before every blocking role
+  dispatch, in the session's language (stage, role, and tool names, paths, and
+  change names stay in English). Where the host has a session timer (Claude
+  Code `CronCreate`) it also keeps exactly one recurring timer per run, skips
+  pings while the run waits on the human's answers (`questions`), and deletes
+  the timer at `done`, when the run stops, or when the human asks to stop.
+- `cortex.statusIntervalMinutes` in `lawbook/config.yaml` sets the update
+  interval: default 5, `0` disables every unsolicited update, values above 60
+  are capped at 60, and a missing or invalid value means 5.
+
+### Changed
+
+- On the MCP path (`cortex` and the deprecated `lawbook_change` `harness`
+  alias), `status` is fitted to the output budget so the JSON stays valid and
+  `summary` stays complete: the oldest `state.history` entries are dropped and
+  counted in `historyOmitted` (`state` becomes `null` with `stateOmitted` if
+  even an empty history does not fit). The CLI and `harness.json` keep the
+  full history.
+
 ## [2.0.7] — 2026-10-06
 
 ### Added

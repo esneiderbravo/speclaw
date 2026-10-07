@@ -4,7 +4,7 @@
  * // Covers: req~cortex-module~1
  */
 
-import type { HarnessStage } from "./harness.js";
+import type { HarnessStage } from "./types.js";
 
 export interface CortexBrief {
   role: string | null;

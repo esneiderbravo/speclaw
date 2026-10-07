@@ -6,6 +6,7 @@ import { scaffoldFeature } from "./scaffold-change.js";
 import { buildCoverageReport, loadCoverageConfig, renderCoverageAgent } from "./coverage.js";
 import { buildDriftReport, renderDriftAgent } from "./drift.js";
 import { handleHarness, harnessOps } from "../cortex/harness.js";
+import { fitStatusResult } from "../cortex/status.js";
 
 export const lawbookChangeActions = [
   "init",
@@ -139,7 +140,7 @@ export function handleLawbookChange(args: ChangeArgs): unknown {
       if (!args.harnessOp) {
         throw new Error(`lawbook_change: action 'harness' requires 'harnessOp'`);
       }
-      return handleHarness({
+      const result = handleHarness({
         projectPath: args.projectPath,
         change: requireField(args, "change"),
         harnessOp: args.harnessOp,
@@ -148,6 +149,8 @@ export function handleLawbookChange(args: ChangeArgs): unknown {
         pauseForQuestions: args.pauseForQuestions,
         note: args.note ?? args.reason,
       });
+      // MCP-only path: fit `status` to the output budget like the `cortex` tool.
+      return args.harnessOp === "status" && "summary" in result ? fitStatusResult(result) : result;
     }
     default:
       throw new Error(`lawbook_change: unknown action '${String(args.action)}'`);

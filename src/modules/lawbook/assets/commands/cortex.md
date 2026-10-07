@@ -9,3 +9,5 @@ explorer → planner → implementer → reviewer → tester → archiver. Drive
 with the `cortex` MCP tool (`status`/`start`/`advance`/`rework`/`brief`) or
 `speclaw cortex …`. Surface planner questions to the human. Do not implement
 product code yourself.
+The run posts status updates every `cortex.statusIntervalMinutes` minutes
+(`lawbook/config.yaml`, default 5, `0` disables, at most 60).

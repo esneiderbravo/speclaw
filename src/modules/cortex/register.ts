@@ -16,6 +16,7 @@ import {
   type HarnessVerdict,
 } from "./harness.js";
 import { briefForStage } from "./brief.js";
+import { fitStatusResult } from "./status.js";
 
 export const cortexActions = [...harnessOps, "brief"] as const;
 export type CortexAction = (typeof cortexActions)[number];
@@ -40,7 +41,7 @@ export function registerCortex(server: McpServer, opts: RegisterOpts = {}): void
 
   add(
     "cortex",
-    "Cortex multi-agent loop: status, start, advance, rework, brief for a change.",
+    "Cortex multi-agent loop: status with summary, start, advance, rework, brief for a change.",
     {
       projectPath: z.string(),
       change: z.string(),
@@ -56,17 +57,17 @@ export function registerCortex(server: McpServer, opts: RegisterOpts = {}): void
         const brief = briefForStage(state?.stage ?? null);
         return text(JSON.stringify({ state, ...brief }, null, 2));
       }
-      return text(
-        handleHarness({
-          projectPath,
-          change,
-          harnessOp: action as HarnessOp,
-          note,
-          verdict: (verdict as HarnessVerdict | undefined) ?? null,
-          openQuestions,
-          pauseForQuestions,
-        }),
-      );
+      const result = handleHarness({
+        projectPath,
+        change,
+        harnessOp: action as HarnessOp,
+        note,
+        verdict: (verdict as HarnessVerdict | undefined) ?? null,
+        openQuestions,
+        pauseForQuestions,
+      });
+      // `text()` cuts from the end; fit `status` so `summary` and valid JSON survive.
+      return text(action === "status" && "summary" in result ? fitStatusResult(result) : result);
     },
   );
 }

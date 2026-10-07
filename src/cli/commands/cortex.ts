@@ -49,6 +49,10 @@ export async function runCortex(flags: Flags): Promise<void> {
       note: typeof flags.note === "string" ? flags.note : undefined,
     });
     printHarnessWarnings(result);
+    // The human line goes to stderr so stdout stays one JSON document.
+    if (op === "status" && !flags.json && "summary" in result && result.summary) {
+      process.stderr.write(`  ${result.summary.line}\n`);
+    }
     console.log(JSON.stringify(result, null, 2));
   } catch (err) {
     ui.err((err as Error).message);
