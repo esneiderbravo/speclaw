@@ -27,11 +27,17 @@ export interface CliResult {
  *   Values in `env` are layered over the defaults; set one to `undefined` to
  *   unset it (e.g. drop `NO_COLOR` to exercise the branded, colored output).
  *   `input` is written to the child's stdin (for `check --hook-payload -`).
+ *   `timeout` (ms) kills a child that does not exit in time (exit code 1).
  * @returns The process exit code and captured stdio.
  */
 export function runCli(
   args: string[],
-  opts: { cwd?: string; env?: Record<string, string | undefined>; input?: string } = {},
+  opts: {
+    cwd?: string;
+    env?: Record<string, string | undefined>;
+    input?: string;
+    timeout?: number;
+  } = {},
 ): CliResult {
   const env: Record<string, string | undefined> = {
     ...process.env,
@@ -45,6 +51,7 @@ export function runCli(
     encoding: "utf8",
     env,
     input: opts.input,
+    timeout: opts.timeout,
   });
   return { code: res.status ?? 1, stdout: res.stdout ?? "", stderr: res.stderr ?? "" };
 }

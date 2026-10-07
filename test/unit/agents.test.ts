@@ -8,8 +8,10 @@ import {
   agentById,
   configureAgent,
   detectConfiguredAgents,
+  mcpEntry,
   refreshAgents,
 } from "../../src/shared/agents.js";
+import { pkgName, pkgVersion } from "../../src/shared/version.js";
 import { emptyReport } from "../../src/shared/install.js";
 
 /** Give a project the ai-specs subdirectories an agent links to. */
@@ -111,4 +113,58 @@ test("every AGENTS entry has an id, label, ideDir, and link targets", () => {
     assert.ok(a.id && a.label && a.ideDir);
     assert.ok(a.linkTargets.length > 0);
   }
+});
+
+const PINNED = () => ["-y", `${pkgName()}@${pkgVersion()}`, "mcp"];
+
+/** Configure claude over a pre-existing `.mcp.json` speclaw entry and return the result. */
+function configureOver(t: Parameters<typeof tmpRepo>[0], entry: unknown) {
+  const root = tmpRepo(t);
+  write(root, ".mcp.json", JSON.stringify({ mcpServers: { speclaw: entry } }, null, 2));
+  const report = emptyReport();
+  configureAgent(root, "claude", report);
+  return { mcp: JSON.parse(read(root, ".mcp.json")), report };
+}
+
+// Covers: req~mcp-entry-pinned~1
+test("a fresh MCP config is pinned to the running version", (t) => {
+  const root = tmpRepo(t);
+  configureAgent(root, "claude", emptyReport());
+  const mcp = JSON.parse(read(root, ".mcp.json"));
+  assert.deepEqual(mcp.mcpServers.speclaw, { type: "stdio", command: "npx", args: PINNED() });
+  assert.deepEqual(mcpEntry().args, PINNED());
+});
+
+// Covers: req~mcp-entry-pinned~1
+test("a stock unpinned entry is re-pinned and the rewrite is reported", (t) => {
+  const { mcp, report } = configureOver(t, {
+    type: "stdio",
+    command: "npx",
+    args: ["-y", pkgName(), "mcp"],
+  });
+  assert.deepEqual(mcp.mcpServers.speclaw.args, PINNED());
+  assert.ok(report.written.some((w) => w.includes(`speclaw MCP entry pinned to ${pkgVersion()}`)));
+});
+
+// Covers: req~mcp-entry-pinned~1
+test("an entry pinned to an older version is re-pinned", (t) => {
+  const { mcp } = configureOver(t, { command: "npx", args: ["-y", `${pkgName()}@2.0.1`, "mcp"] });
+  assert.deepEqual(mcp.mcpServers.speclaw.args, PINNED());
+  assert.equal(mcp.mcpServers.speclaw.type, "stdio");
+});
+
+// Covers: req~mcp-entry-pinned~1
+test("a custom speclaw entry is kept and reported", (t) => {
+  const custom = { command: "node", args: ["/work/speclaw/dist/cli/index.js", "mcp"] };
+  const { mcp, report } = configureOver(t, custom);
+  assert.deepEqual(mcp.mcpServers.speclaw, custom);
+  assert.ok(report.skipped.some((s) => s.includes("custom speclaw entry kept")));
+  const withEnv = configureOver(t, { command: "npx", args: PINNED(), env: { X: "1" } });
+  assert.ok(withEnv.report.skipped.some((s) => s.includes("custom speclaw entry kept")));
+});
+
+// Covers: req~mcp-entry-pinned~1
+test("an entry already pinned to this version is left as is", (t) => {
+  const { report } = configureOver(t, { type: "stdio", command: "npx", args: PINNED() });
+  assert.ok(report.skipped.some((s) => s.includes("already registered")));
 });

@@ -1,11 +1,13 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { createHash } from "node:crypto";
+import { mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { tmpRepo, write, read, has } from "../helpers/env.js";
 import { seedSampleRepo, sampleProfile, speclawLayout } from "../helpers/fixtures.js";
 import { runCli, cliBuilt } from "../helpers/cli.js";
+import { COMMANDS } from "../../src/cli/lib/help.js";
 import { scaffold } from "../../src/modules/foundation/scaffold.js";
 import { gitInit, commit } from "../helpers/git.js";
 import { spawnSync } from "node:child_process";
@@ -333,4 +335,93 @@ test("verify --ci exits 1 when a seed graph law finds a cycle", { skip }, (t) =>
   const r = runCli(["verify", "--ci"], { cwd: root });
   assert.equal(r.code, 1);
   assert.match(r.stdout + r.stderr, /law~no-module-cycles~1/);
+});
+
+// Per-command --help / -h. Each row runs in an empty temp dir with a temp HOME
+// (holding a cached newer `latest`, so an enabled notifier would have something
+// to print) and the notifier left enabled. The directory must be byte-identical
+// afterwards, stdout must carry `Usage`, and nothing may be started: the timeout
+// bounds `mcp`/`watch`, which would otherwise keep running.
+const HELP_COMMANDS: readonly string[] = COMMANDS.map((c) => c.name);
+
+/** Recursive listing of `root` with a content hash per file (dirs marked). */
+function snapshotDir(root: string): string[] {
+  const out: string[] = [];
+  const walk = (dir: string): void => {
+    for (const e of readdirSync(dir, { withFileTypes: true })) {
+      const abs = path.join(dir, e.name);
+      const rel = path.relative(root, abs);
+      if (e.isDirectory()) {
+        out.push(`${rel}/`);
+        walk(abs);
+      } else {
+        out.push(`${rel} ${createHash("sha256").update(readFileSync(abs)).digest("hex")}`);
+      }
+    }
+  };
+  walk(root);
+  return out.sort();
+}
+
+for (const cmd of HELP_COMMANDS) {
+  for (const flag of ["--help", "-h"]) {
+    // Covers: req~per-command-help~1
+    test(`\`${cmd} ${flag}\` prints usage without side effects`, { skip }, (t) => {
+      const root = tmpRepo(t, "speclaw-help-");
+      const home = tmpRepo(t, "speclaw-help-home-");
+      mkdirSync(path.join(home, ".speclaw"), { recursive: true });
+      writeFileSync(
+        path.join(home, ".speclaw", "update-check.json"),
+        JSON.stringify({ checkedAt: Date.now(), latest: "999.0.0" }),
+      );
+      const before = snapshotDir(root);
+      const r = runCli([cmd, flag], {
+        cwd: root,
+        timeout: 15_000,
+        env: {
+          HOME: home,
+          USERPROFILE: home,
+          NO_COLOR: undefined,
+          FORCE_COLOR: "1",
+          NO_UPDATE_NOTIFIER: undefined,
+          SPECLAW_NO_UPDATE_NOTIFIER: undefined,
+          // Lift the notifier's TTY check so a reached notifier would print.
+          SPECLAW_UPDATE_NOTIFIER: "force",
+        },
+      });
+      assert.equal(r.code, 0, `exit code (stderr: ${r.stderr.slice(0, 300)})`);
+      assert.match(r.stdout, /Usage/);
+      assert.deepEqual(snapshotDir(root), before, "the directory is byte-identical");
+      assert.doesNotMatch(r.stdout, new RegExp(TAGLINE), "no branded header");
+      assert.doesNotMatch(r.stderr, /available/, "no update notice");
+      if (cmd === "update") assert.match(r.stdout, /--no-self-update/);
+      if (cmd === "laws") assert.match(r.stdout, /lock[^\n]*--force/);
+    });
+  }
+}
+
+// Control for the "no update notice" assertion above: with the same cached
+// newer version and forced notifier, a command that is not help prints it.
+// Covers: req~per-command-help~1
+test("the forced notifier prints for a non-help command (help-table control)", { skip }, (t) => {
+  const root = tmpRepo(t, "speclaw-help-control-");
+  const home = tmpRepo(t, "speclaw-help-control-home-");
+  mkdirSync(path.join(home, ".speclaw"), { recursive: true });
+  writeFileSync(
+    path.join(home, ".speclaw", "update-check.json"),
+    JSON.stringify({ checkedAt: Date.now(), latest: "999.0.0" }),
+  );
+  const r = runCli(["laws", "scan", "--json"], {
+    cwd: root,
+    timeout: 15_000,
+    env: {
+      HOME: home,
+      USERPROFILE: home,
+      NO_UPDATE_NOTIFIER: undefined,
+      SPECLAW_NO_UPDATE_NOTIFIER: undefined,
+      SPECLAW_UPDATE_NOTIFIER: "force",
+    },
+  });
+  assert.equal(r.code, 0, r.stderr);
+  assert.match(r.stderr, /999\.0\.0[\s\S]*available/);
 });

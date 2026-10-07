@@ -78,24 +78,32 @@ export function isNewer(latest: string, current: string): boolean {
  * cache unless `force` is set. Falls back to stale cache when offline.
  *
  * @param opts - `force` bypasses the cache and always queries the registry.
- * @returns The current/latest versions and whether an upgrade is available.
+ * @returns The current/latest versions, whether an upgrade is available, and
+ *   `fresh`: true only when `latest` came from the registry during this call
+ *   (a cached or offline value is not fresh — `npx` could not resolve it either).
  */
-export async function checkForUpdates(
-  opts: { force?: boolean } = {},
-): Promise<{ current: string; latest: string | null; updateAvailable: boolean }> {
+export async function checkForUpdates(opts: { force?: boolean } = {}): Promise<{
+  current: string;
+  latest: string | null;
+  updateAvailable: boolean;
+  fresh: boolean;
+}> {
   const current = pkgVersion();
   const cache = readCache();
   let latest: string | null;
+  let fresh = false;
 
   if (!opts.force && cache && Date.now() - cache.checkedAt < TTL_MS) {
     latest = cache.latest;
   } else {
     latest = await fetchLatest(pkgName());
-    if (latest) writeCache(latest);
-    else if (cache) latest = cache.latest; // offline: use whatever we last knew
+    if (latest) {
+      fresh = true;
+      writeCache(latest);
+    } else if (cache) latest = cache.latest; // offline: use whatever we last knew
   }
 
-  return { current, latest, updateAvailable: !!latest && isNewer(latest, current) };
+  return { current, latest, updateAvailable: !!latest && isNewer(latest, current), fresh };
 }
 
 /** The public npm page for a package, where an upgrade can be reviewed. */
@@ -106,8 +114,8 @@ export function npmPackageUrl(name: string): string {
 /**
  * Build the two-line "update available" notice. The latest version is rendered
  * as a clickable link to the package's npm page, so a capable terminal lets the
- * user open the release with a single click. Project migrations stay
- * `speclaw update`; the binary is upgraded separately (prefer npx).
+ * user open the release with a single click. `speclaw update` upgrades itself
+ * (it re-runs at the latest version through npx) and migrates the project.
  *
  * @param current - The installed version.
  * @param latest - The newest published version.
@@ -124,11 +132,11 @@ export function upgradeNotice(current: string, latest: string): string {
     c.muted(" available") +
     "\n" +
     "  " +
-    c.muted("prefer ") +
-    c.cyan(`npx ${name}@latest update`) +
-    c.muted(" — or ") +
+    c.muted("run ") +
     c.cyan("speclaw update") +
-    c.muted(" to migrate this project")
+    c.muted(" (or ") +
+    c.cyan(`npx ${name}@latest update`) +
+    c.muted(") — it upgrades itself through npx and migrates this project")
   );
 }
 
@@ -136,13 +144,15 @@ export function upgradeNotice(current: string, latest: string): string {
  * Print the "update available" notice to stderr when a newer version exists.
  * No-op for the `mcp`/`update`/`help`/`version` commands, on non-TTY stderr, or
  * when NO_UPDATE_NOTIFIER / SPECLAW_NO_UPDATE_NOTIFIER is set. Never throws.
+ * `SPECLAW_UPDATE_NOTIFIER=force` lifts only the TTY check, so a test with
+ * piped stderr can prove a command path does (or does not) reach the notifier.
  *
  * @param cmd - The command that just ran (used to skip noisy contexts).
  */
 export async function maybeNotifyUpdate(cmd: string | undefined): Promise<void> {
   try {
     if (process.env.NO_UPDATE_NOTIFIER || process.env.SPECLAW_NO_UPDATE_NOTIFIER) return;
-    if (!process.stderr.isTTY) return;
+    if (!process.stderr.isTTY && process.env.SPECLAW_UPDATE_NOTIFIER !== "force") return;
     // `init` shows its own prominent up-front warning and ends on the clean
     // copy-paste prompt — don't append a second notice after it.
     if (
