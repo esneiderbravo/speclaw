@@ -243,21 +243,35 @@ where the user selects among real agents.
 - Then it instructs the user to paste it into the agent they use, not a
   hardcoded product name
 
-### Requirement: Update installs the verify workflow when missing
+### Requirement: Init and update write no CI workflow
 
-`speclaw update` (and `init`) SHALL write `.github/workflows/speclaw.yml` from
-the shipped template when that path does not exist, and SHALL NOT overwrite it
-when it does. The file is not a managed tree: local CI is owned by the user.
+`speclaw init` and `speclaw update` SHALL NOT write
+`.github/workflows/speclaw.yml` or any other CI file. A workflow the user
+already has SHALL be left unchanged.
 
-#### Scenario: A project without the workflow receives it on update
-- Given a scaffolded project with no `.github/workflows/speclaw.yml`
-- When the user runs `speclaw update`
-- Then the workflow file is created from the current template
+#### Scenario: A fresh project receives no CI file
+- Given a project with no `.github/` folder
+- When the user runs `speclaw init`
+- Then no `.github/` folder is created
 
-#### Scenario: A project that already has the workflow keeps it
-- Given a project whose `.github/workflows/speclaw.yml` was edited by the user
+#### Scenario: An existing workflow is kept
+- Given a project whose `.github/workflows/speclaw.yml` was written earlier
 - When the user runs `speclaw update`
 - Then the file is left unchanged
+
+### Requirement: Init keeps tool config out of version control
+
+`speclaw init` SHALL add to `.gitignore` the tool state it creates and
+regenerates: `.speclaw/`, `ai-specs/`, `speclaw.lock`, and every agent folder
+it creates (by default `.agents/`). An agent folder that existed before speclaw
+configured it SHALL NOT be added.
+
+#### Scenario: Default init ignores its own config
+- Given a fresh git repository
+- When the user runs `speclaw init`
+- Then `.gitignore` lists `.speclaw/`, `ai-specs/`, `speclaw.lock`, and `.agents/`
+- And only the project's content (`LAWS.md`, `CLAUDE.md`, `AGENTS.md`,
+  `docs/`, `lawbook/`) remains to be committed
 
 ### Requirement: Update notes adaptive ceremony
 

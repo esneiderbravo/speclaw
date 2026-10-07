@@ -885,37 +885,6 @@ report to that file.
 - When the markdown report is generated
 - Then the report SHALL NOT assert that any requirement is covered
 
-### Requirement: CI workflow security defaults
-
-The workflow template that speclaw writes (when
-`.github/workflows/speclaw.yml` does not already exist) SHALL not grant the
-verification job access to repository secrets, SHALL request the minimum
-permissions per job, SHALL check out with `fetch-depth: 0`, and SHALL NOT use
-`pull_request_target`. `init` and `update` SHALL write the file only when it is
-missing.
-
-#### Scenario: Template does not use pull_request_target
-- Given the generated workflow template
-- When it is inspected
-- Then it SHALL NOT contain a `pull_request_target` trigger
-
-#### Scenario: Permissions are denied by default
-- Given the generated workflow template
-- When it is inspected
-- Then the workflow-level `permissions` SHALL be empty
-- And the verification job SHALL declare only `contents: read` and
-  `security-events: write`
-
-#### Scenario: Existing workflow is left untouched
-- Given a project whose `.github/workflows/speclaw.yml` already exists
-- When `init` or `update` runs
-- Then that file SHALL NOT be overwritten
-
-#### Scenario: Missing workflow is created
-- Given a project with no `.github/workflows/speclaw.yml`
-- When `init` or `update` runs
-- Then the file SHALL be written from the shipped template
-
 ### Requirement: CI verification includes structural drift findings
 
 When committed anchors exist, `speclaw verify --ci` SHALL evaluate structural

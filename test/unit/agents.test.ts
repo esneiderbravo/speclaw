@@ -42,18 +42,20 @@ test("configureAgent creates symlinks and writes the MCP config", (t) => {
   assert.match(read(root, ".gitignore"), /\.mcp\.json/);
 });
 
-test("configureAgent leaves the IDE dir out of .gitignore (user skills stay committable)", (t) => {
+test("configureAgent gitignores an IDE dir it creates, never a pre-existing one", (t) => {
   const root = tmpRepo(t);
   seedAiSpecs(root);
+  configureAgent(root, "agents", emptyReport());
+  const lines = (): string[] =>
+    read(root, ".gitignore")
+      .split(/\r?\n/)
+      .map((l) => l.trim());
+  // The folder holds only links into the gitignored ai-specs/: tool config.
+  assert.ok(lines().includes(".agents/"), ".agents/ is gitignored");
+
+  write(root, ".claude/settings.json", "{}\n");
   configureAgent(root, "claude", emptyReport());
-  const lines = read(root, ".gitignore")
-    .split(/\r?\n/)
-    .map((l) => l.trim());
-  // speclaw never ignores the agent's IDE dir or its symlinked subdirs — only
-  // the MCP config (per-developer wiring) is ignored, from writeMcpConfig.
-  for (const entry of [".claude", ".claude/", ".claude/skills", ".claude/commands"]) {
-    assert.ok(!lines.includes(entry), `${entry} is not gitignored`);
-  }
+  assert.ok(!lines().includes(".claude/"), "a pre-existing .claude/ is the user's");
 });
 
 test("configureAgent is idempotent — a second run skips existing links and config", (t) => {

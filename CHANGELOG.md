@@ -15,6 +15,15 @@ All notable changes to this project are documented here. Speclaw follows
   `.codex/`, `.windsurf/` and `.github/instructions/` are created only for an
   agent chosen explicitly (`--agents claude`, `speclaw agent add cursor`, …).
   Existing installs keep their folders.
+- Tool config is no longer committed: `init` adds `.agents/` (and any agent
+  folder it creates) and `speclaw.lock` to `.gitignore`, next to `ai-specs/`
+  and `.speclaw/`. Only the project's content is committed: `LAWS.md`,
+  `CLAUDE.md`, `AGENTS.md`, `docs/`, and `lawbook/`.
+
+### Removed
+
+- `init` no longer writes `.github/workflows/speclaw.yml`; the CI workflow
+  template is gone.
 
 ### Fixed
 
