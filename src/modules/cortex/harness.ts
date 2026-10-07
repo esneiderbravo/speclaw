@@ -20,6 +20,9 @@ import {
   type CompassEvidence,
 } from "./compass-gate.js";
 import { buildStatusSummary, type CortexStatusSummary } from "./status.js";
+import { resolveChangeDir, type ResolvedChangeDir } from "./paths.js";
+
+export { resolveChangeDir, type ResolvedChangeDir } from "./paths.js";
 
 // Harness types live in the leaf `types.ts` so `compass-gate.ts` can use them
 // without importing this file back (no file-level import cycle).
@@ -61,7 +64,10 @@ function specRoot(projectPath: string): string {
 }
 
 function changeDir(projectPath: string, change: string): string {
-  return path.join(specRoot(projectPath), "changes", change);
+  return (
+    resolveChangeDir(projectPath, change)?.dir ??
+    path.join(specRoot(projectPath), "changes", change)
+  );
 }
 
 function harnessPath(projectPath: string, change: string): string {
@@ -72,12 +78,12 @@ function nowIso(): string {
   return new Date().toISOString();
 }
 
-function requireChangeDir(projectPath: string, change: string): string {
-  const dir = changeDir(projectPath, change);
-  if (!fs.existsSync(dir)) {
+function requireChangeDir(projectPath: string, change: string): ResolvedChangeDir {
+  const resolved = resolveChangeDir(projectPath, change);
+  if (!resolved) {
     throw new Error(`change "${change}" not found under lawbook/changes/`);
   }
-  return dir;
+  return resolved;
 }
 
 /**
@@ -185,11 +191,20 @@ export type HarnessHandleArgs = {
  */
 export function handleHarness(args: HarnessHandleArgs): HarnessAdvanceResult | HarnessStatusResult {
   const { projectPath, change, harnessOp } = args;
-  requireChangeDir(projectPath, change);
+  const resolved = requireChangeDir(projectPath, change);
 
   if (harnessOp === "status") {
     const state = readHarness(projectPath, change);
     return { summary: state ? buildStatusSummary(projectPath, state) : null, state };
+  }
+
+  // An archived change is read-only: reject mutating ops before any write.
+  // Covers: req~harness-archive-completes~1
+  if (resolved.archived) {
+    throw new Error(
+      `change ${change} is archived (${path.relative(projectPath, resolved.dir)}); ` +
+        `Cortex ops are read-only`,
+    );
   }
 
   if (harnessOp === "start") {
@@ -330,6 +345,56 @@ export function handleHarness(args: HarnessHandleArgs): HarnessAdvanceResult | H
   }
 
   throw new Error(`unknown harnessOp '${String(harnessOp)}'`);
+}
+
+/** Outcome of {@link completeHarnessOnArchive}. */
+export interface HarnessArchiveCompletion {
+  /** True when the harness moved from `archiving` to `done`. */
+  completed: boolean;
+  /** Write back the harness bytes from before the call (no-op when nothing changed). */
+  restore: () => void;
+}
+
+/**
+ * Complete a change's harness as part of archiving: move stage `archiving` to
+ * `done` with one history entry. Called by the lawbook archive **before** the
+ * change directory moves, so a crash cannot leave the harness stuck; the
+ * returned `restore` puts the old bytes back if the move fails. A missing
+ * harness or one already `done` is left untouched.
+ *
+ * @param projectPath - Absolute path to the project root.
+ * @param change - Change name (an active change).
+ * @param note - History note naming the archive.
+ * @returns Whether the harness was completed and how to undo it.
+ * @throws If the harness is in any other stage (the archive gate prevents this).
+ */
+// Covers: req~harness-archive-completes~1
+export function completeHarnessOnArchive(
+  projectPath: string,
+  change: string,
+  note: string,
+): HarnessArchiveCompletion {
+  const noop: HarnessArchiveCompletion = { completed: false, restore: () => {} };
+  const p = harnessPath(projectPath, change);
+  if (!fs.existsSync(p)) return noop;
+  const original = fs.readFileSync(p, "utf8");
+  const state = JSON.parse(original) as HarnessState;
+  if (state.stage === "done") return noop;
+  if (state.stage !== "archiving") {
+    throw new Error(
+      `harness stage is ${state.stage} — advance to archiving before archive (${change})`,
+    );
+  }
+  const next: HarnessState = {
+    ...state,
+    stage: "done",
+    history: [
+      ...state.history,
+      { at: nowIso(), from: "archiving", to: "done", op: "advance", note },
+    ],
+  };
+  fs.writeFileSync(p, JSON.stringify(next, null, 2) + "\n");
+  return { completed: true, restore: () => fs.writeFileSync(p, original) };
 }
 
 /**

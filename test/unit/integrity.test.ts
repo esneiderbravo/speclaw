@@ -130,7 +130,7 @@ test("refreshing the lock does not pin the regenerable .claude/rules/speclaw mir
   write(root, "AGENTS.md", "ok\n");
   fs.mkdirSync(path.join(root, ".claude", "rules"), { recursive: true });
   fs.symlinkSync("../../ai-specs/rules", path.join(root, ".claude", "rules", "speclaw"));
-  const lock = refreshLockfile(root);
+  const { lock } = refreshLockfile(root);
   assert.deepEqual(lock.symlinks, {});
   const onDisk = JSON.parse(read(root, "speclaw.lock")) as { symlinks: unknown };
   assert.deepEqual(onDisk.symlinks, {});
@@ -324,7 +324,7 @@ test("matching symlink is ok; scan-only mode skips digests", (t) => {
 test("accepted digest without lock update is soft-ok for digests", (t) => {
   const root = tmpRepo(t);
   write(root, "AGENTS.md", "a\n");
-  const lock = refreshLockfile(root);
+  const { lock } = refreshLockfile(root);
   write(root, "AGENTS.md", "b\n");
   const actual = digestText("b\n");
   lock.accepted = [{ path: "AGENTS.md", digest: actual, at: "t", by: "t" }];

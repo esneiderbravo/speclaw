@@ -3,8 +3,9 @@ import path from "node:path";
 import { Flags } from "../lib/args.js";
 import { ui, c } from "../lib/ui.js";
 import { checkForUpdates, isNewer } from "../lib/update-check.js";
+import { isSafeVersion, safeForwardArgs, selfUpdate } from "../lib/self-update.js";
 import { pkgName, pkgVersion } from "../../shared/version.js";
-import { scaffold } from "../../modules/foundation/scaffold.js";
+import { lockPreservedWarning, scaffold } from "../../modules/foundation/scaffold.js";
 import { PERSONALIZED } from "../../modules/foundation/ownership.js";
 import { detectConfiguredAgents } from "../../shared/agents.js";
 import { readManifest } from "../../shared/manifest.js";
@@ -17,19 +18,26 @@ import { reportTrackedLocalContent } from "../lib/untrack.js";
 export type UpdateHooks = {
   checkForUpdates?: typeof checkForUpdates;
   applyProjectMigrations?: (cwd: string, backup: boolean, minimal?: boolean) => void;
+  /** The self-update spawn (defaults to `selfUpdate`; tests stub it). */
+  selfUpdate?: typeof selfUpdate;
+  /** The environment read for the opt-out and loop guard (defaults to `process.env`). */
+  env?: NodeJS.ProcessEnv;
+  /** The original `update` arguments to forward (defaults to `process.argv.slice(3)`). */
+  argv?: string[];
 };
 
 /**
- * How to upgrade the installed binary without this command spawning `npm install -g`.
+ * How to upgrade the installed binary when `update` migrates with the running
+ * one (opted out, offline, or `npx` unavailable). Never spawns `npm install -g`.
  *
  * @param name - Package name on npm (usually `pkgName()`).
  * @returns One-line advisory for the terminal.
  */
 export function binaryUpgradeHint(name: string): string {
   return (
-    `Upgrade the binary separately with ${ui.code(`npm i -g ${name}@latest`)} ` +
-    `(or prefer ${ui.code(`npx ${name}@latest update`)}). ` +
-    `This command only migrates the project.`
+    `This run migrates with the installed binary. Normally ${ui.code("speclaw update")} ` +
+    `upgrades itself through npx; to upgrade the binary yourself run ` +
+    `${ui.code(`npm i -g ${name}@latest`)} (or ${ui.code(`npx ${name}@latest update`)}).`
   );
 }
 
@@ -266,18 +274,44 @@ const MIGRATIONS: Migration[] = [
       "installed binary is stale so migrations match the latest package.\n" +
       "- Preserve all project-specific wording; only apply these speclaw-authored changes.",
   },
+  {
+    version: "2.0.9",
+    describe:
+      "speclaw update re-executes itself at the latest version; MCP entry pinned; " +
+      "lock refresh preserves drift",
+    agentPrompt:
+      "- `speclaw update` now upgrades itself: when npm reports a newer release during the " +
+      "run, it re-executes as `npx -y @esneiderbravo/speclaw@<latest> update` (also in CI) and " +
+      "that release applies its own migrations. Opt out with `--no-self-update` or " +
+      "`SPECLAW_NO_SELF_UPDATE=1`. If your docs tell users to upgrade the binary separately " +
+      "before `speclaw update`, drop that step.\n" +
+      "- The agent MCP entry is pinned to the installed version " +
+      "(`npx -y @esneiderbravo/speclaw@<version> mcp`); `speclaw update` re-pins a stock entry " +
+      "and keeps a custom one.\n" +
+      "- A lock refresh (init/update/`laws compile`/`laws lock`) no longer re-baselines a " +
+      "strict rule file (CLAUDE.md, AGENTS.md, compiled rules) edited outside speclaw: it keeps " +
+      "the locked digest and warns `run speclaw laws accept <path>`. `speclaw laws lock --force` " +
+      "re-baselines on an interactive TTY only. Mention this where the project documents " +
+      "`speclaw.lock`.\n" +
+      "- Preserve all project-specific wording; only apply these speclaw-authored changes.",
+  },
 ];
 
 /**
- * Bring the current project up to date without a full re-init: check whether a
- * newer binary exists on npm (advisory only — never runs `npm install -g`), then
- * additively apply any new standards, skills, commands, and feature steps this
- * project is missing (existing files untouched).
+ * Bring the current project up to date without a full re-init. When the npm
+ * registry, queried during this run, reports a newer release, re-execute as
+ * `npx -y <pkg>@<latest> update <flags>` and exit with the child's code — the
+ * latest release then applies its own migrations, never this stale binary.
+ * Otherwise (already latest, opted out, offline cache only, loop guard set, or
+ * `npx` unavailable) additively apply the project migrations in process.
  *
- * @param flags - `--check` reports version status only (no migrate);
- *   `--migrate-only` is a silent no-op alias of the default (compat).
- * @param hooks - Optional test seams for the version check and migrate path.
+ * @param flags - `--check` reports version status only (no re-run, no migrate);
+ *   `--no-self-update` migrates with this binary; `--migrate-only` is a silent
+ *   no-op alias of the default (compat).
+ * @param hooks - Optional test seams for the version check, the spawn, the
+ *   environment, and the migrate path.
  */
+// Covers: req~update-self-update~1
 export async function runUpdate(flags: Flags, hooks: UpdateHooks = {}): Promise<void> {
   const cwd = process.cwd();
   // `--migrate-only` is accepted for compat but is a no-op alias of default
@@ -286,29 +320,65 @@ export async function runUpdate(flags: Flags, hooks: UpdateHooks = {}): Promise<
   const backup = Boolean(flags.backup);
   const check = hooks.checkForUpdates ?? checkForUpdates;
   const migrate = hooks.applyProjectMigrations ?? applyProjectMigrations;
+  const spawnSelf = hooks.selfUpdate ?? selfUpdate;
+  const env = hooks.env ?? process.env;
+  const runMigrations = (): void => migrate(cwd, backup, flags.minimal ? true : undefined);
 
   ui.step("Checking for updates");
-  const { current, latest, updateAvailable } = await check({ force: true });
+  const { current, latest, updateAvailable, fresh } = await check({ force: true });
 
   if (!latest) {
     ui.warn("Could not reach the npm registry — skipping the version check.");
-  } else if (updateAvailable) {
-    ui.info(`${c.muted(current)} ${c.muted("→")} ${c.cyan(latest)}`);
-    ui.info(binaryUpgradeHint(pkgName()));
-    if (checkOnly) {
-      ui.info(
-        `Run ${ui.code("speclaw update")} to apply project migrations with the binary you have.`,
-      );
-      return;
-    }
-  } else {
+    if (!checkOnly) runMigrations();
+    return;
+  }
+  if (!updateAvailable) {
     ui.ok(`Already on the latest version (${current}).`);
-    if (checkOnly) return;
+    if (!checkOnly) runMigrations();
+    return;
   }
 
-  if (checkOnly) return;
+  ui.info(`${c.muted(current)} ${c.muted("→")} ${c.cyan(latest)}`);
+  if (checkOnly) {
+    ui.info(
+      `Run ${ui.code("speclaw update")} — it upgrades itself to ${latest} through npx and ` +
+        `migrates this project.`,
+    );
+    return;
+  }
 
-  migrate(cwd, backup, flags.minimal ? true : undefined);
+  // parseFlags turns `--no-self-update` into `flags["no-self-update"]`; accept
+  // the `self-update: false` spelling too in case a caller builds flags by hand.
+  const optedOut =
+    Boolean(flags["no-self-update"]) ||
+    flags["self-update"] === false ||
+    Boolean(env.SPECLAW_NO_SELF_UPDATE);
+  const why = optedOut
+    ? "self-update is turned off"
+    : env.SPECLAW_SELF_UPDATED
+      ? "already re-executed once"
+      : !fresh
+        ? "the registry was unreachable (cached version only)"
+        : !isSafeVersion(latest)
+          ? `the registry reported an invalid version ${JSON.stringify(latest)}`
+          : null;
+
+  if (why === null) {
+    const { forward, dropped } = safeForwardArgs(hooks.argv ?? process.argv.slice(3));
+    if (dropped.length) ui.warn(`Not forwarding unsafe argument(s): ${dropped.join(" ")}`);
+    ui.step(`Re-running ${ui.code(`npx -y ${pkgName()}@${latest} update`)}`);
+    const outcome = await spawnSelf({ pkg: pkgName(), version: latest, args: forward, env });
+    if (outcome.kind === "ran") {
+      // The child applied the migrations; the parent never migrates as well.
+      process.exitCode = outcome.code;
+      return;
+    }
+    ui.warn(`Could not start npx (${outcome.reason}) — migrating with the installed binary.`);
+  } else {
+    ui.info(`Not re-running at ${latest}: ${why}.`);
+  }
+  ui.info(binaryUpgradeHint(pkgName()));
+  runMigrations();
 }
 
 /**
@@ -367,6 +437,15 @@ function applyProjectMigrations(cwd: string, backup: boolean, minimal?: boolean)
       `${c.cream(rel)} had local edits — overwritten with the current version. ` +
         `Recover from git, or re-run with ${ui.code("--backup")} to keep a .bak.`,
     );
+  }
+
+  // A strict rule file edited outside the pipeline keeps its locked digest;
+  // only a human `speclaw laws accept` moves it.
+  for (const rel of report.lockPreserved) ui.warn(lockPreservedWarning(rel));
+  if (report.lockError) {
+    // An existing lock that cannot be read is left untouched, never rebuilt.
+    ui.err(`${report.lockError} — speclaw.lock was left unchanged; repair it and re-run.`);
+    process.exitCode = 1;
   }
 
   // A project several releases behind jumps straight to @latest, so apply EVERY

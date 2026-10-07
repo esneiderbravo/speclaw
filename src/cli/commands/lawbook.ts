@@ -177,6 +177,7 @@ export async function runSpec(flags: Flags): Promise<void> {
           if (s.warned) ui.warn(msg + " (no resolvable anchors)");
           else ui.info(msg);
         }
+        if (r.harnessCompleted) ui.ok("Cortex harness completed (stage done)");
         return;
       }
       case "harness": {

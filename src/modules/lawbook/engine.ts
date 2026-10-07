@@ -24,7 +24,7 @@ import {
 } from "./levels.js";
 import { inferBugResolution, preventionRequiresDelta, validateBugfixContent } from "./bugfix.js";
 import { isPlaceholderDelta } from "./scaffold-change.js";
-import { harnessArchiveBlockers } from "../cortex/harness.js";
+import { completeHarnessOnArchive, harnessArchiveBlockers } from "../cortex/harness.js";
 
 export type { CeremonyLevel, CeremonyTargets };
 
@@ -454,6 +454,8 @@ export interface ArchiveResult {
   archivedTo: string;
   /** Structural anchors sealed into lawbook/anchors/ during archive. */
   seals: SealSummary[];
+  /** True when archiving moved the Cortex harness from `archiving` to `done`. */
+  harnessCompleted: boolean;
 }
 
 /**
@@ -603,7 +605,16 @@ export function specArchive(projectPath: string, change: string, date: string): 
   const archiveDir = path.join(root, "changes", "archive", `${date}-${change}`);
   fs.mkdirSync(path.dirname(archiveDir), { recursive: true });
   if (fs.existsSync(archiveDir)) throw new Error(`archive target already exists: ${archiveDir}`);
-  fs.renameSync(changeDir, archiveDir);
+  // Complete the harness before the move (the archived path is not known to
+  // Cortex until then); a failed move puts the old harness bytes back.
+  // Covers: req~harness-archive-completes~1
+  const harness = completeHarnessOnArchive(projectPath, change, "archived by lawbook archive");
+  try {
+    renameDir(changeDir, archiveDir);
+  } catch (err) {
+    harness.restore();
+    throw err;
+  }
   return {
     change,
     promoted,
@@ -611,7 +622,21 @@ export function specArchive(projectPath: string, change: string, date: string): 
     updated,
     archivedTo: path.relative(projectPath, archiveDir),
     seals,
+    harnessCompleted: harness.completed,
   };
+}
+
+/**
+ * The directory move used by {@link specArchive}; a seam so tests can provoke
+ * a failed move and check the harness is restored. Test-only: product code
+ * must never reassign it.
+ */
+export const archiveFs: { renameSync: (from: string, to: string) => void } = {
+  renameSync: (from, to) => fs.renameSync(from, to),
+};
+
+function renameDir(from: string, to: string): void {
+  archiveFs.renameSync(from, to);
 }
 
 /**

@@ -1,7 +1,7 @@
 {
   "version": 1,
   "change": "fix-compass-source-offsets",
-  "stage": "archiving",
+  "stage": "done",
   "level": 0,
   "iteration": 0,
   "maxRework": 3,
@@ -37,6 +37,13 @@
       "to": "archiving",
       "op": "advance",
       "note": "Review PASS (reports/review.md; F1 Covers tag fixed and bound to readSource). Test PASS: check/build ok, npm test 638/638, coverage ok 2/2, manual CLI verification incl. Spanish-text temp repo; reports/backend.md with red-before-green."
+    },
+    {
+      "at": "2026-10-07T00:54:30.758Z",
+      "from": "archiving",
+      "to": "done",
+      "op": "advance",
+      "note": "repaired: archive moved the change before the harness reached done (harden-update-lock-and-cli)"
     }
   ]
 }

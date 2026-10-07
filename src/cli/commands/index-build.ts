@@ -2,28 +2,14 @@ import { buildIndex } from "../../modules/compass/indexer.js";
 import { startWatch } from "../../modules/compass/watcher.js";
 import { recordCompassCall } from "../../shared/compass-calls.js";
 import { Flags } from "../lib/args.js";
+import { helpFor } from "../lib/help.js";
 import { ui, renderProgress, clearProgress } from "../lib/ui.js";
-
-/** Usage text for `speclaw index --help`. */
-export const INDEX_HELP = `Usage: speclaw index [options]
-
-(Re)build the local Compass code graph for the current directory. Runs are
-incremental: unchanged files are skipped, and an unchanged project skips the
-global post-processing.
-
-Options
-  --force              Re-extract every file
-  --prune              Also evict embedding-cache rows unused for --retention days
-  --retention <days>   Retention window for --prune (default 30)
-  --max-cache-mb <mb>  Embedding-cache size cap (default 256)
-  --json               Print the index statistics as JSON
-`;
 
 /** (Re)build the Compass code graph for the cwd, showing progress and final stats. */
 export async function runIndex(flags: Flags): Promise<void> {
   const cwd = process.cwd();
   if (flags.help || flags.h) {
-    process.stdout.write(INDEX_HELP);
+    process.stdout.write(helpFor("index") ?? "");
     return;
   }
   recordCompassCall(cwd, "compass_index");

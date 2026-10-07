@@ -5,6 +5,59 @@ All notable changes to this project are documented here. Speclaw follows
 
 ## [Unreleased]
 
+## [2.0.9] — 2026-10-06
+
+### Added
+
+- `speclaw update` upgrades itself. When npm reports a newer release during the
+  run, it re-executes as `npx -y @esneiderbravo/speclaw@<latest> update` with
+  the same flags (also in CI and on a non-TTY), so the latest release applies
+  its own migrations, and exits with that run's code. It migrates with the
+  installed binary instead when you opt out (`--no-self-update` or
+  `SPECLAW_NO_SELF_UPDATE=1`), when the registry is unreachable (a cached
+  version only), or when `npx` cannot be started. `init` still only advises.
+- `--help` / `-h` on every command prints that command's usage to stdout and
+  exits 0. It writes nothing, contacts no registry, and starts no server or
+  watcher (before, `speclaw init --help` ran `init` and `speclaw mcp --help`
+  started a server).
+- `speclaw laws lock --force` lists each drifted strict file with its locked
+  and on-disk digests, asks for confirmation (default No), then re-baselines
+  them and records an `accepted[]` entry for each (`--note` adds the reason).
+  Interactive TTY only: without a TTY, when declined, or when a file changed
+  while the prompt was open, it exits 1 and leaves the lock untouched.
+
+### Changed
+
+- The agent MCP entry is pinned to the installed version
+  (`npx -y @esneiderbravo/speclaw@<version> mcp`) by `init`, `agent add`, and
+  `update`. On the first `speclaw update`, an existing stock (unpinned) entry
+  is re-pinned; a custom entry (e.g. a local `node` path) is kept.
+- The `lawbook_change` action `archive` result reports `harnessCompleted`, and
+  the `cortex` MCP tool's `status` and `brief` read an archived change instead
+  of failing. `start`, `advance`, and `rework` on an archived change are
+  rejected without writing.
+
+### Fixed
+
+- Security: a lock refresh (`init`, `update`, `laws compile`, `laws lock`) no
+  longer re-baselines a strict file (`CLAUDE.md`, `AGENTS.md`, compiled rules)
+  edited outside speclaw. The drifted file keeps its locked digest and the
+  command warns `run speclaw laws accept <path>`, so `verify` keeps failing
+  until a human accepts it. Clean and new strict files and advisory files are
+  refreshed as before, and stale `accepted[]` entries are pruned.
+- An existing `speclaw.lock` that cannot be read (merge-conflict markers, a
+  newer `lockfileVersion`, or valid JSON with the wrong structure) is never
+  rebuilt: every refresh leaves it byte-identical and reports the error, and
+  `init`, `update`, `laws compile`, `laws lock`, and `laws accept` exit 1.
+  `speclaw doctor` suggests repairing or restoring it from git rather than a
+  bare `laws lock`.
+- Archiving a change completes its Cortex harness. The archive moves the
+  harness from `archiving` to `done` (one history entry) before it moves the
+  change directory, and restores it if the move fails; the `cortex` skill and
+  the archiver agent no longer call `advance` after an archive (it failed once
+  the change had moved). The six archived changes of 2026-10-06 left stuck in
+  `archiving` are repaired to `done`.
+
 ## [2.0.8] — 2026-10-06
 
 ### Added

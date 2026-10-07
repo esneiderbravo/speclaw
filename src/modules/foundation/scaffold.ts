@@ -17,7 +17,8 @@ import {
 } from "./laws.js";
 import { HookInstallResult, installHooks } from "./hooks.js";
 import { compileLaws } from "./compile-laws.js";
-import { refreshLockfile } from "./lock.js";
+import { driftedStrictPaths, refreshLockfile } from "./lock.js";
+export { lockPreservedWarning } from "./lock.js";
 import { refreshOwnersIfConfigured } from "../team/owners.js";
 
 const ASSETS = assetsDir(import.meta.url);
@@ -68,6 +69,16 @@ export interface ScaffoldReport extends InstallReport {
   nextSteps: string[];
   /** Which agents got hooks, which were skipped, and any laws rejected for bad globs. */
   hooks?: HookInstallResult;
+  /**
+   * Strict rule files that drifted from `speclaw.lock` before this run and kept
+   * their locked digest; each needs a human `speclaw laws accept <path>`.
+   */
+  lockPreserved: string[];
+  /**
+   * Why `speclaw.lock` was left untouched: it exists but cannot be read (parse
+   * error, unsupported `lockfileVersion`). Absent when the lock was refreshed.
+   */
+  lockError?: string;
 }
 
 /**
@@ -184,7 +195,18 @@ export function scaffold(
   const unknown = packNames.filter((n) => !packs[n]);
   if (unknown.length) throw new Error(`Unknown packs: ${unknown.join(", ")}`);
 
-  const report: ScaffoldReport = { ...emptyReport(), nextSteps: [] };
+  const report: ScaffoldReport = { ...emptyReport(), nextSteps: [], lockPreserved: [] };
+  // Snapshot strict-file drift before writing anything: the rule files written
+  // below (foundation, agents, compiled laws) must not re-baseline an edit made
+  // outside the pipeline.
+  // A lockfile that exists but cannot be read is reported in `lockError` and
+  // left byte-identical: rebuilding it from disk would launder drift.
+  let drifted: string[] = [];
+  try {
+    drifted = driftedStrictPaths(projectPath);
+  } catch (err) {
+    report.lockError = (err as Error).message;
+  }
   const vars: Record<string, string | undefined> = { ...FOUNDATION_DEFAULTS, ...profile };
 
   // Managed trees (MANAGED_TREES) carry speclaw's workflow logic and may be
@@ -220,15 +242,18 @@ export function scaffold(
   // executable-laws will extend the same manifest with more backends.
   const lawManifest = ensureLawManifest(projectPath, report);
   try {
-    compileLaws({ projectPath, agents, writeManifest: false });
+    compileLaws({ projectPath, agents, writeManifest: false, drifted, refreshLock: false });
   } catch {
     // Compilation must not fail scaffold; `speclaw laws compile` surfaces errors.
   }
   // Covers: req~lock-refresh-update~1
-  try {
-    refreshLockfile(projectPath);
-  } catch {
-    // Lock refresh must not fail scaffold; `speclaw laws lock` surfaces errors.
+  if (report.lockError === undefined) {
+    try {
+      report.lockPreserved = refreshLockfile(projectPath, { drifted }).preserved;
+    } catch (err) {
+      // refreshLockfile throws before writing; init/update surface lockError.
+      report.lockError = (err as Error).message;
+    }
   }
   ensureVerifyWorkflow(projectPath, report);
   report.hooks = installHooks(projectPath, agents, lawManifest, report, {

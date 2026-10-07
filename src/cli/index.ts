@@ -2,72 +2,7 @@
 import { parseFlags } from "./lib/args.js";
 import { ui, header } from "./lib/ui.js";
 import { maybeNotifyUpdate } from "./lib/update-check.js";
-
-const HELP = `speclaw — spec-driven, agent-ready projects (Foundation + Compass + Lawbook + Cortex)
-
-Usage: speclaw <command> [options]
-
-Install globally so the command is always available:
-  npm i -g @esneiderbravo/speclaw
-
-Setup
-  init                     Interactive setup: pick agents, scaffold, index, get the prompt
-                           (--minimal omits setup/lifecycle MCP tools)
-  update                   Apply project migrations (advisory if a newer binary exists)
-                           (--check reports version only; --minimal persists minimal exposure)
-  agent list               Show which agents are configured
-  agent add <id>           Configure another agent later (symlinks + MCP)
-
-Compass (code intelligence — the same surface agents use via MCP)
-  index                    (Re)build the local code graph (--force / --prune / --json)
-  session-start            Silent, fail-safe refresh of an existing index (SessionStart hook)
-  watch                    Keep the index fresh on file changes
-  explore <node>           A node's source + callers/callees
-  search <query>           Hybrid find (BM25+vector+name); --focus --max-tokens --explain
-  recall "<query>"         Hybrid find with concept weights; same flags as search
-  impact <node>            Blast radius (grouped by module; --flat / --json)
-  affected-tests           Tests affected by a change (--file / --from-diff / --json)
-  diff-context             Change context for a diff (--file / --rev / --worktree / --json)
-  hotspots                 Rank files by recent churn × AST complexity (--json / --sort)
-  coupling <file>          Temporal co-change partners for a file (--json)
-  trace <from> <to>        A call path between two nodes
-  visualize [node]         Interactive HTML graph → .speclaw/graph.html
-
-Cortex (One brain. Many agents. — multi-agent loop)
-  cortex <op>              status|start|advance|rework|brief — drive harness.json (--change)
-
-Lawbook (spec-driven workflow)
-  quick <name>             Scaffold a level-0 change (record.md + reports)
-  lawbook init             Create the lawbook/ workspace
-  lawbook list             Active/archived changes and capabilities
-  lawbook level <mode>     Propose/set/promote/explain ceremony level (--json)
-  lawbook draft <name>     Scaffold a feature change (--level N, --capability C, --json)
-  lawbook draft --bug <c>  Scaffold a bug change (bugfix.md + reports)
-  lawbook investigate      Rank bug suspects from graph (--symptom / --stack-trace, --json)
-  lawbook validate <c>     Validate a change's artifacts
-  lawbook sync <c>         Promote delta specs to canonical
-  lawbook archive <c>      Finalize and archive a change
-  lawbook harness <op>     Deprecated alias for \`speclaw cortex\` (compat)
-
-Other
-  doctor                   Verify the installation (--json, --offline, --strict)
-  budget                   Measure always-on context cost (tools, skills, instructions)
-  coverage                 Requirement → impl → test coverage (--json, --tap, --adopt, --write)
-  drift                    Spec↔code drift (--json, --reseal, --reverse, --fail-on)
-  owners                   Compile team.owners → .github/CODEOWNERS (--write / --check / --diff)
-  telemetry status         Confirm speclaw ships no telemetry
-  check                    Evaluate an action against the laws (hooks call this; --dry-run to preview)
-  laws verify              Verify the deterministic dependency/graph laws against the index
-  laws compile             Compile laws into agent rule dialects (AGENTS / Claude / Cursor / …)
-  laws import              Import third-party rules as draft laws (--from rulesync)
-  laws lock                Create/refresh committed speclaw.lock digests for rule files
-  laws accept <path>       Interactively accept a changed rule-file digest (TTY only)
-  laws scan                Scan rule/skill files for prompt-injection patterns
-  verify                   Verify laws + integrity for CI: exit codes, --sarif, --json, --strict-engines
-  mcp                      Start the MCP server (used by your agent's config)
-  help                     Show this help
-  --version                Print the installed speclaw version
-`;
+import { GLOBAL_HELP as HELP, helpFor, knownCommands, wantsHelp } from "./lib/help.js";
 
 // Commands that open with the one-line branded header. These are the
 // interactive, human-facing commands whose stdout is prose. Deliberately
@@ -108,6 +43,8 @@ const HEADER_COMMANDS = new Set<string | undefined>([
 function maybeHeader(cmd: string | undefined, flags: ReturnType<typeof parseFlags>): void {
   if (!process.stdout.isTTY && process.env.FORCE_COLOR !== "1") return;
   if (!HEADER_COMMANDS.has(cmd)) return;
+  // A self-update child re-runs `update`; the parent already printed the header.
+  if (cmd === "update" && process.env.SPECLAW_SELF_UPDATED) return;
   if (cmd === "budget" && flags.json) return;
   if (cmd === "doctor" && flags.json) return;
   if (cmd === "coverage" && (flags.json || flags.tap)) return;
@@ -121,11 +58,20 @@ function maybeHeader(cmd: string | undefined, flags: ReturnType<typeof parseFlag
   header();
 }
 
+// The dispatcher's known commands come from the help registry, so a command
+// without usage text is rejected here before it can ship.
+const KNOWN_COMMANDS = knownCommands();
+
 /** Run the handler for a single command. Returns when the command completes. */
 async function dispatch(
   cmd: string | undefined,
   flags: ReturnType<typeof parseFlags>,
 ): Promise<void> {
+  if (cmd !== undefined && !KNOWN_COMMANDS.has(cmd)) {
+    ui.err(`Unknown command: ${cmd}`);
+    console.log(HELP);
+    process.exit(1);
+  }
   switch (cmd) {
     case undefined:
     case "help":
@@ -197,9 +143,20 @@ async function dispatch(
   }
 }
 
-/** Parse argv, run the command, then surface an update notice if one is due. */
+/**
+ * Parse argv, run the command, then surface an update notice if one is due.
+ * `<command> --help` / `-h` short-circuits first: it prints the command's usage
+ * and runs nothing — no header, no notifier, no handler, no file writes.
+ */
 async function main(): Promise<void> {
   const [cmd, ...rest] = process.argv.slice(2);
+  // Covers: req~per-command-help~1
+  const usage = cmd !== undefined && wantsHelp(rest) ? helpFor(cmd) : null;
+  if (usage !== null) {
+    process.stdout.write(usage.endsWith("\n") ? usage : usage + "\n");
+    process.exitCode = 0;
+    return;
+  }
   const flags = parseFlags(rest);
   maybeHeader(cmd, flags);
   await dispatch(cmd, flags);

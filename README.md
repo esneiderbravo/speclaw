@@ -303,7 +303,26 @@ Create or refresh the committed lockfile (repo root, never under `.speclaw/`):
 speclaw laws lock
 speclaw laws scan
 speclaw laws accept AGENTS.md   # interactive TTY only — never via MCP
+speclaw laws lock --force       # list drifted files, confirm, re-baseline — interactive TTY only
 ```
+
+A lock refresh (`init`, `update`, `laws compile`, `laws lock`) never launders an
+edit: a strict file (`CLAUDE.md`, `AGENTS.md`, compiled rules) that drifted from
+the lock outside speclaw **keeps its locked digest**, and the command warns
+`run speclaw laws accept <path>`, so `verify` keeps failing until a human
+accepts it. Clean strict files, new strict files, and advisory files
+(`LAWS.md`, `docs/standards/*`) are refreshed freely, and stale `accepted[]`
+entries are pruned — an `accepted[]` entry lasts until the next refresh rewrites
+that file, after which the audit trail lives in git history. `laws lock --force`
+lists each drifted file with its locked and on-disk digests, asks for
+confirmation (default No), then re-baselines them and records an `accepted[]`
+entry for each (`--note` adds the reason); without a TTY, when declined, or when
+any file or digest changed while the prompt was open, it exits 1 and leaves the
+lock untouched. A `speclaw.lock` that exists but cannot be read (merge-conflict
+markers, a newer `lockfileVersion`, or valid JSON with the wrong structure) is
+never rebuilt: every refresh leaves it byte-identical and reports the error, and
+the CLI (including `laws accept`) exits non-zero until it is repaired (or deleted
+and re-created with `laws lock`).
 
 | Exit | Meaning |
 | :-- | :-- |
@@ -335,16 +354,20 @@ review from Code Owners* when you declare `team.owners`.
 ## <img src="https://raw.githubusercontent.com/esneiderbravo/speclaw/main/brand/diamond.png" height="20" alt="◆" align="absmiddle">&nbsp; Staying up to date
 
 speclaw checks for new releases in the background (at most once a day) and nudges
-you when one lands. To bring a project up to date (migrations only — never runs
-`npm install -g`):
+you when one lands. To bring a project up to date (never runs `npm install -g`):
 
 ```bash
 speclaw update
 ```
 
-If a newer binary is on npm, `update` prints an advisory (`current → latest`) and
-how to upgrade the binary separately (`npm i -g @esneiderbravo/speclaw@latest`, or
-prefer `npx @esneiderbravo/speclaw@latest update`), then still migrates the project.
+`update` upgrades itself: when npm reports a newer release during the run, it
+re-executes as `npx -y @esneiderbravo/speclaw@<latest> update` with the same
+flags (also in CI), so the latest release applies its own migrations, and exits
+with that run's code. It migrates with the installed binary instead when you opt
+out (`--no-self-update` or `SPECLAW_NO_SELF_UPDATE=1`), when the registry is
+unreachable (a cached version only), or when `npx` cannot be started; it then
+prints how to upgrade the binary yourself (`npm i -g @esneiderbravo/speclaw@latest`).
+`init` only advises — prefer `npx @esneiderbravo/speclaw@latest init`.
 
 `update` brings the current project up to date without a re-init, splitting files
 by who owns them:
@@ -354,11 +377,17 @@ by who owns them:
 - **Personalized files** (`CLAUDE.md`, `AGENTS.md`, `LAWS.md`, `docs/standards/*`,
   `docs/compass.md`, `lawbook/config.yaml`) are **never auto-edited** — `update`
   prints a prompt for the agent you're using.
-- **`speclaw.lock`** and the CODEOWNERS owners block are refreshed when configured.
+- **`speclaw.lock`** and the CODEOWNERS owners block are refreshed when configured
+  (a drifted strict file keeps its locked digest — see `laws accept` above).
+- **Agent MCP entry** — `init`, `agent add`, and `update` pin it to the installed
+  version (`npx -y @esneiderbravo/speclaw@<version> mcp`); `update` re-pins the
+  stock entry and keeps a custom one (e.g. a local `node` path).
 
-- `speclaw update --check` — report version status only; do not migrate.
+- `speclaw update --check` — report version status only; do not re-run or migrate.
+- `speclaw update --no-self-update` — migrate with the installed binary.
 - `speclaw update --migrate-only` — silent no-op alias of the default (compat).
 - `NO_UPDATE_NOTIFIER=1` — silence the reminder.
+- `speclaw <command> --help` (or `-h`) — that command's usage; runs nothing.
 
 <br/>
 

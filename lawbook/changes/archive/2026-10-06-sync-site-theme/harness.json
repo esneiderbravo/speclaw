@@ -1,7 +1,7 @@
 {
   "version": 1,
   "change": "sync-site-theme",
-  "stage": "archiving",
+  "stage": "done",
   "level": 1,
   "iteration": 0,
   "maxRework": 3,
@@ -51,6 +51,13 @@
       "to": "archiving",
       "op": "advance",
       "note": "Tester PASS: check/build exit 0; npm test 637/637 (85.56% lines). F1 fixed in test/unit/ui-palette.test.ts (FORCE_COLOR+NO_COLOR; negative control fails without NO_COLOR). npm run brand renders 9 PNGs byte-identical to committed; missing woff2 exits 1 naming the file, no PNG/tempdir. CLI FORCE_COLOR emits 0;227;253/244;244;243/153;158;163/62;207;122/245;183;61/255;92;71, NO_COLOR plain. Viewer HTML in /tmp has only ink tokens, 0 retired. Reports brand.md cli.md frontend.md. F5 pre-existing."
+    },
+    {
+      "at": "2026-10-07T00:54:30.758Z",
+      "from": "archiving",
+      "to": "done",
+      "op": "advance",
+      "note": "repaired: archive moved the change before the harness reached done (harden-update-lock-and-cli)"
     }
   ]
 }

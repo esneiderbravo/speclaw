@@ -1,7 +1,7 @@
 {
   "version": 1,
   "change": "lock-regenerable-symlink",
-  "stage": "archiving",
+  "stage": "done",
   "level": 1,
   "iteration": 0,
   "maxRework": 3,
@@ -51,6 +51,13 @@
       "to": "archiving",
       "op": "advance",
       "note": "Gates green: check 0, build 0, test 621/621 (cov 85.5/82.1/87.7). CLI a-d in /tmp scratch: lock symlinks {} byte-stable over update+laws lock x2; clean clone verify exit 0; legacy pinned mirror missing/retargeted -> warn exit 0; update/laws lock drop it; non-mirror stays exit 1. HEAD build reproduced exit 1. Advisory: '.claude/rules/speclaw gitignored' wording is not true of default scaffold (by design); non-blocking. Reports: backend.md, cli.md."
+    },
+    {
+      "at": "2026-10-07T00:54:30.758Z",
+      "from": "archiving",
+      "to": "done",
+      "op": "advance",
+      "note": "repaired: archive moved the change before the harness reached done (harden-update-lock-and-cli)"
     }
   ]
 }

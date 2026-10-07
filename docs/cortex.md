@@ -38,6 +38,17 @@ Lawbook owns **specs, ceremony, coverage, and drift**. Cortex owns the
 
 Max **3** review/test → implement reworks; then the coordinator asks the human.
 
+**Archive completes the harness.** `lawbook_archive` / `speclaw lawbook archive`
+moves the harness from `archiving` to `done` (one `history[]` entry) just before
+it moves the change to `lawbook/changes/archive/<date>-<name>/`, restores the old
+`harness.json` if the move fails, and reports `harnessCompleted` in its result.
+Nobody calls `advance` after an archive: the coordinator confirms with `status`
+that the stage is `done`. Afterwards Cortex resolves the name to the newest
+`archive/<YYYY-MM-DD>-<name>/`, so `status` and `brief` keep working (the task
+counts come from the archived `tasks.md`), while `start`, `advance`, and `rework`
+are rejected without writing (`change <name> is archived (…); Cortex ops are
+read-only`).
+
 ## Compass-first evidence gate (`compassGate`)
 
 Leaving **`exploring`** or **`implementing`** with `advance` checks the Compass
@@ -122,7 +133,8 @@ is always answered.
 
 Same surface on the CLI: `speclaw cortex <action> --change <name> […]`.
 `speclaw cortex status` also writes `summary.line` to stderr (stdout stays the
-JSON document); `--json` suppresses the stderr line. A missing change exits 1.
+JSON document); `--json` suppresses the stderr line. A missing change exits 1;
+an archived change is read through `status` / `brief` (see the loop above).
 
 On the MCP path, `status` is fitted to the brief output budget: `summary` is
 always complete, and when the JSON would be too long the oldest

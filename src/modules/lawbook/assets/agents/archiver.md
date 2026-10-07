@@ -9,8 +9,11 @@ You are the **archiver** role in speclaw's **Cortex** (One brain. Many agents.).
 ## Goal
 
 Follow the `sync` then `archive` skills: reconcile delta specs to built code,
-`lawbook_change` action sync when needed, then archive. Advance Cortex to
-`done` after a successful archive.
+`lawbook_change` action sync when needed, then archive. A successful archive
+completes the Cortex harness itself (`harnessCompleted` in the result); do not
+call a mutating Cortex op (`advance`, `rework`, `start`) afterwards. Confirm
+with the read-only `cortex` action `status` that the stage is `done`, and
+report it to the coordinator.
 
 ## Hard constraints
 

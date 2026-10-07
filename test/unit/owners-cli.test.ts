@@ -120,9 +120,10 @@ test("owners is CLI-only: the MCP catalog has no owners-mutating tool", () => {
 });
 
 test("help text and dispatch list owners", () => {
-  // The entrypoint runs main() on import, so assert on its source: the usage
-  // line and the dispatch case are what `speclaw help` / `speclaw owners` use.
+  // The entrypoint runs main() on import, so assert on sources: the usage line
+  // lives in the help registry, the dispatch case in the entrypoint.
+  const help = fs.readFileSync(path.join(process.cwd(), "src", "cli", "lib", "help.ts"), "utf8");
+  assert.match(help, /^\s+owners\s+Compile team\.owners/m);
   const src = fs.readFileSync(path.join(process.cwd(), "src", "cli", "index.ts"), "utf8");
-  assert.match(src, /^\s+owners\s+Compile team\.owners/m);
   assert.match(src, /case "owners":[\s\S]{0,80}runOwners\(flags\)/);
 });

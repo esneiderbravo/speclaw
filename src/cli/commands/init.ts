@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import * as clack from "@clack/prompts";
-import { scaffold, Profile } from "../../modules/foundation/scaffold.js";
+import { lockPreservedWarning, scaffold, Profile } from "../../modules/foundation/scaffold.js";
 import { specInit } from "../../modules/lawbook/engine.js";
 import { buildIndex } from "../../modules/compass/indexer.js";
 import { AGENTS, agentById } from "../../shared/agents.js";
@@ -50,8 +50,9 @@ export async function runInit(flags: Flags): Promise<void> {
   if (upd.updateAvailable && upd.latest) {
     ui.warn(`You're on ${c.muted(upd.current)} — latest is ${c.bold(c.cyan(upd.latest))}.`);
     ui.info(
-      `Recommended: refresh the binary with ${ui.code("npx @esneiderbravo/speclaw@latest init")} ` +
-        `(or ${ui.code("npm i -g @esneiderbravo/speclaw@latest")}), then run ${ui.code("speclaw init")} again.`,
+      `Recommended: run ${ui.code("npx @esneiderbravo/speclaw@latest init")} instead ` +
+        `(or ${ui.code("npm i -g @esneiderbravo/speclaw@latest")}, then ${ui.code("speclaw init")} again). ` +
+        `Later, ${ui.code("speclaw update")} upgrades itself through npx.`,
     );
     ui.plain();
   }
@@ -119,6 +120,12 @@ export async function runInit(flags: Flags): Promise<void> {
   for (const p of packs) ui.ok(`${PACK_LABELS[p] ?? p + " pack"}`);
   specInit(cwd);
   ui.ok(`Lawbook workspace ${c.muted("— lawbook/")}`);
+  for (const rel of report.lockPreserved) ui.warn(lockPreservedWarning(rel));
+  if (report.lockError) {
+    // An existing lock that cannot be read is left untouched, never rebuilt.
+    ui.err(`${report.lockError} — speclaw.lock was left unchanged; repair it and re-run.`);
+    process.exitCode = 1;
+  }
   if (reinit && report.skipped.length) {
     ui.info(
       `${report.written.length} added · ${c.cream(String(report.skipped.length))} preserved untouched`,

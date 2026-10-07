@@ -14,6 +14,7 @@ import { briefForStage } from "./brief.js";
 import { stageStartedAt } from "./compass-gate.js";
 import type { HarnessStage, HarnessState } from "./types.js";
 import { OUTPUT_BUDGET, estimateTokens } from "../../shared/output-budget.js";
+import { resolveChangeDir } from "./paths.js";
 
 /** Interval used when the key is missing or invalid. */
 export const DEFAULT_STATUS_INTERVAL_MINUTES = 5;
@@ -111,7 +112,10 @@ function readTaskCounts(
   projectPath: string,
   change: string,
 ): { done: number; total: number } | null {
-  const dir = path.join(projectPath, "lawbook", "changes", change);
+  // An archived change still reports its tasks from the archive directory.
+  const dir =
+    resolveChangeDir(projectPath, change)?.dir ??
+    path.join(projectPath, "lawbook", "changes", change);
   for (const file of ["tasks.md", "record.md"]) {
     let text: string;
     try {

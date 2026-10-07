@@ -1,0 +1,125 @@
+{
+  "version": 1,
+  "change": "harden-update-lock-and-cli",
+  "stage": "done",
+  "level": 3,
+  "iteration": 3,
+  "maxRework": 3,
+  "verdicts": {
+    "review": "PASS",
+    "test": "PASS"
+  },
+  "openQuestions": [],
+  "history": [
+    {
+      "at": "2026-10-07T00:20:51.307Z",
+      "from": "exploring",
+      "to": "exploring",
+      "op": "start"
+    },
+    {
+      "at": "2026-10-07T00:23:49.962Z",
+      "from": "exploring",
+      "to": "planning",
+      "op": "advance",
+      "note": "Explorer: 4 independent fixes — self-update re-exec via npx (update.ts:281), refreshLockfile launders strict drift (lock.ts:354), specArchive renames before harness reaches done (engine.ts:604 / harness.ts:65), --help not intercepted per command (index.ts:201). Specs: project-update, law-enforcement, lawbook-workflow, cli. Compass calls: 12."
+    },
+    {
+      "at": "2026-10-07T00:23:53.160Z",
+      "from": "planning",
+      "to": "questions",
+      "op": "advance"
+    },
+    {
+      "at": "2026-10-07T00:25:38.339Z",
+      "from": "questions",
+      "to": "planning",
+      "op": "advance",
+      "note": "Human: exact-version MCP pin; laws lock preserve+warn with TTY --force; repair 5 stuck harnesses; level 3."
+    },
+    {
+      "at": "2026-10-07T00:38:50.096Z",
+      "from": "planning",
+      "to": "implementing",
+      "op": "advance",
+      "note": "Level-3 draft valid: 4 deltas (project-update, law-enforcement, lawbook-workflow on top of coordinator-status-updates' reworked copy, cli); D11–D20; regression-first tasks for items 2–4. Sync order: coordinator-status-updates first."
+    },
+    {
+      "at": "2026-10-07T00:58:34.226Z",
+      "from": "implementing",
+      "to": "reviewing",
+      "op": "advance",
+      "note": "Implemented 4 items with red evidence (.red-2/3/4.txt); self-update via self-update.ts, MCP pin, lock drift preservation + laws lock --force, archive completes harness + archived resolver (paths.ts) + 6 stuck harnesses repaired, per-command help registry. npm test 789/789."
+    },
+    {
+      "at": "2026-10-07T01:04:29.934Z",
+      "from": "reviewing",
+      "to": "implementing",
+      "op": "rework",
+      "note": "Review FAIL: B1 unreadable/newer lockfile silently rebuilt from disk (re-baselines drift); B2 laws lock --force lacks interactive confirm; B3 impossible harness-less archive scenario. Plus N1 semver/npx.cmd fallback, N3 help flags, N4, N5, N6."
+    },
+    {
+      "at": "2026-10-07T01:12:46.695Z",
+      "from": "implementing",
+      "to": "reviewing",
+      "op": "advance",
+      "note": "Rework 1: B1 unreadable lock throws/refuses (red .red-b1.txt 8/8 fail), B2 --force interactive confirm default No, B3 scenario reworded; N1/N3/N4/N5/N6/N7/N9/N10/N11. npm test 806/806."
+    },
+    {
+      "at": "2026-10-07T01:15:49.216Z",
+      "from": "reviewing",
+      "to": "implementing",
+      "op": "rework",
+      "note": "Re-review PASSED blockers B1–B3, but coordinator pulls the cheap security residuals into this change before testing: R1 TOCTOU across --force confirm, R2 structurally invalid lock treated as empty, R4 accept stack trace. R3 (pre-existing laws scan) stays a follow-up."
+    },
+    {
+      "at": "2026-10-07T01:21:16.596Z",
+      "from": "implementing",
+      "to": "reviewing",
+      "op": "advance",
+      "note": "Rework 2: R1 TOCTOU re-check after confirm (LockChangedError), R2 structural lock validation (red .red-r2.txt 23/60 fail), R4 clean accept error; R3 + accept TOCTOU as follow-ups. npm test 831/831."
+    },
+    {
+      "at": "2026-10-07T01:24:07.670Z",
+      "from": "reviewing",
+      "to": "testing",
+      "op": "advance",
+      "note": "Rework 2 re-review PASS (R1/R2/R4 closed; real speclaw.lock passes shape check by reading). Nits N-a (accept non-lock errors get unreadable-lock advice) and N-b (snapshot vs disk micro-window) → fold into any test rework, else follow-ups."
+    },
+    {
+      "at": "2026-10-07T01:42:51.310Z",
+      "from": "testing",
+      "to": "implementing",
+      "op": "rework",
+      "note": "Test PASS on all gates/manual, but N-a confirmed user-facing: laws accept on scan-only path prints unreadable-lock advice that would launder drift if followed. Rework 3 (final): N-a message routing, doctor hint for unreadable lock, MIGRATIONS entry version 2.0.8→2.0.9 (one release per change)."
+    },
+    {
+      "at": "2026-10-07T01:45:52.036Z",
+      "from": "implementing",
+      "to": "reviewing",
+      "op": "advance",
+      "note": "Rework 3: N-a accept errors routed correctly (red .red-na.txt), doctor remedy for unreadable lock, release 2.0.9 in MIGRATIONS/specs/docs. npm test 833/833."
+    },
+    {
+      "at": "2026-10-07T01:48:53.095Z",
+      "from": "reviewing",
+      "to": "testing",
+      "op": "advance",
+      "note": "Rework 3 review PASS (R3.1–R3.4 closed). review.md restored after reviewer overwrite; coordinator verified it is identical to the saved Rework 2 copy plus the new section. N-c (git checkout HEAD -- speclaw.lock) → follow-up."
+    },
+    {
+      "at": "2026-10-07T01:54:23.829Z",
+      "from": "testing",
+      "to": "archiving",
+      "op": "advance",
+      "note": "Final re-test PASS: npm test 833/833 (86.32% lines), coverage 26/26 deep, manual N-a/doctor/2.0.9 checks on real pty, reports updated."
+    },
+    {
+      "at": "2026-10-07T01:55:33.019Z",
+      "from": "archiving",
+      "to": "done",
+      "op": "advance",
+      "note": "archived by lawbook archive (completed with the built engine: the running MCP server held a pre-build specArchive)"
+    }
+  ]
+}
