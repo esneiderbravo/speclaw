@@ -111,18 +111,21 @@ test("scaffold throws when the project path does not exist", () => {
   );
 });
 
-test("scaffold writes the verify workflow when missing and never overwrites it", (t) => {
+test("scaffold writes no CI workflow unless asked", (t) => {
   const root = tmpRepo(t);
-  const first = scaffold(root, sampleProfile(), [], []);
-  assert.ok(has(root, ".github/workflows/speclaw.yml"));
-  assert.ok(first.written.some((p) => p.endsWith(".github/workflows/speclaw.yml")));
-  assert.match(read(root, ".github/workflows/speclaw.yml"), /fetch-depth:\s*0/);
-  assert.doesNotMatch(read(root, ".github/workflows/speclaw.yml"), /pull_request_target/);
+  scaffold(root, sampleProfile(), [], []);
+  assert.ok(!has(root, ".github"));
+});
 
-  write(root, ".github/workflows/speclaw.yml", "# locally edited\n");
-  const second = scaffold(root, sampleProfile(), [], []);
-  assert.equal(read(root, ".github/workflows/speclaw.yml"), "# locally edited\n");
-  assert.ok(second.skipped.some((p) => p.endsWith(".github/workflows/speclaw.yml")));
+test("scaffold ignores speclaw.lock and the agent folders it creates", (t) => {
+  const root = tmpRepo(t);
+  write(root, ".claude/settings.json", "{}\n");
+  scaffold(root, sampleProfile(), [], ["agents", "claude"]);
+  const lines = read(root, ".gitignore").split("\n");
+  for (const entry of ["speclaw.lock", ".agents/", "ai-specs/", ".speclaw/"]) {
+    assert.ok(lines.includes(entry), `${entry} is gitignored`);
+  }
+  assert.ok(!lines.includes(".claude/"), "a pre-existing agent folder is the user's");
 });
 
 test("scaffold seeds a cycle law scoped to apps/*/src on an apps-layout repo", (t) => {

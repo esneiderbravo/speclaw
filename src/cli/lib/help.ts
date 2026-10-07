@@ -143,7 +143,7 @@ npx @esneiderbravo/speclaw@latest init so the scaffold matches the latest releas
 
 Options
   --yes, -y               Accept the defaults without prompting
-  --agents <ids>          Comma-separated agents to configure (claude, cursor, …)
+  --agents <ids>          Agents to configure (default: agents → only .agents/; also claude, cursor, codex, windsurf)
   --packs <ids>           Comma-separated tool packs to install
   --project-name <name>   Project name for the templates
   --minimal               Omit setup/lifecycle MCP tools

@@ -5,6 +5,34 @@ All notable changes to this project are documented here. Speclaw follows
 
 ## [Unreleased]
 
+## [2.0.14] — 2026-10-07
+
+### Changed
+
+- `speclaw init` creates a single agent-facing folder by default: `.agents/`,
+  with symlinks to `ai-specs/` (`skills`, `commands`, `agents`, `rules`).
+  `ai-specs/` stays the source of everything. `.claude/`, `.cursor/`,
+  `.codex/`, `.windsurf/` and `.github/instructions/` are created only for an
+  agent chosen explicitly (`--agents claude`, `speclaw agent add cursor`, …).
+  Existing installs keep their folders.
+- Tool config is no longer committed: `init` adds `.agents/` (and any agent
+  folder it creates) and `speclaw.lock` to `.gitignore`, next to `ai-specs/`
+  and `.speclaw/`. Only the project's content is committed: `LAWS.md`,
+  `CLAUDE.md`, `AGENTS.md`, `docs/`, and `lawbook/`.
+
+### Removed
+
+- `init` no longer writes `.github/workflows/speclaw.yml`; the CI workflow
+  template is gone.
+
+### Fixed
+
+- `speclaw drift --reseal` re-stamps only the anchors whose sealed state
+  changed. Unchanged anchors keep their `archivedAt` / `commitSha`, so an
+  unchanged capability stays byte-identical and drift age counts from the real
+  seal. On this repo a full reseal went from ~6,000 changed lines in 15 files
+  to 6 lines in 1 file.
+
 ## [2.0.13] — 2026-10-07
 
 ### Changed

@@ -42,8 +42,8 @@ Claude-specific notes: [`CLAUDE.md`](CLAUDE.md). The law: [`LAWS.md`](LAWS.md).
    [`docs/standards/base-standards.md`](docs/standards/base-standards.md) and
    [`docs/standards/conventions.md`](docs/standards/conventions.md).
 6. **Use the skills and role agents.** `ai-specs/` is the canonical home for
-   skills, commands, rules, and agents, mirrored to each IDE directory via
-   symlinks.
+   skills, commands, rules, and agents; agents read them through the symlinks
+   in `.agents/` (plus an IDE folder only for an agent added explicitly).
 7. **Ask before irreversible or outward-facing actions** — destructive commands;
    writing to a real data store (DB rows or files with real user data, including
    for tests — verify against an isolated/throwaway store); publishing

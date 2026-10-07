@@ -82,8 +82,9 @@ its neighbors, comments that carry constraints (never ticket IDs). Full rules:
 
 ## Rule 5 — Skills and role agents are law-adjacent
 
-Skills, commands, rules, and agents live in `ai-specs/` (symlinked into
-`.claude/`, `.cursor/`, `.codex/`, `.agents/`). When a skill or role matches
+Skills, commands, rules, and agents live in `ai-specs/`, read through the
+symlinks in `.agents/` (an IDE folder such as `.claude/` exists only for an
+agent added explicitly with `speclaw agent add`). When a skill or role matches
 the task, use it — do not improvise a parallel process.
 
 ## Rule 6 — Stop conditions

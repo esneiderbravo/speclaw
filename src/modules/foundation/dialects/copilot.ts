@@ -14,12 +14,9 @@ import {
 export const copilotDialect: Dialect = {
   id: "copilot-instructions",
   compile(laws: Law[], ctx: CompileContext): CompiledArtifact[] {
-    // Emit when explicitly wanted: agent id "copilot" or always if .github exists —
-    // orchestrator passes agents; treat missing copilot as skip unless "agents" generic.
-    const want =
-      ctx.agents.includes("copilot") ||
-      ctx.agents.includes("github-copilot") ||
-      ctx.agents.includes("agents");
+    // Only for Copilot: the generic agent reads scoped laws from AGENTS.md
+    // (agentsmd dialect), so it gets no `.github/instructions/` folder.
+    const want = ctx.agents.includes("copilot") || ctx.agents.includes("github-copilot");
     if (!want) return [];
     const scoped = laws.filter((l) => (l.status ?? "active") !== "draft" && l.scope.length > 0);
     return scoped.map((law) => {
