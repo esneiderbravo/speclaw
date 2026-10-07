@@ -42,7 +42,7 @@ test("configureAgent creates symlinks and writes the MCP config", (t) => {
   assert.match(read(root, ".gitignore"), /\.mcp\.json/);
 });
 
-test("configureAgent gitignores an IDE dir it creates, never a pre-existing one", (t) => {
+test("configureAgent gitignores an IDE dir it creates, or only its own entries in a pre-existing one", (t) => {
   const root = tmpRepo(t);
   seedAiSpecs(root);
   configureAgent(root, "agents", emptyReport());
@@ -53,9 +53,17 @@ test("configureAgent gitignores an IDE dir it creates, never a pre-existing one"
   // The folder holds only links into the gitignored ai-specs/: tool config.
   assert.ok(lines().includes(".agents/"), ".agents/ is gitignored");
 
-  write(root, ".claude/settings.json", "{}\n");
+  write(root, ".claude/settings.local.json", "{}\n");
   configureAgent(root, "claude", emptyReport());
   assert.ok(!lines().includes(".claude/"), "a pre-existing .claude/ is the user's");
+  for (const entry of [
+    ".claude/skills",
+    ".claude/commands",
+    ".claude/agents",
+    ".claude/rules/speclaw",
+    ".claude/settings.json",
+  ])
+    assert.ok(lines().includes(entry), `${entry} is gitignored`);
 });
 
 test("configureAgent is idempotent — a second run skips existing links and config", (t) => {
@@ -91,9 +99,13 @@ test("configureAgent throws on an unknown agent id", (t) => {
   assert.throws(() => configureAgent(root, "ghost", emptyReport()), /Unknown agent/);
 });
 
-test("detectConfiguredAgents lists agents whose IDE dir exists", (t) => {
+test("detectConfiguredAgents lists agents with a speclaw link, not a bare IDE dir", (t) => {
   const root = tmpRepo(t);
   seedAiSpecs(root);
+  assert.deepEqual(detectConfiguredAgents(root), []);
+  // Claude Code and Cursor create these on their own; that is not a choice.
+  write(root, ".claude/settings.local.json", "{}\n");
+  fs.mkdirSync(path.join(root, ".cursor"));
   assert.deepEqual(detectConfiguredAgents(root), []);
   configureAgent(root, "cursor", emptyReport());
   assert.deepEqual(detectConfiguredAgents(root), ["cursor"]);
