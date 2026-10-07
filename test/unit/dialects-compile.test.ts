@@ -314,3 +314,25 @@ none law
   assert.equal(laws[0]!.verification.kind, "path");
   assert.equal(laws[1]!.verification.kind, "none");
 });
+
+test("the generated AGENTS.md block carries the workflow only when the file lacks it", (t) => {
+  const bare = tmpRepo(t);
+  write(bare, "AGENTS.md", "# Agents\n\nProject notes only.\n");
+  writeLawManifest(bare, seedManifest());
+  compileLaws({ projectPath: bare, agents: [] });
+  const added = fs.readFileSync(path.join(bare, "AGENTS.md"), "utf8");
+  assert.match(added, /## speclaw workflow \(generated\)/);
+  assert.match(added, /speclaw ship-on-stop/);
+  assert.equal(compileLaws({ projectPath: bare, agents: [] }).written.length, 0, "idempotent");
+
+  const covered = tmpRepo(t);
+  write(
+    covered,
+    "AGENTS.md",
+    "# Agents\n\nUse Cortex for every change; call compass_explore first.\n",
+  );
+  writeLawManifest(covered, seedManifest());
+  compileLaws({ projectPath: covered, agents: [] });
+  const kept = fs.readFileSync(path.join(covered, "AGENTS.md"), "utf8");
+  assert.doesNotMatch(kept, /speclaw workflow \(generated\)/);
+});

@@ -1,3 +1,5 @@
+import fs from "node:fs";
+import path from "node:path";
 import type { Law } from "../laws.js";
 import {
   type CompileContext,
@@ -8,6 +10,44 @@ import {
 } from "./types.js";
 
 const NESTED_THRESHOLD = 3;
+
+const LAWS_BLOCK_RE = /<!-- speclaw:laws:start -->[\s\S]*?<!-- speclaw:laws:end -->/;
+
+/**
+ * The agent workflow speclaw relies on (Compass first, Cortex with the Stop
+ * hook), emitted in the generated block only when the hand-written part of
+ * AGENTS.md lacks it.
+ *
+ * @remarks
+ * `update` never edits the personalized AGENTS.md, so a project scaffolded
+ * before Cortex (or one with a hand-written AGENTS.md) never learned to record
+ * its work in the lawbook. The generated block is rewritten on every update,
+ * so it carries the rule there; a file that already states it pays no tokens.
+ *
+ * @param projectPath - Project root holding AGENTS.md.
+ * @returns The section's lines, or none when AGENTS.md already covers it.
+ */
+export function workflowSection(projectPath: string): string[] {
+  let own = "";
+  try {
+    own = fs.readFileSync(path.join(projectPath, "AGENTS.md"), "utf8").replace(LAWS_BLOCK_RE, "");
+  } catch {
+    // No AGENTS.md yet: the section goes in.
+  }
+  if (/\bCortex\b/.test(own) && /\bcompass_explore\b/.test(own)) return [];
+  return [
+    "## speclaw workflow (generated)",
+    "",
+    "- **Compass first.** For any code question call `compass_find` / `compass_explore`",
+    "  before grep or reading files; run `compass_index` first if the graph is missing.",
+    "- **Cortex for every change.** Branch `<type>/<slug>`, locate with Compass, implement",
+    "  the change and its test, run the tests, then stop. In Claude Code the `Stop` hook",
+    "  (`speclaw ship-on-stop`) records the change in `lawbook/` and runs the gates; agents",
+    '  without hooks run `speclaw ship <change> --summary "<what and why>"` once, last.',
+    "  Work that needs a spec goes through the `cortex` skill.",
+    "",
+  ];
+}
 
 function degradeSection(title: string, laws: Law[]): string {
   const lines = [`## ${title}`, ""];
@@ -48,6 +88,7 @@ export const agentsmdDialect: Dialect = {
       "_Edit `docs/standards/*.md` or `.speclaw/laws-manifest.json`; do not edit this block._",
       "",
     ];
+    rootParts.push(...workflowSection(ctx.projectPath));
     if (global.length) rootParts.push(degradeSection("Global rules", global));
 
     const nestedMention: string[] = [];
