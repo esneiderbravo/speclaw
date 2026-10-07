@@ -1,0 +1,91 @@
+{
+  "version": 1,
+  "change": "fix-explore-tests-and-callees",
+  "stage": "done",
+  "level": 0,
+  "iteration": 3,
+  "maxRework": 3,
+  "verdicts": {
+    "review": null,
+    "test": "PASS"
+  },
+  "openQuestions": [],
+  "history": [
+    {
+      "at": "2026-10-07T01:23:12.648Z",
+      "from": "exploring",
+      "to": "exploring",
+      "op": "start"
+    },
+    {
+      "at": "2026-10-07T01:25:59.623Z",
+      "from": "exploring",
+      "to": "implementing",
+      "op": "advance",
+      "note": "Explorer RCA: RC1 calls in arrow/test callbacks have no owner (extract.ts:344, indexer.ts:475); RC2 declaration-less files' imports ownerless (indexer.ts:471); RC3 multi-line imports truncated to first line (extract.ts:347); RC4 tsconfig aliases unresolved (indexer.ts:153); member calls name-bound globally (indexer.ts:533-541); callees unfiltered (query.ts:251-259); buildTestCommand run-nothing + no runner/workspace detection (affected.ts:230-265). Compass calls: 5."
+    },
+    {
+      "at": "2026-10-07T02:25:36.056Z",
+      "from": "implementing",
+      "to": "testing",
+      "op": "advance",
+      "note": "Implemented RC1–RC7 + workspace target filter; schema 11 (is_member); resolveEdges shared helper (incl. dangling reset); red 16/45 → green 45/45; npm test 854/854."
+    },
+    {
+      "at": "2026-10-07T02:32:57.161Z",
+      "from": "testing",
+      "to": "implementing",
+      "op": "rework",
+      "note": "Review FAIL: M1 import cap drops specifier; M2 builtin-globals test can't fail + by-name fallbacks leak builtins; M3 schema migration scenarios untested. Plus S1 hoisted runner, S2 node --test arg parsing, S3 package-import receivers, S4 old-binary wipe docs."
+    },
+    {
+      "at": "2026-10-07T02:40:05.727Z",
+      "from": "implementing",
+      "to": "testing",
+      "op": "advance",
+      "note": "Rework 1: M1 full-text import parsing + capped storage, M2 builtin skip in fallbacks + real test, M3 migration itests, S1 hoisted runner, S2 node --test parser, S3 package receivers foreign, S4 downgrade docs. Red 5/28 → green 28/28; npm test 862/862."
+    },
+    {
+      "at": "2026-10-07T02:43:34.331Z",
+      "from": "testing",
+      "to": "implementing",
+      "op": "rework",
+      "note": "Re-review FAIL N1: isPackageSpecifier classifies resolvable project aliases (@app/* paths, single-segment baseUrl modules) as packages → false-negative callers. Fix: decide foreignness in resolveEdges from unresolved import edges. Also document O13."
+    },
+    {
+      "at": "2026-10-07T02:51:45.432Z",
+      "from": "implementing",
+      "to": "testing",
+      "op": "advance",
+      "note": "Rework 2: foreignness decided in resolveEdges from unresolved import edges (edges.spec nullable column, member=2), O13 fixed; red 3/10 → green; npm test 865/865. D1 extension (edges.spec in unreleased schema 11) accepted by coordinator."
+    },
+    {
+      "at": "2026-10-07T02:55:29.810Z",
+      "from": "testing",
+      "to": "implementing",
+      "op": "rework",
+      "note": "Re-review FAIL N2: imports of node-less re-export barrels stay unresolved → member calls through Nx/relative barrels lose callers (regression). Rework 3 (final): file-owner node for every symbol-less/re-exporting file, barrel tests, O15 spec IS NOT NULL guard, O16 in_graph fallback honors is_member."
+    },
+    {
+      "at": "2026-10-07T03:05:56.018Z",
+      "from": "implementing",
+      "to": "testing",
+      "op": "advance",
+      "note": "Rework 3: file-owner node for symbol-less/re-exporting files so barrel imports resolve; barrel-subtree binding preference; O15 spec guard; O16 coupling fallback honors is_member/builtins/file nodes. Red 5/34 → green 34/34; npm test 869/869; full index +2%."
+    },
+    {
+      "at": "2026-10-07T04:12:36.589Z",
+      "from": "testing",
+      "to": "archiving",
+      "op": "advance",
+      "note": "Test: gates pass (869/869), manual verification incl. Farmatodo copy passes, perf full index −3.2%, MRR up. Coordinator decisions: reseal cli + lawbook-workflow drift anchors at archive (intentional code change); no-op +0.8% accepted as deviation/follow-up; CLAUDE/AGENTS schema wording deferred to human."
+    },
+    {
+      "at": "2026-10-07T12:48:07.322Z",
+      "from": "archiving",
+      "to": "done",
+      "op": "advance",
+      "note": "archived by lawbook archive"
+    }
+  ]
+}
