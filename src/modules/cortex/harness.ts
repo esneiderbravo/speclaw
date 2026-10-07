@@ -19,6 +19,7 @@ import {
   readCompassGateMode,
   type CompassEvidence,
 } from "./compass-gate.js";
+import { buildStatusSummary, type CortexStatusSummary } from "./status.js";
 
 // Harness types live in the leaf `types.ts` so `compass-gate.ts` can use them
 // without importing this file back (no file-level import cycle).
@@ -40,6 +41,15 @@ export type HarnessAdvanceResult = HarnessState & {
   compassEvidence?: CompassEvidence;
   warnings?: string[];
 };
+
+/**
+ * Result of `status`: the summary, then the raw state (both null without a
+ * harness). `summary` comes first so a reader that cuts from the end keeps it.
+ */
+export interface HarnessStatusResult {
+  summary: CortexStatusSummary | null;
+  state: HarnessState | null;
+}
 
 export const harnessOps = ["status", "start", "advance", "rework"] as const;
 export type HarnessOp = (typeof harnessOps)[number];
@@ -168,18 +178,18 @@ export type HarnessHandleArgs = {
 };
 
 /**
- * Dispatch a harness op for a change.
+ * Dispatch a harness op for a change. `status` also returns the status
+ * summary (`req~cortex-status-summary~1`); other ops return the state.
  *
  * // Covers: req~harness-state~1
  */
-export function handleHarness(
-  args: HarnessHandleArgs,
-): HarnessAdvanceResult | { state: HarnessState | null } {
+export function handleHarness(args: HarnessHandleArgs): HarnessAdvanceResult | HarnessStatusResult {
   const { projectPath, change, harnessOp } = args;
   requireChangeDir(projectPath, change);
 
   if (harnessOp === "status") {
-    return { state: readHarness(projectPath, change) };
+    const state = readHarness(projectPath, change);
+    return { summary: state ? buildStatusSummary(projectPath, state) : null, state };
   }
 
   if (harnessOp === "start") {

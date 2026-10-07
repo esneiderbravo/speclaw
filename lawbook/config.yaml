@@ -28,6 +28,12 @@ coverage:
 # a missing or invalid value means warn. See docs/cortex.md.
 # compassGate: warn
 
+# Cortex status updates: the coordinator posts a compact status update every N
+# minutes during a run (and after each Cortex op). 0 disables; a missing or
+# invalid value means 5; values above 60 mean 60. See docs/cortex.md.
+# cortex:
+#   statusIntervalMinutes: 5
+
 # Ceremony levels (adaptive). Absent or invalid cuts → built-in defaults.
 ceremony:
   cuts: [3, 8, 15]

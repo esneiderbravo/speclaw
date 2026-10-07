@@ -1,6 +1,8 @@
 # Complete
 
-When Cortex stage is `done` (or the human stops the run), summarize:
+When Cortex stage is `done` (or the human stops the run), first delete the
+status timer if one exists (`CronDelete` with the id `CronCreate` returned,
+or the id `CronList` shows for this change), then summarize:
 
 - Change name and final stage
 - Review/test verdicts and iteration count

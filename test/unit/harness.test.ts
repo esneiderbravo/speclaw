@@ -33,11 +33,22 @@ test("harness start/status/advance and rejects illegal jumps", (t) => {
 
   assert.deepEqual(handleHarness({ projectPath: root, change: "feat", harnessOp: "status" }), {
     state: null,
+    summary: null,
   });
 
   const started = handleHarness({ projectPath: root, change: "feat", harnessOp: "start" });
   assert.equal((started as { stage: string }).stage, "exploring");
   assert.ok(has(root, "lawbook/changes/feat/harness.json"));
+
+  const status = handleHarness({ projectPath: root, change: "feat", harnessOp: "status" }) as {
+    state: { stage: string } | null;
+    summary: { stage: string; role: string; tasks: unknown; elapsedMinutes: number } | null;
+  };
+  assert.equal(status.state?.stage, "exploring");
+  assert.equal(status.summary?.stage, "exploring");
+  assert.equal(status.summary?.role, "explorer");
+  assert.deepEqual(status.summary?.tasks, { done: 1, total: 1 });
+  assert.equal(status.summary?.elapsedMinutes, 0);
 
   assert.throws(
     () => handleHarness({ projectPath: root, change: "feat", harnessOp: "start" }),

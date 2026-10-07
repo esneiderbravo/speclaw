@@ -72,20 +72,67 @@ stage are never gated.
 shared by everything running in the repo, so a concurrent session (or a human
 running `speclaw explore`) can satisfy another session's gate.
 
+## Status updates (`cortex.statusIntervalMinutes`)
+
+`status` returns a `summary` first, then `state`:
+
+| Field | Meaning |
+|-------|---------|
+| `change`, `stage`, `role` | The change, its stage, and the role `brief` maps the stage to |
+| `stageStartedAt`, `elapsedMinutes` | When the stage started (newest history entry into it) and whole minutes since |
+| `tasks` | `{done, total}` from the `tasks.md` checkboxes (`record.md` at level 0), or null |
+| `iteration`, `maxRework` | Rework count and cap |
+| `pendingVerdicts` | `review` (level ≥ 1) and/or `test` while not `PASS` |
+| `openQuestions` | Count of open planner questions |
+| `statusIntervalMinutes` | The configured update interval (below) |
+| `line` | One-line English rendering, e.g. `demo · implementing (implementer) · 12m in stage · tasks 3/9 · rework 0/3 · pending: review, test` |
+
+Set the interval in `lawbook/config.yaml`:
+
+```yaml
+cortex:
+  statusIntervalMinutes: 5 # minutes; 0 disables (default 5, at most 60)
+```
+
+A missing file, block, or key, or a value that is not a whole number ≥ 0,
+means 5. Values above 60 are capped at 60, so the timer is always a valid cron
+schedule (`*/N * * * *` for 1–59, hourly for 60). During a run the `cortex` skill posts a compact update after every
+Cortex op and before every blocking role dispatch, written in the session's
+language (stage, role, and tool names, paths, and change names stay in
+English). Where the host has a session timer (Claude Code `CronCreate`), the
+coordinator also creates one recurring timer every N minutes (only for an
+active run: summary non-null, stage not `done`), keeps the id `CronCreate`
+returns so exactly one exists, gives it a prompt that names the change and
+the rules, prefers
+background dispatch so it can fire, skips pings in `questions`, and deletes it
+(`CronDelete`) at `done`, when the run stops, or when the human asks to stop
+the updates. Hosts without a timer rely on the after-op and before-dispatch
+updates. `0` disables every unsolicited update; an explicit request for status
+is always answered.
+
 ## MCP tool `cortex`
 
 | Action | Use it to |
 |--------|-----------|
-| `status` | Read `harness.json` (or null if not started) |
+| `status` | Read `harness.json` plus a status `summary` (both null if not started) |
 | `start` | Create harness at `exploring` for a change |
 | `advance` | Legal one-step transition (PASS verdict required leaving review/test) |
 | `rework` | FAIL from reviewing/testing → implementing (counts toward max rework) |
 | `brief` | Stage + role + skill hints + suggested next ops (handoff for Task spawn) |
 
 Same surface on the CLI: `speclaw cortex <action> --change <name> […]`.
+`speclaw cortex status` also writes `summary.line` to stderr (stdout stays the
+JSON document); `--json` suppresses the stderr line. A missing change exits 1.
+
+On the MCP path, `status` is fitted to the brief output budget: `summary` is
+always complete, and when the JSON would be too long the oldest
+`state.history` entries are dropped (newest kept) and counted in
+`historyOmitted`. If even an empty history does not fit, `state` is `null`
+with `stateOmitted: true`. The CLI and `harness.json` keep the full history.
 
 `lawbook_change` action `harness` and `speclaw lawbook harness` remain as
-deprecated aliases for one release.
+deprecated aliases for one release. Their `status` also returns `summary`
+(fitted the same way on MCP); the alias CLI prints no stderr line.
 
 ## Entry points
 

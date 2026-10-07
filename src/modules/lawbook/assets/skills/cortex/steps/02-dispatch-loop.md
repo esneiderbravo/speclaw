@@ -34,5 +34,20 @@ For the current Cortex stage (`cortex` action `brief` or `status`):
 4. Max rework is 3; if the engine rejects further rework, **ask the human**.
 5. Coordinator never edits `src/`, never archives, never pushes, never runs
    `laws accept`.
+6. **Status updates.** Unless `summary.statusIntervalMinutes` is 0, post a
+   compact update after every Cortex op and just before every blocking role
+   dispatch, built from the `status` summary fields:
+   - the change, the stage and active role, the elapsed time in the stage;
+   - tasks done/total, rework iteration/max, and the pending verdicts;
+   - in `questions`, that the human owes answers.
+
+   Write it in the session's language (the language of the human's most
+   recent messages); keep stage, role, and tool names, file paths, and change
+   names in English. `summary.line` is English-only; use it as is only in an
+   English session. Skip timer pings while the stage is `questions` (the
+   question round already speaks to the human). When the human asks to stop
+   the updates, delete the timer (`CronDelete` with the id `CronCreate`
+   returned) and post no further unsolicited update for this run. An explicit
+   request for status is always answered.
 
 Next: read `steps/03-complete.md` and do only what it says.
