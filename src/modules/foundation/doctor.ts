@@ -630,6 +630,17 @@ function specsOrphansCheck(projectPath: string): DoctorCheck {
   };
 }
 
+/**
+ * Fix hint for an unreadable or invalid `speclaw.lock`. `laws lock` refuses
+ * such a lock, and deleting it re-baselines every pinned file, silently
+ * accepting any pending drift — so that is offered only as a last resort.
+ */
+export const UNREADABLE_LOCK_REMEDY =
+  "resolve the merge conflict in speclaw.lock or restore it from git " +
+  "(git checkout -- speclaw.lock); upgrade speclaw if the lockfileVersion is newer. " +
+  "Last resort: delete it and run speclaw laws lock — this re-baselines every " +
+  "pinned file and accepts any pending drift";
+
 function integrityChecks(projectPath: string): DoctorCheck[] {
   // Covers: req~doctor-integrity~1
   const out: DoctorCheck[] = [];
@@ -662,7 +673,8 @@ function integrityChecks(projectPath: string): DoctorCheck[] {
         title: "rule lockfile",
         status: "error",
         detail: (err as Error).message,
-        remedy: "speclaw laws lock",
+        // `laws lock` refuses an unreadable lock, so point at repairing it.
+        remedy: UNREADABLE_LOCK_REMEDY,
       });
     }
   }

@@ -10,7 +10,18 @@ import {
   refreshLockfile,
   verifyIntegrity,
 } from "../../modules/foundation/integrity.js";
-import { digestText, prepareIntegrityText, readLockfile } from "../../modules/foundation/lock.js";
+import {
+  digestText,
+  driftedStrictPaths,
+  LockChangedError,
+  lockPreservedWarning,
+  onDiskDigest,
+  prepareIntegrityText,
+  readLockfile,
+  type ConfirmedDrift,
+  type LockRefreshResult,
+  type SpeclawLock,
+} from "../../modules/foundation/lock.js";
 import fs from "node:fs";
 import path from "node:path";
 import os from "node:os";
@@ -34,6 +45,7 @@ export async function runLaws(flags: Flags): Promise<void> {
     });
     if (flags.json) {
       console.log(JSON.stringify(report, null, 2));
+      if (report.failed.length || report.lockError) process.exit(1);
       return;
     }
     ui.heading("speclaw laws compile");
@@ -43,7 +55,9 @@ export async function runLaws(flags: Flags): Promise<void> {
         (report.failed.length ? ` · ${report.failed.length} failed` : ""),
     );
     for (const f of report.failed) ui.warn(`${f.path}: ${f.error}`);
-    if (report.failed.length) process.exit(1);
+    for (const rel of report.lockPreserved) ui.warn(lockPreservedWarning(rel));
+    if (report.lockError) ui.err(lockUnreadableMessage(report.lockError));
+    if (report.failed.length || report.lockError) process.exit(1);
     return;
   }
 
@@ -70,16 +84,7 @@ export async function runLaws(flags: Flags): Promise<void> {
   }
 
   if (sub === "lock") {
-    const lock = refreshLockfile(process.cwd());
-    if (flags.json) {
-      console.log(JSON.stringify(lock, null, 2));
-      return;
-    }
-    ui.heading("speclaw laws lock");
-    ui.ok(
-      `Wrote speclaw.lock — ${Object.keys(lock.files).length} file(s), ` +
-        `${Object.keys(lock.symlinks).length} symlink(s), root ${lock.root.slice(0, 19)}…`,
-    );
+    await runLock(flags);
     return;
   }
 
@@ -147,9 +152,138 @@ export async function runLaws(flags: Flags): Promise<void> {
   if (report.findings.length === 0 && summary.evaluated > 0) ui.ok("No violations.");
 }
 
+/**
+ * Injectable TTY check shared by `laws accept` and `laws lock --force`.
+ * Test-only seam: product code must never reassign it.
+ */
+export const lawsTty: { isInteractive: () => boolean } = { isInteractive: isInteractiveTty };
+
+/**
+ * Injectable yes/no prompt shared by `laws accept` and `laws lock --force`.
+ * Defaults to No; a cancelled prompt counts as No. Test-only seam: product
+ * code must never reassign it.
+ */
+export const lawsConfirm: { confirm: (message: string) => Promise<boolean> } = {
+  confirm: async (message) => {
+    const answer = await clack.confirm({ message, initialValue: false });
+    return !clack.isCancel(answer) && answer === true;
+  },
+};
+
+/** The error shown when `speclaw.lock` exists but cannot be read. */
+function lockUnreadableMessage(detail: string): string {
+  return (
+    `${detail} — speclaw.lock was left unchanged. Repair it (resolve merge markers, ` +
+    "or upgrade speclaw for a newer lockfileVersion); to start over, delete it and " +
+    "run `speclaw laws lock`."
+  );
+}
+
+/** The `by` recorded in `accepted[]` entries for a human acceptance. */
+function acceptedBy(): string {
+  return os.userInfo().username || process.env.USER || "unknown";
+}
+
+/**
+ * `speclaw laws lock [--force] [--note <text>]`: create or refresh
+ * `speclaw.lock`. A drifted strict file keeps its locked digest and is warned
+ * about. `--force` re-baselines drifted files and records an `accepted[]` entry
+ * for each; it requires an interactive TTY (without one it exits 1 before
+ * touching the lock) and an explicit confirmation after listing each drifted
+ * path with its locked and on-disk digests (No or cancel exits 1, lock
+ * unchanged). If the drifted set, a locked digest, or an on-disk digest
+ * changed while the prompt was open, nothing is written and it exits 1. An
+ * existing lock that cannot be read is never overwritten: the
+ * command exits 1.
+ *
+ * @param flags - Parsed CLI flags (`--force`, `--note`, `--json`).
+ */
+// Covers: req~laws-accept-human~1, req~laws-integrity-cli~1
+export async function runLock(flags: Flags): Promise<void> {
+  const cwd = process.cwd();
+  const force = Boolean(flags.force);
+  if (force && !lawsTty.isInteractive()) {
+    ui.err(
+      "`speclaw laws lock --force` requires an interactive TTY — re-baselining is human-only.",
+    );
+    process.exit(1);
+  }
+
+  let prev: SpeclawLock | null;
+  let drifted: string[];
+  try {
+    prev = readLockfile(cwd);
+    drifted = driftedStrictPaths(cwd, prev);
+  } catch (err) {
+    ui.err(lockUnreadableMessage((err as Error).message));
+    process.exitCode = 1;
+    return;
+  }
+
+  let rebaseline: { by: string; note?: string; confirmed: ConfirmedDrift[] } | undefined;
+  if (force && drifted.length) {
+    ui.heading("speclaw laws lock --force");
+    const confirmed: ConfirmedDrift[] = [];
+    for (const rel of drifted) {
+      const locked = prev!.files[rel]!.digest;
+      const actual = onDiskDigest(cwd, rel) ?? "(missing)";
+      confirmed.push({ path: rel, locked, actual });
+      ui.info(rel);
+      ui.plain(`  expected ${locked}`);
+      ui.plain(`  actual   ${actual}`);
+    }
+    const n = drifted.length;
+    const approved = await lawsConfirm.confirm(
+      `Re-baseline ${n} drifted strict file${n === 1 ? "" : "s"} in speclaw.lock?`,
+    );
+    if (!approved) {
+      ui.warn("Re-baseline cancelled — lockfile unchanged.");
+      process.exitCode = 1;
+      return;
+    }
+    const note =
+      typeof flags.note === "string" && flags.note.trim() ? flags.note.trim() : undefined;
+    rebaseline = { by: acceptedBy(), note, confirmed };
+  }
+
+  let result: LockRefreshResult;
+  try {
+    // With `confirmed`, the refresh re-checks the drift and digests the human
+    // approved against the snapshot it writes, and throws on any difference.
+    result = refreshLockfile(cwd, { drifted, rebaseline });
+  } catch (err) {
+    if (err instanceof LockChangedError) {
+      ui.err(
+        `${err.message} — speclaw.lock was not written. Re-run ` +
+          "`speclaw laws lock --force` to review the current digests.",
+      );
+    } else {
+      ui.err(lockUnreadableMessage((err as Error).message));
+    }
+    process.exitCode = 1;
+    return;
+  }
+  const { lock } = result;
+  if (flags.json) {
+    console.log(JSON.stringify(lock, null, 2));
+    for (const rel of result.preserved) process.stderr.write(lockPreservedWarning(rel) + "\n");
+    return;
+  }
+  ui.heading("speclaw laws lock");
+  ui.ok(
+    `Wrote speclaw.lock — ${Object.keys(lock.files).length} file(s), ` +
+      `${Object.keys(lock.symlinks).length} symlink(s), root ${lock.root.slice(0, 19)}…`,
+  );
+  for (const rel of result.preserved) ui.warn(lockPreservedWarning(rel));
+  for (const rel of result.rebaselined)
+    ui.warn(`${rel} re-baselined by --force (recorded in accepted[]).`);
+  if (result.pruned)
+    ui.info(`Pruned ${result.pruned} stale accepted entr${result.pruned === 1 ? "y" : "ies"}.`);
+}
+
 async function runAccept(flags: Flags): Promise<void> {
   const cwd = process.cwd();
-  if (!isInteractiveTty()) {
+  if (!lawsTty.isInteractive()) {
     ui.err("`speclaw laws accept` requires an interactive TTY — digest acceptance is human-only.");
     process.exit(1);
   }
@@ -160,7 +294,14 @@ async function runAccept(flags: Flags): Promise<void> {
     process.exit(1);
   }
 
-  const lock = readLockfile(cwd);
+  let lock: SpeclawLock | null;
+  try {
+    lock = readLockfile(cwd);
+  } catch (err) {
+    ui.err(lockUnreadableMessage((err as Error).message));
+    process.exitCode = 1;
+    return;
+  }
   if (!lock) {
     ui.err("No speclaw.lock — run `speclaw laws lock` first.");
     process.exit(1);
@@ -185,11 +326,8 @@ async function runAccept(flags: Flags): Promise<void> {
   }
 
   const noteFlag = typeof flags.note === "string" ? flags.note : undefined;
-  const confirmed = await clack.confirm({
-    message: `Update speclaw.lock digest for ${rel}?`,
-    initialValue: false,
-  });
-  if (clack.isCancel(confirmed) || !confirmed) {
+  const confirmed = await lawsConfirm.confirm(`Update speclaw.lock digest for ${rel}?`);
+  if (!confirmed) {
     ui.warn("Accept cancelled — lockfile unchanged.");
     process.exit(1);
   }
@@ -203,7 +341,17 @@ async function runAccept(flags: Flags): Promise<void> {
     if (!clack.isCancel(n) && n.trim()) note = n.trim();
   }
 
-  const by = os.userInfo().username || process.env.USER || "unknown";
-  acceptLockPath(cwd, rel, { by, note });
+  const by = acceptedBy();
+  try {
+    acceptLockPath(cwd, rel, { by, note });
+  } catch (err) {
+    // The lock is re-read here; it may have become unreadable during the prompt.
+    // Only lock read errors get the repair advice; others (a scan-only path)
+    // are reported as-is.
+    const detail = (err as Error).message;
+    ui.err(detail.startsWith("speclaw.lock:") ? lockUnreadableMessage(detail) : detail);
+    process.exitCode = 1;
+    return;
+  }
   ui.ok(`Accepted ${rel} — lock updated (by ${by}).`);
 }

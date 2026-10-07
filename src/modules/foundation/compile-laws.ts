@@ -22,7 +22,7 @@ import {
   type Dialect,
 } from "./dialects/index.js";
 import { detectConfiguredAgents } from "../../shared/agents.js";
-import { digestText, provenanceBlock, refreshLockfile } from "./lock.js";
+import { digestText, driftedStrictPaths, provenanceBlock, refreshLockfile } from "./lock.js";
 
 export interface CompileReport {
   schemaVersion: 1;
@@ -31,6 +31,13 @@ export interface CompileReport {
   failed: Array<{ path: string; error: string }>;
   lawCount: number;
   draftCount: number;
+  /** Drifted strict paths whose locked digest was kept (run `speclaw laws accept <path>`). */
+  lockPreserved: string[];
+  /**
+   * Why `speclaw.lock` was left untouched: it exists but cannot be read (parse
+   * error, unsupported `lockfileVersion`). Absent when the lock was refreshed.
+   */
+  lockError?: string;
 }
 
 const DIALECTS: Dialect[] = [
@@ -197,6 +204,17 @@ export interface CompileLawsOptions {
   /** Persist merged active+draft laws back to the manifest. Default true. */
   writeManifest?: boolean;
   agents?: string[];
+  /**
+   * Strict lock paths that had drifted before the caller wrote any rule file.
+   * Scaffold passes its own snapshot; when omitted, compile takes the snapshot
+   * itself before it writes anything.
+   */
+  drifted?: string[];
+  /**
+   * Refresh `speclaw.lock` after writing. Default true; scaffold passes false
+   * because it refreshes the lock itself once every rule file is written.
+   */
+  refreshLock?: boolean;
 }
 
 /**
@@ -211,7 +229,20 @@ export function compileLaws(opts: CompileLawsOptions): CompileReport {
     failed: [],
     lawCount: 0,
     draftCount: 0,
+    lockPreserved: [],
   };
+  // Snapshot drift before any rule artifact is written: compilation rewrites
+  // the speclaw regions of CLAUDE.md / AGENTS.md, which must not launder edits.
+  // An existing lock that cannot be read is reported and left untouched, never
+  // rebuilt from disk (that would launder drift); compilation itself proceeds.
+  let drifted: string[] = opts.drifted ?? [];
+  if (opts.drifted === undefined && opts.refreshLock !== false) {
+    try {
+      drifted = driftedStrictPaths(projectPath);
+    } catch (err) {
+      report.lockError = (err as Error).message;
+    }
+  }
 
   const laws = mergeLawSources(projectPath);
   validateScopes(laws);
@@ -241,10 +272,13 @@ export function compileLaws(opts: CompileLawsOptions): CompileReport {
   if (agents.includes("claude")) ensureClaudeRulesSymlink(projectPath, report);
 
   // Covers: req~lock-refresh-update~1
-  try {
-    refreshLockfile(projectPath);
-  } catch {
-    // Lock refresh must not fail compile; `speclaw laws lock` surfaces errors.
+  if (opts.refreshLock !== false && report.lockError === undefined) {
+    try {
+      report.lockPreserved = refreshLockfile(projectPath, { drifted }).preserved;
+    } catch (err) {
+      // refreshLockfile throws before writing; the caller surfaces lockError.
+      report.lockError = (err as Error).message;
+    }
   }
 
   return report;
