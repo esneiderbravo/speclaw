@@ -26,7 +26,14 @@ test("no-op reindex still reports repository totals equal to the DB row counts",
   const db = openDb(root);
   const count = (table: string) =>
     Number((db.prepare(`SELECT COUNT(*) AS n FROM ${table}`).get() as { n: number }).n);
-  const rows = { files: count("files"), nodes: count("nodes"), edges: count("edges") };
+  // File-owner nodes are hidden from the symbol totals (they are not symbols).
+  const rows = {
+    files: count("files"),
+    nodes: Number(
+      (db.prepare("SELECT COUNT(*) AS n FROM nodes WHERE kind <> 'file'").get() as { n: number }).n,
+    ),
+    edges: count("edges"),
+  };
   db.close();
   assert.ok(rows.files > 0 && rows.nodes > 0 && rows.edges > 0);
   assert.deepEqual(second.totals, rows);

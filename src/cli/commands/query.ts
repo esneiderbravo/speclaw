@@ -48,8 +48,15 @@ export async function runQuery(cmd: string, flags: Flags): Promise<void> {
         console.log(s.source);
         ui.heading("Callees");
         r.callees?.forEach((c) => ui.info(`${c.name}${c.file ? ` (${c.file}:${c.line})` : ""}`));
+        if (r.unresolvedCallees && r.unresolvedCallees.count > 0) {
+          ui.info(
+            `+ ${r.unresolvedCallees.count} unresolved call(s): ${r.unresolvedCallees.sample.join(", ")}`,
+          );
+        }
         ui.heading("Callers");
-        r.callers?.forEach((c) => ui.info(`${c.name} (${c.file}:${c.line})`));
+        r.callers?.forEach((c) =>
+          ui.info(`${c.kind === "file" ? "(file) " : ""}${c.name} (${c.file}:${c.line})`),
+        );
         return;
       }
       case "search":
@@ -160,7 +167,13 @@ export async function runQuery(cmd: string, flags: Flags): Promise<void> {
         ui.info(result.reason);
         result.tests.forEach((t) => ui.info(t.file));
         ui.heading("Command");
-        console.log(result.command);
+        // Covers: req~affected-test-selection~1
+        if (result.command === null) {
+          console.log(`no command: ${result.commandReason}`);
+        } else {
+          console.log(result.command);
+          ui.info(result.commandReason);
+        }
         result.warnings.forEach((w) => ui.warn(w));
         return;
       }

@@ -6,6 +6,7 @@ import { buildIndex } from "../../src/modules/compass/indexer.js";
 import { affectedTests } from "../../src/modules/compass/affected.js";
 import { impact } from "../../src/modules/compass/query.js";
 import { SCHEMA_VERSION, openDb, needsReindex } from "../../src/modules/compass/db.js";
+import { runCli } from "../helpers/cli.js";
 
 test("schema 7 stamps is_test and module on files", async (t) => {
   const root = tmpRepo(t);
@@ -108,4 +109,50 @@ test("unindexed language warns", async (t) => {
   await buildIndex(root);
   const res = affectedTests(root, { files: ["src/a.ts"] });
   assert.ok(res.warnings.some((w) => w.includes(".go")));
+});
+
+// Covers: req~affected-test-selection~1
+test("CLI affected-tests reports the command contract in JSON and text", async (t) => {
+  const root = tmpRepo(t);
+  write(root, "package.json", JSON.stringify({ scripts: { test: "node --test" } }));
+  write(
+    root,
+    "src/lib.ts",
+    `export function add(a: number, b: number): number { return a + b; }\n`,
+  );
+  write(root, "src/lone.ts", `export function lone(): number { return 0; }\n`);
+  write(
+    root,
+    "test/lib.test.ts",
+    `import {\n  add,\n} from "../src/lib.js";\nimport { test } from "node:test";\ntest("add", () => { add(1, 2); });\n`,
+  );
+  await buildIndex(root);
+
+  const json = runCli(["affected-tests", "--file", "src/lib.ts", "--json"], { cwd: root });
+  assert.equal(json.code, 0, json.stderr);
+  const parsed = JSON.parse(json.stdout) as {
+    tests: Array<{ file: string }>;
+    command: string | null;
+    commandReason: string;
+    commands: Array<{ cwd: string; command: string; files: string[] }>;
+  };
+  assert.deepEqual(
+    parsed.tests.map((x) => x.file),
+    ["test/lib.test.ts"],
+  );
+  assert.equal(parsed.command, "node --test test/lib.test.ts");
+  assert.ok(parsed.commandReason.length > 0);
+  assert.deepEqual(parsed.commands, [
+    { cwd: ".", command: "node --test test/lib.test.ts", files: ["test/lib.test.ts"] },
+  ]);
+
+  const none = runCli(["affected-tests", "--file", "src/lone.ts", "--json"], { cwd: root });
+  const noneParsed = JSON.parse(none.stdout) as { command: string | null; commands: unknown[] };
+  assert.equal(noneParsed.command, null);
+  assert.deepEqual(noneParsed.commands, []);
+
+  const text = runCli(["affected-tests", "--file", "src/lone.ts"], { cwd: root });
+  assert.equal(text.code, 0, text.stderr);
+  assert.match(text.stdout, /no command: no test file is reachable/);
+  assert.doesNotMatch(text.stdout, /test-name-pattern/);
 });

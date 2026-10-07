@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
-import { openDb, indexExists } from "./db.js";
+import { openDb, indexExists, FILE_NODE_KIND } from "./db.js";
+import { BUILTIN_SQL_LIST } from "./indexer.js";
 import { getEmbedder, fromBlob, cosine } from "./embedder.js";
 import { loadAffectedConfig, filterFilesForTarget, matchGlobalFiles } from "./affected-config.js";
 
@@ -13,11 +14,20 @@ export interface SearchHit {
   signature: string | null;
 }
 
+/** Unresolved call references of an explored node, summarized. */
+export interface UnresolvedCallees {
+  /** Number of call references that resolved to no indexed node. */
+  count: number;
+  /** Up to 10 distinct callee names, most frequent first, then by name. */
+  sample: string[];
+}
+
 /** Result of exploring a node: its source plus its callees and callers. */
 export interface ExploreResult {
   found: boolean;
   symbol?: {
     name: string;
+    /** Definition kind, or `file` for a declaration-less file's file-owner node. */
     kind: string;
     file: string;
     startLine: number;
@@ -25,7 +35,11 @@ export interface ExploreResult {
     signature: string | null;
     source: string;
   };
+  /** Callees resolved to an indexed node, de-duplicated by node id (first call line). */
   callees?: Array<{ name: string; file?: string; line: number }>;
+  /** References that resolved to nothing (builtins, member calls, packages). */
+  unresolvedCallees?: UnresolvedCallees;
+  /** Callers; references outside any definition appear as `kind: "file"` named by path. */
   callers?: Array<{ name: string; kind: string; file: string; line: number }>;
   otherMatches?: SearchHit[];
   message?: string;
@@ -64,8 +78,8 @@ export function search(projectPath: string, query: string, limit = 25): SearchHi
       .prepare(
         `SELECT s.name, s.kind, f.path AS file, s.start_line AS line, s.signature
          FROM nodes s JOIN files f ON f.id = s.file_id
-         WHERE s.name LIKE ? ESCAPE '\\'
-            OR (? != '' AND f.path LIKE ? ESCAPE '\\')
+         WHERE s.kind <> '${FILE_NODE_KIND}'
+           AND (s.name LIKE ? ESCAPE '\\' OR (? != '' AND f.path LIKE ? ESCAPE '\\'))
          ORDER BY (s.name = ?) DESC, length(s.name) ASC, f.path ASC, s.start_line ASC
          LIMIT ?`,
       )
@@ -193,17 +207,20 @@ function resolveIndexedFile(
   return { status: "none" };
 }
 
-/** Definitions in one indexed file, ordered by source position. */
-function fileSymbols(db: CompassDb, file: string): SymbolRow[] {
+/**
+ * Nodes in one indexed file, ordered by source position: the visible
+ * definitions, or with `fileNode` only its file-owner node.
+ */
+function fileSymbols(db: CompassDb, file: string, fileNode = false): SymbolRow[] {
   return db
     .prepare(
       `SELECT s.id, s.name, s.kind, s.start_line, s.end_line, s.start_byte, s.end_byte,
               s.signature, f.path AS file
        FROM nodes s JOIN files f ON f.id = s.file_id
-       WHERE f.path = ?
+       WHERE f.path = ? AND (s.kind = '${FILE_NODE_KIND}') = ?
        ORDER BY s.start_line ASC, s.id ASC`,
     )
-    .all(file) as unknown as SymbolRow[];
+    .all(file, fileNode ? 1 : 0) as unknown as SymbolRow[];
 }
 
 /** Symbols defined in `files`, stable across files. Empty when none exist. */
@@ -214,7 +231,7 @@ function symbolsInFiles(db: CompassDb, files: string[]): SearchHit[] {
     .prepare(
       `SELECT s.name, s.kind, f.path AS file, s.start_line AS line, s.signature
        FROM nodes s JOIN files f ON f.id = s.file_id
-       WHERE f.path IN (${placeholders})
+       WHERE f.path IN (${placeholders}) AND s.kind <> '${FILE_NODE_KIND}'
        ORDER BY f.path ASC, s.start_line ASC, s.name ASC`,
     )
     .all(...files) as unknown as SearchHit[];
@@ -248,29 +265,55 @@ function assembleExplore(
   best: SymbolRow,
   others: SymbolRow[],
 ): ExploreResult {
+  // Covers: req~compass-mcp-surface~1
+  // Resolved callees only, one row per target node at its first call line, so
+  // unresolved names (builtins, member calls) never crowd out project callees.
   const callees = db
     .prepare(
-      `SELECT e.dst_name AS name, e.line, f.path AS file
-       FROM edges e LEFT JOIN nodes s ON s.id = e.dst_node_id
-       LEFT JOIN files f ON f.id = s.file_id
+      `SELECT s.name AS name, MIN(e.line) AS line, f.path AS file
+       FROM edges e JOIN nodes s ON s.id = e.dst_node_id
+       JOIN files f ON f.id = s.file_id
        WHERE e.src_node_id = ? AND e.kind = 'call'
-       ORDER BY e.line`,
+       GROUP BY s.id
+       ORDER BY line, s.id`,
     )
-    .all(best.id) as Array<{ name: string; line: number; file: string | null }>;
+    .all(best.id) as Array<{ name: string; line: number; file: string }>;
+  const unresolved = db
+    .prepare(
+      `SELECT e.dst_name AS name, COUNT(*) AS n
+       FROM edges e
+       WHERE e.src_node_id = ? AND e.kind = 'call' AND e.dst_node_id IS NULL
+       GROUP BY e.dst_name
+       ORDER BY n DESC, e.dst_name ASC`,
+    )
+    .all(best.id) as Array<{ name: string; n: number }>;
 
-  // Callers: match both the resolved edge AND any call by this name, so
-  // dynamic dispatch (a method/function called by name across sites) is not
-  // missed. Over-approximates conservatively — the point of a blast radius.
+  // Callers: match both the resolved edge AND any non-member (`is_member = 0`)
+  // call by this name, so dynamic dispatch (a function called by name across sites) is not
+  // missed. Over-approximates conservatively — the point of a blast radius. A
+  // builtin global name (`test`, `fetch`) matches by name only within the
+  // definition's own file. A caller outside any definition is its file-owner
+  // node (`kind: "file"`).
   const callers = db
     .prepare(
       `SELECT DISTINCT owner.name AS name, owner.kind AS kind, f.path AS file, e.line
        FROM edges e
        JOIN nodes owner ON owner.id = e.src_node_id
        JOIN files f ON f.id = owner.file_id
-       WHERE (e.dst_node_id = ? OR e.dst_name = ?) AND e.kind = 'call'
+       WHERE (e.dst_node_id = ? OR (
+               e.dst_name = ? AND e.is_member = 0
+               AND (e.dst_name NOT IN (${BUILTIN_SQL_LIST})
+                    OR e.src_file_id = (SELECT file_id FROM nodes WHERE id = ?))
+             ))
+         AND e.kind = 'call'
        ORDER BY f.path, e.line`,
     )
-    .all(best.id, best.name) as Array<{ name: string; kind: string; file: string; line: number }>;
+    .all(best.id, best.name, best.id) as Array<{
+    name: string;
+    kind: string;
+    file: string;
+    line: number;
+  }>;
 
   return {
     found: true,
@@ -283,7 +326,11 @@ function assembleExplore(
       signature: best.signature,
       source: readSource(projectPath, best.file, best.start_byte, best.end_byte),
     },
-    callees: callees.map((c) => ({ name: c.name, file: c.file ?? undefined, line: c.line })),
+    callees: callees.map((c) => ({ name: c.name, file: c.file, line: c.line })),
+    unresolvedCallees: {
+      count: unresolved.reduce((sum, u) => sum + Number(u.n), 0),
+      sample: unresolved.slice(0, 10).map((u) => u.name),
+    },
     callers,
     otherMatches:
       others.length > 0
@@ -300,14 +347,23 @@ function assembleExplore(
 
 /**
  * Name miss: resolve a file path to one symbol, or list symbols when the
- * basename is ambiguous or the file defines nothing. A non-unique suffix
- * falls through to {@link search}, which also matches `files.path`.
+ * basename is ambiguous or the file defines nothing. A file with no visible
+ * symbol resolves to its file-owner node (the indexer gives every symbol-less
+ * file one); a file with no node at all reports that it has no symbols. A non-unique suffix falls through to {@link search}, which also
+ * matches `files.path`.
  */
 function exploreWhenNameMisses(db: CompassDb, projectPath: string, query: string): ExploreResult {
-  // Covers: req~explore-file-path~1
+  // Covers: req~explore-file-path~2
   const resolved = resolveIndexedFile(db, projectPath, query);
   if (resolved.status === "one") {
     const symbols = fileSymbols(db, resolved.file);
+    const owner = symbols.length === 0 ? fileSymbols(db, resolved.file, true)[0] : undefined;
+    if (owner) {
+      return {
+        ...assembleExplore(db, projectPath, owner, []),
+        message: `Path "${resolved.file}" declares no symbols; resolved to its file-owner node.`,
+      };
+    }
     if (symbols.length === 0) {
       const near = search(projectPath, query, 10);
       return {
@@ -368,7 +424,7 @@ export function explore(projectPath: string, query: string): ExploreResult {
         `SELECT s.id, s.name, s.kind, s.start_line, s.end_line, s.start_byte, s.end_byte,
                 s.signature, f.path AS file
          FROM nodes s JOIN files f ON f.id = s.file_id
-         WHERE s.name = ?
+         WHERE s.name = ? AND s.kind <> '${FILE_NODE_KIND}'
          ORDER BY s.kind = 'function' DESC, s.kind = 'class' DESC
          LIMIT 10`,
       )
@@ -566,6 +622,12 @@ export function impact(
       seedArgs.push(d.nodeId, d.name);
     }
 
+    // Covers: req~impact-id-first~1
+    // A member call (`is_member` 1 or 2) never matches by name: `items.push()` is
+    // not a call to a project function named `push`, and a call on an import
+    // binding (2) counts only through the id resolveEdges gave it, so a package
+    // receiver (`path.parse()`) never reaches a project `parse`. A builtin global name
+    // (`test`, `fetch`) matches by name only within the frontier node's file.
     // Sticky by_name: MAX(frontier.by_name, CASE WHEN edge unresolved THEN 1 ELSE 0).
     // Import edges that resolve to ANY node in the frontier node's file count as hits.
     const sql = `
@@ -587,7 +649,11 @@ export function impact(
           AND (
             (e.kind = 'call' AND (
               e.dst_node_id = f.node_id
-              OR (e.dst_node_id IS NULL AND e.dst_name = f.node_name)
+              OR (
+                e.dst_node_id IS NULL AND e.is_member = 0 AND e.dst_name = f.node_name
+                AND (e.dst_name NOT IN (${BUILTIN_SQL_LIST})
+                     OR e.src_file_id = (SELECT file_id FROM nodes WHERE id = f.node_id))
+              )
             ))
             OR (
               e.kind = 'import'
@@ -742,7 +808,7 @@ function resolveImpactSeeds(
       .prepare(
         `SELECT n.id AS nodeId, n.name, f.path AS file, n.start_line AS line
          FROM nodes n JOIN files f ON f.id = n.file_id
-         WHERE n.name = ?
+         WHERE n.name = ? AND n.kind <> '${FILE_NODE_KIND}'
          ORDER BY n.kind = 'function' DESC, n.kind = 'class' DESC, n.id ASC
          LIMIT 50`,
       )

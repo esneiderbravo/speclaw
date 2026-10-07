@@ -1,5 +1,5 @@
 import { isGitRepo, changedFiles, worktreeChangedFiles } from "../../shared/git.js";
-import { openDb, indexExists } from "./db.js";
+import { openDb, indexExists, FILE_NODE_KIND } from "./db.js";
 import { impact } from "./query.js";
 import { affectedTests, type AffectedTestsResult } from "./affected.js";
 import { hotspots, type HotspotEntry } from "./hotspots.js";
@@ -22,7 +22,11 @@ export interface DiffContextResult {
   changedFiles: string[];
   changedSymbols: Array<{ name: string; kind: string; file: string; line: number }>;
   blastRadius?: BlastRadiusSummary;
-  affectedTests?: Pick<AffectedTestsResult, "tests" | "command" | "mode" | "reason">;
+  /** Selected tests; `command` is null (with `commandReason`) when none is reachable. */
+  affectedTests?: Pick<
+    AffectedTestsResult,
+    "tests" | "command" | "commandReason" | "commands" | "mode" | "reason"
+  >;
   hotspotsTouched?: Array<Pick<HotspotEntry, "file" | "combinedScore">>;
   truncated?: TruncationEntry[];
   message?: string;
@@ -52,7 +56,7 @@ function symbolsForFiles(
         .prepare(
           `SELECT n.name, n.kind, n.start_line AS line, f.path AS file
            FROM nodes n JOIN files f ON f.id = n.file_id
-           WHERE f.path = ?`,
+           WHERE f.path = ? AND n.kind <> '${FILE_NODE_KIND}'`,
         )
         .all(file) as Array<{ name: string; kind: string; line: number; file: string }>;
       if (overestimate || nodes.length === 0) {
@@ -130,6 +134,8 @@ export function diffContext(query: DiffContextQuery): DiffContextResult {
     result.affectedTests = {
       tests: at.tests,
       command: at.command,
+      commandReason: at.commandReason,
+      commands: at.commands,
       mode: at.mode,
       reason: at.reason,
     };

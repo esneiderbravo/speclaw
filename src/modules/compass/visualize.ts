@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
-import { openDb, indexExists } from "./db.js";
+import { openDb, indexExists, FILE_NODE_KIND } from "./db.js";
 
 /** A definition rendered as a graph vertex, with its location and degree. */
 export interface GraphNode {
@@ -60,13 +60,15 @@ export function graphData(projectPath: string, opts: VisualizeOptions = {}): Gra
     const allNodes = db
       .prepare(
         `SELECT n.id, n.name, n.kind, f.path AS file, n.start_line AS line
-         FROM nodes n JOIN files f ON f.id = n.file_id`,
+         FROM nodes n JOIN files f ON f.id = n.file_id
+         WHERE n.kind <> '${FILE_NODE_KIND}'`,
       )
       .all() as Array<{ id: number; name: string; kind: string; file: string; line: number }>;
     const allEdges = db
       .prepare(
         `SELECT src_node_id AS s, dst_node_id AS t FROM edges
-         WHERE kind = 'call' AND dst_node_id IS NOT NULL AND src_node_id IS NOT NULL`,
+         WHERE kind = 'call' AND dst_node_id IS NOT NULL AND src_node_id IS NOT NULL
+           AND src_node_id NOT IN (SELECT id FROM nodes WHERE kind = '${FILE_NODE_KIND}')`,
       )
       .all() as Array<{ s: number; t: number }>;
 

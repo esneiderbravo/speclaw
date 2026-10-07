@@ -1,5 +1,6 @@
 import { explore, impact, trace, type ExploreResult } from "./query.js";
-import { affectedTests } from "./affected.js";
+import { affectedTests, type AffectedTestCommand } from "./affected.js";
+import { FILE_NODE_KIND } from "./db.js";
 import { hotspots } from "./hotspots.js";
 import { summarizeImpact, type BlastRadiusSummary } from "./impact-summary.js";
 import {
@@ -23,7 +24,14 @@ export interface ExploreRichQuery {
 
 export interface ExploreRichResult extends ExploreResult {
   blastRadius?: BlastRadiusSummary;
-  affectedTests?: { count: number; files: string[]; command?: string };
+  affectedTests?: {
+    count: number;
+    files: string[];
+    /** Command to run from the repository root, or null when no test is reachable. */
+    command: string | null;
+    commandReason: string;
+    commands: AffectedTestCommand[];
+  };
   hotspot?: {
     file: string;
     combinedScore: number;
@@ -77,7 +85,10 @@ export async function exploreRich(query: ExploreRichQuery): Promise<ExploreRichR
     };
     if (!includes.includes("source") && out.symbol) out.symbol = withoutSource(out.symbol);
     if (!includes.includes("callers")) out.callers = [];
-    if (!includes.includes("callees")) out.callees = [];
+    if (!includes.includes("callees")) {
+      out.callees = [];
+      delete out.unresolvedCallees;
+    }
     budgetExploreShape(out as unknown as Record<string, unknown>, mode, truncated);
     return out;
   }
@@ -87,7 +98,10 @@ export async function exploreRich(query: ExploreRichQuery): Promise<ExploreRichR
 
   if (!includes.includes("source") && out.symbol) out.symbol = withoutSource(out.symbol);
   if (!includes.includes("callers")) out.callers = [];
-  if (!includes.includes("callees")) out.callees = [];
+  if (!includes.includes("callees")) {
+    out.callees = [];
+    delete out.unresolvedCallees;
+  }
 
   if (base.found && base.symbol) {
     const sym = base.symbol.name;
@@ -96,7 +110,7 @@ export async function exploreRich(query: ExploreRichQuery): Promise<ExploreRichR
     if (includes.includes("blast_radius")) {
       try {
         const imp = impact(query.projectPath, {
-          symbol: sym,
+          ...(base.symbol.kind === FILE_NODE_KIND ? { files: [file] } : { symbol: sym }),
           maxDepth: query.maxDepth ?? 4,
           format: "grouped",
         });
@@ -108,14 +122,19 @@ export async function exploreRich(query: ExploreRichQuery): Promise<ExploreRichR
 
     if (includes.includes("tests")) {
       try {
-        const at = affectedTests(query.projectPath, {
-          symbols: [sym],
-          maxDepth: query.maxDepth ?? 6,
-        });
+        // A file-owner node is named by its path: select by file, not by name.
+        const at = affectedTests(
+          query.projectPath,
+          base.symbol.kind === FILE_NODE_KIND
+            ? { files: [file], maxDepth: query.maxDepth ?? 6 }
+            : { symbols: [sym], maxDepth: query.maxDepth ?? 6 },
+        );
         out.affectedTests = {
           count: at.tests.length,
           files: at.tests.map((t) => t.file),
           command: at.command,
+          commandReason: at.commandReason,
+          commands: at.commands,
         };
       } catch {
         degraded.push("no-tests-data");

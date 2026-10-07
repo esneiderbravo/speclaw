@@ -82,3 +82,35 @@ test("CLI hotspots and coupling emit JSON without branded header", async (t) => 
   const couple = coupling(root, "src/a.ts", { days: 3650, minShared: 2 });
   assert.ok(couple.partners.some((p) => p.file === "src/b.ts"));
 });
+
+// Covers: req~impact-id-first~1
+test("coupling in_graph ignores member and builtin calls in its by-name fallback", async (t) => {
+  const root = tmpRepo(t);
+  gitInit(root);
+  const parser = (v: number): string =>
+    `export function parse(s: string): number { return ${v}; }\nexport function test(): number { return ${v}; }\n`;
+  const use = (v: number): string =>
+    `import path from "node:path";
+export function pick(p: string, items: { parse(s: string): unknown }): unknown {
+  test("x", () => {});
+  return [path.parse(p), items.parse(p), ${v}];
+}
+`;
+  const own = (v: number): string =>
+    `import { parse } from "./parser.js";\nexport function mine(): number { return parse("s") + ${v}; }\n`;
+  for (const [msg, v] of [
+    ["c1", 1],
+    ["c2", 2],
+  ] as const) {
+    commit(root, msg, [
+      { path: "src/parser.ts", content: parser(v) },
+      { path: "src/use.ts", content: use(v) },
+      { path: "src/own.ts", content: own(v) },
+    ]);
+  }
+  await buildIndex(root);
+  const couple = coupling(root, "src/parser.ts", { days: 3650, minShared: 2 });
+  const inGraph = new Map(couple.partners.map((p) => [p.file, p.inGraph]));
+  assert.equal(inGraph.get("src/own.ts"), true, JSON.stringify(couple.partners));
+  assert.equal(inGraph.get("src/use.ts"), false, JSON.stringify(couple.partners));
+});

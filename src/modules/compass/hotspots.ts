@@ -1,4 +1,5 @@
-import { openDb } from "./db.js";
+import { openDb, FILE_NODE_KIND } from "./db.js";
+import { BUILTIN_SQL_LIST } from "./indexer.js";
 import { cachedCoChanges, cachedFileActivity } from "./git-history-cache.js";
 import { jaccardStrength } from "../../shared/git-history.js";
 
@@ -97,7 +98,7 @@ function loadFileHealth(projectPath: string): Map<string, HotspotHealth> {
                 COALESCE(MAX(m.max_nesting), 0) AS worst_nesting,
                 COALESCE(MAX(m.branches), 0) AS worst_branches
          FROM files f
-         LEFT JOIN nodes n ON n.file_id = f.id
+         LEFT JOIN nodes n ON n.file_id = f.id AND n.kind <> '${FILE_NODE_KIND}'
          LEFT JOIN node_metrics m ON m.node_id = n.id
          GROUP BY f.id`,
       )
@@ -239,18 +240,22 @@ function pairInGraph(projectPath: string, a: string, b: string): boolean {
       )
       .get(a, b, b, a) as { ok: number } | undefined;
     if (row) return true;
-    // Name-only imports: dst_node_id NULL — check import edge text contains other path basename loosely via file paths of same module is hard;
-    // also match unresolved edges where dst resolves by file path of an indexed import target is out of scope.
-    // Fallback: any edge from a whose dst_name matches a symbol defined in b (or reverse).
+    // Fallback: an unresolved edge from a whose dst_name names a symbol defined
+    // in b (or reverse). Same rule as the query-time by-name arms: member calls
+    // (is_member 1 = foreign receiver, 2 = package receiver) never match by
+    // name, and a builtin global name only matches within its own file, which
+    // a cross-file pair never is.
     const byName = db
       .prepare(
         `SELECT 1 AS ok
          FROM edges e
          JOIN files sf ON sf.id = e.src_file_id
-         JOIN nodes dn ON dn.name = e.dst_name
+         JOIN nodes dn ON dn.name = e.dst_name AND dn.kind <> '${FILE_NODE_KIND}'
          JOIN files df ON df.id = dn.file_id
          WHERE e.dst_node_id IS NULL
            AND e.kind IN ('call', 'import')
+           AND e.is_member = 0
+           AND e.dst_name NOT IN (${BUILTIN_SQL_LIST})
            AND ((sf.path = ? AND df.path = ?) OR (sf.path = ? AND df.path = ?))
          LIMIT 1`,
       )

@@ -43,6 +43,8 @@ export function applyTextBudget(
 
 /**
  * Truncate known list fields on an explore-style object before serialization.
+ * `unresolvedCallees` (a count plus at most 10 names) is left whole, so the
+ * resolved `callees` keep the list budget.
  *
  * @param value - Plain object to mutate in place (arrays shortened, counts kept).
  * @param mode - Output mode controlling list limits.

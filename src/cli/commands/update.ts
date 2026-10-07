@@ -295,6 +295,24 @@ const MIGRATIONS: Migration[] = [
       "`speclaw.lock`.\n" +
       "- Preserve all project-specific wording; only apply these speclaw-authored changes.",
   },
+  {
+    version: "2.0.10",
+    describe: "Compass schema 11 — truthful callers, callees, and affected-test commands",
+    agentPrompt:
+      "- Compass is now **schema 11**: the first `speclaw index` after upgrading migrates " +
+      "10→11 and re-extracts every file once (embeddings are reused). Where the project " +
+      'mentions "Schema **10**" or "Compass (schema 10)", change it to schema 11 ' +
+      "(10→11 forces a reindex; embeddings reused).\n" +
+      "- speclaw 2.0.9 or older (including an MCP entry pinned at `@2.0.9` or a stale " +
+      "global CLI) treats a schema-11 index as incompatible and rebuilds it from scratch, " +
+      "dropping the embedding cache. Where the project documents the index or the MCP entry, " +
+      "add: run `speclaw update` so the pinned MCP entry moves to 2.0.10; an older speclaw " +
+      "opening this index rebuilds it from scratch.\n" +
+      "- Affected-test `command` may now be `null` (with `commandReason`) when no test is " +
+      "reachable, and `commands[]` lists one `{ cwd, command, files }` per package. If the " +
+      "project's docs or scripts run `command` blindly, make them handle `null`.\n" +
+      "- Preserve all project-specific wording; only apply these speclaw-authored changes.",
+  },
 ];
 
 /**

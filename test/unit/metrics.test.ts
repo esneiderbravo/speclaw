@@ -38,7 +38,7 @@ test("LOC matches definition line span", async () => {
   assert.equal(ten.loc, 3);
 });
 
-test("indexer persists node_metrics under schema 9", async (t) => {
+test("indexer persists node_metrics under the current schema", async (t) => {
   const root = tmpRepo(t);
   write(
     root,
@@ -55,7 +55,7 @@ test("indexer persists node_metrics under schema 9", async (t) => {
     value: string;
   };
   assert.equal(ver.value, SCHEMA_VERSION);
-  assert.equal(SCHEMA_VERSION, "10");
+  assert.equal(SCHEMA_VERSION, "11");
   const row = db
     .prepare(
       `SELECT m.loc, m.max_nesting, m.branches FROM node_metrics m

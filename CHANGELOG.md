@@ -5,6 +5,43 @@ All notable changes to this project are documented here. Speclaw follows
 
 ## [Unreleased]
 
+## [2.0.10] — 2026-10-07
+
+### Fixed
+
+- Affected tests now find the tests that actually exercise a symbol. Calls
+  inside `test(...)` / `it(...)` callbacks and imports in files with no
+  declarations are owned by a hidden per-file node, multi-line imports are
+  parsed in full, and `tsconfig`/`jsconfig` `paths` and `baseUrl` aliases
+  resolve (nearest config, relative `extends`, JSONC). Pure re-export barrels
+  (`export * from …`, Nx-style libraries) resolve too.
+- Method calls on package receivers (`path.parse()`, `_.map()`) and global
+  builtins (`test`, `fetch`) no longer bind to same-named project functions,
+  so they stop producing false callers, impact dependents, and coupling
+  pairs. A receiver counts as a package only when its import does not
+  resolve to a project file.
+- `compass_explore` callees list only resolved symbols; unresolved names are
+  summarized in `unresolvedCallees` (count and sample) instead of crowding out
+  real callees.
+- The affected-tests `command` is never a run-nothing command: it is `null`
+  with a `commandReason` when nothing is affected. The runner is detected per
+  nearest `package.json` (vitest, jest, `node --test`, inherited from a hoisted
+  root), workspace-spanning selections get per-workspace `commands`, and
+  `node --test` commands drop coverage flags and keep flag values.
+- Edges that pointed at deleted nodes after a file was re-extracted are reset
+  and re-resolved, so `compass_impact` / `trace` no longer lose callers.
+
+### Changed
+
+- Compass schema **11** (`edges.is_member`, `edges.spec`). The first
+  `speclaw index` after upgrading migrates 10→11 and re-extracts every file
+  once, reusing embeddings. A speclaw ≤2.0.9 (including a pinned MCP entry)
+  rebuilds a schema-11 index from scratch — run `speclaw update` so the pinned
+  MCP entry moves to 2.0.10.
+- Calls on local variables and parameters (`svc.run()`) no longer produce
+  callers; impact and affected-test counts may rise because the graph is now
+  accurate.
+
 ## [2.0.9] — 2026-10-06
 
 ### Added

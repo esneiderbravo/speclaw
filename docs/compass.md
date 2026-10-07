@@ -29,10 +29,10 @@ a request, not whole files.
 
 | Tool | Use it to |
 |------|-----------|
-| `compass_index` | Build/refresh the graph (`.speclaw/index.db`); optional watch actions (`start`/`stop`/`status`). Schema **10** adds FTS5 `nodes_fts` + `node_text` + `pagerank` (9→10 migrates; reindex populates text, embedding cache reused). Also: `embedding_cache`, Merkle, `node_metrics`, test/module flags. |
-| `compass_explore` | Read a node's source plus callers, callees, blast radius, affected tests, and hotspot — in one call. `node` may be a symbol name or a repo-relative file path. Use `to:` for trace-style paths. |
+| `compass_index` | Build/refresh the graph (`.speclaw/index.db`); optional watch actions (`start`/`stop`/`status`). Schema **11** adds `edges.is_member`, `edges.spec`, and hidden file-owner nodes (10→11 migrates and forces one full re-extract; embedding cache reused). Schema 10 added FTS5 `nodes_fts` + `node_text` + `pagerank`. Also: `embedding_cache`, Merkle, `node_metrics`, test/module flags. |
+| `compass_explore` | Read a node's source plus callers, callees, blast radius, affected tests, and hotspot — in one call. `node` may be a symbol name or a repo-relative file path. Use `to:` for trace-style paths. See [Callers, callees, and affected tests](#callers-callees-and-affected-tests). |
 | `compass_find` | **Hybrid** search always: BM25 + vectors + name match → RRF → task-relative rank. `mode: exact|concept` only adjusts fusion weights. Optional `focus` / `maxTokens`. |
-| `compass_diff_context` | Graph context for a change set (working tree, git rev, or explicit paths): symbols touched, blast radius, tests, hotspots. |
+| `compass_diff_context` | Graph context for a change set (working tree, git rev, or explicit paths): symbols touched, blast radius, tests (same `command` contract as explore), hotspots. |
 | `cortex` | CORTEX — multi-agent loop brain (*One brain. Many agents.*). Actions: `status` \| `start` \| `advance` \| `rework` \| `brief`. Also CLI `speclaw cortex`. |
 | `lawbook_change` | Lawbook lifecycle: init, list, draft, validate, sync, archive, level, coverage, drift. `draft` scaffolds a change (`change`, optional `level`, optional `bug`); CLI twin `speclaw lawbook draft <name> [--level N] [--capability C] [--json]` (`--bug` for bug changes). |
 | `lawbook_investigate` | Graph-backed bug RCA (stack trace or symptom). |
@@ -52,6 +52,79 @@ index is also refreshed when each session starts (see
 always explicit. The only legitimate fallbacks
 to Grep/Read: a Compass call returned nothing useful for your query, or the
 target isn't indexed code (stylesheets, JSON/config, markdown, logs).
+
+## Callers, callees, and affected tests
+
+- **File-owner nodes.** A reference outside any definition — a top-level
+  import, or a call inside a `test(...)` callback or an arrow function — is
+  owned by a hidden per-file node (`kind: "file"`, named by its repo-relative
+  path). It exists for files with such references, files with no symbols,
+  and re-export barrels (`export * from "./lib/core"`). It never appears in
+  `compass_find`, name lookups, PageRank, `node_text`, embeddings,
+  `node_metrics`, hotspots, the compact map, drift anchors, or `totals.nodes`.
+  It does appear as a caller (`kind: "file"`) and in blast radius, and
+  exploring a declaration-less file's path resolves to it.
+- **Callees** list only references resolved to an indexed node, one entry per
+  node. Everything else (builtins, member calls on locals, package calls) is
+  summarized as `unresolvedCallees: { count, sample }` (at most 10 names).
+- **Member calls.** `items.push(x)` is stored with `is_member = 1` and never
+  bound by name to a project symbol called `push`. `this.f()`, `super.f()`,
+  and Python `self.f()`/`cls.f()` still resolve. A JS/TS `ns.f()` on an import
+  binding of the same file (`is_member = 2`, with the import's specifier in
+  `edges.spec`) resolves only when that import resolves to a project file —
+  relatively, or through tsconfig/jsconfig `paths`/`baseUrl` — preferring that
+  file. An import of a barrel (`index.ts` holding only `export … from`)
+  resolves to the barrel, and the call then binds by name, preferring a
+  definition under the barrel's directory.
+  So `@app/services/user` (a `paths` alias) or `utils` (under `baseUrl`)
+  are project code, while `path.parse()` from `node:path` or `_.parse()` from
+  `lodash` never binds to a project `parse`. If the alias config is one the
+  resolver does not follow (package-form or array `extends`, `tsconfig.*.json`
+  siblings), the import stays unresolved and member calls through it are
+  treated as package calls.
+- **Builtins.** Calls to ambient globals such as `test`, `describe`, `expect`,
+  `fetch`, `setTimeout`, and `require` bind only to a definition in the same
+  file, or — when the name is explicitly imported and the import resolves
+  (`import { fetch } from "./http"`) — in the imported file. The by-name
+  fallbacks of callers and blast radius match a builtin name only from the
+  definition's own file.
+- **Trade-off: method calls on locals and parameters are not bound.**
+  `svc.run()` or `this.db.query()` — a receiver that is a local variable, a
+  parameter, or a property chain — is a member call, so it produces no caller
+  edge for a project method `run`/`query`. Such callers are missing from
+  `callers` and from the call arm of blast radius; affected-test selection
+  mostly still reaches them through the file-level import arm.
+- **Imports** are stored whole (whitespace collapsed; longer than 1024
+  characters, the middle is elided and the trailing `from "…"` clause kept),
+  so a specifier on a later line still resolves. Bindings are read from the
+  full statement before the cap. Non-relative specifiers
+  resolve through the nearest `tsconfig.json`/`jsconfig.json`
+  `compilerOptions.paths` and `baseUrl` (following relative `extends`; JSON
+  with comments is fine; a malformed config only disables aliases under it).
+- **Affected-test command.** `command` is a string to run from the repository
+  root, or `null` when no test file is reachable — never a command that runs
+  nothing. `commandReason` always says why. `commands` lists one
+  `{ cwd, command, files }` per package (nearest `package.json`):
+  `npx vitest run <files>`, `npx jest --runTestsByPath <files>`, a
+  `node --test` script's flags minus coverage flags plus the files (mapped onto
+  a compiled-test glob such as `dist-test/test/**/*.test.js`, after
+  `npm run pretest`; helpers the glob never runs, such as
+  `test/helpers/*.ts` against `*.test.js`, are left out), or
+  `npm test -- <files>` for an unrecognized script.
+  Several packages compose as `(cd a && …) && (cd b && …)`; non-POSIX shells
+  should use `commands`. A package with no `scripts.test` and no vitest/jest
+  dependency inherits the runner of the nearest ancestor `package.json` that
+  declares vitest or jest (hoisted monorepos). In a `node --test` script,
+  value flags keep their value (`--import ./register.mjs`), coverage flags are
+  dropped with theirs (`--test-coverage-lines 80`), and a directory argument
+  (`test/`) matches every file under it. The default `test` target also
+  admits workspace paths (`**/src/**`, `**/test/**`, `**/tests/**`).
+- **Upgrading to schema 11: pin every speclaw to 2.0.10.** speclaw 2.0.9 or
+  older — including an MCP entry pinned at `@2.0.9` or a stale global CLI —
+  treats a schema-11 index as incompatible and rebuilds it from scratch,
+  dropping the embedding cache; the next 2.0.10 run then rebuilds it again.
+  Run `speclaw update` so the pinned MCP entry moves to 2.0.10, and upgrade
+  any global install.
 
 ## Index totals and next step
 
