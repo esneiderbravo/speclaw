@@ -140,3 +140,20 @@ test("ensureGitignore adds a newline before appending to a file without a traili
   assert.ok(lines.includes("new-entry"));
   assert.ok(lines.includes("existing"));
 });
+
+test("ensureGitignore groups entries that share a comment under one header", (t) => {
+  const root = tmpRepo(t);
+  const report = emptyReport();
+  ensureGitignore(root, ".speclaw/", "index", report);
+  ensureGitignore(root, ".claude/skills", "claude links", report);
+  ensureGitignore(root, ".claude/agents", "claude links", report);
+  ensureGitignore(root, "*.bak", "backups", report);
+  ensureGitignore(root, ".claude/settings.json", "claude links", report);
+  const content = read(root, ".gitignore");
+  assert.equal(content.split("# claude links").length - 1, 1, "the comment is written once");
+  assert.match(
+    content,
+    /# claude links\n\.claude\/skills\n\.claude\/agents\n\.claude\/settings\.json\n/,
+  );
+  assert.ok(content.endsWith("# backups\n*.bak\n"));
+});

@@ -157,7 +157,19 @@ export function ensureGitignore(
     if (content.split(/\r?\n/).some((l) => l.trim() === entry)) return;
     if (!content.endsWith("\n")) content += "\n";
   }
-  content += `\n# ${comment}\n${entry}\n`;
+  // Entries sharing a comment join its block instead of repeating the comment
+  // once per entry (one agent folder adds several).
+  const lines = content.split("\n");
+  const header = lines.lastIndexOf(`# ${comment}`);
+  if (header !== -1) {
+    let end = header + 1;
+    while (end < lines.length && lines[end]!.trim() !== "") end++;
+    lines.splice(end, 0, entry);
+    content = lines.join("\n");
+    if (!content.endsWith("\n")) content += "\n";
+  } else {
+    content += `\n# ${comment}\n${entry}\n`;
+  }
   fs.writeFileSync(gitignorePath, content);
   report.written.push(`${gitignorePath} (${entry})`);
 }
