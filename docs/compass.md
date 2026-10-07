@@ -366,9 +366,9 @@ rejects `reindex-file` as unknown and exits before touching the index.
 See [`cortex.md`](cortex.md#compass-first-evidence-gate-compassgate).
 
 <!-- speclaw:map:start -->
-speclaw · 259 files · 1205 nodes
-src/ (128)  test/ (123)  scripts/ (7)  eslint.config.js/ (1)
-hubs: write 555 · tmpRepo 522 · buildIndex 158 · read 137 · openDb 123 · runCli 91 · has 69 · specInit 59 · commit 55 · estimateTokens 44 · explore 42 · handleHarness 42
+speclaw · 263 files · 1231 nodes
+src/ (131)  test/ (124)  scripts/ (7)  eslint.config.js/ (1)
+hubs: write 555 · tmpRepo 527 · buildIndex 158 · read 137 · openDb 123 · runCli 91 · has 69 · specInit 64 · commit 55 · handleHarness 44 · estimateTokens 44 · explore 42
 entry: src/server.ts (mcp) · src/cli/index.ts (bin)
 <!-- speclaw:map:end -->
 

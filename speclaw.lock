@@ -1,8 +1,8 @@
 {
   "lockfileVersion": 1,
-  "generator": "@esneiderbravo/speclaw@2.0.12",
+  "generator": "@esneiderbravo/speclaw@2.0.13",
   "algorithm": "sha256",
-  "root": "sha256:ad506072f750fcd401119977351de32d7bf220e5681940f3dfd9ed910ed2cc28",
+  "root": "sha256:0790386aabd1b066771c13190f1d6e15abfb173143d1c852cfba4578ff27c7ff",
   "files": {
     ".github/instructions/law-compass-does-not-import-foundation-1.instructions.md": {
       "digest": "sha256:e97bcfe4c51adfb84d9cf9260de14d7fabe6f32ba36a88f7741b380ad162ab85",
@@ -45,7 +45,7 @@
       "ownership": "advisory"
     },
     "docs/compass.md": {
-      "digest": "sha256:464d3d90dec48617447ca681688e9e30a0512a6a7ab2fa51eb32cda600bc42b8",
+      "digest": "sha256:e3ff3b268849cc6c2bbb12a5d5367c42da6d3d87809513c74c837cafced68e23",
       "ownership": "advisory"
     },
     "docs/standards/architecture.md": {
@@ -73,7 +73,7 @@
       "ownership": "advisory"
     },
     "docs/standards/lawbook.md": {
-      "digest": "sha256:bf495aceb8e8fc9ade03312efe318d84552f1a3577b4cc01d1d2788f26ee9299",
+      "digest": "sha256:329f09282a6aa43a2d1fd29e9ebc55143938c3c893b3a2cfc958fd5a7d567876",
       "ownership": "advisory"
     },
     "docs/standards/testing-standards.md": {
