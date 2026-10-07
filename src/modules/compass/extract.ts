@@ -10,7 +10,9 @@ export interface ExtractedSymbol {
   kind: string;
   startLine: number;
   endLine: number;
+  /** Inclusive start offset — a UTF-16 code-unit index into the decoded source, despite the name. */
   startByte: number;
+  /** Exclusive end offset — a UTF-16 code-unit index into the decoded source, despite the name. */
   endByte: number;
   parentIndex: number | null; // index into the symbols array
   signature: string | null;
@@ -50,7 +52,9 @@ export interface ExtractedCoverage {
   line: number;
   /** Preferred symbol index (next def within 2 lines, else innermost container). */
   ownerIndex: number | null;
+  /** Inclusive start offset — a UTF-16 code-unit index into the decoded source, despite the name. */
   startByte: number;
+  /** Exclusive end offset — a UTF-16 code-unit index into the decoded source, despite the name. */
   endByte: number;
   endLine: number;
 }

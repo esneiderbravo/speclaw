@@ -57,6 +57,36 @@ test("explore falls back to fuzzy matches when no exact node exists", async (t) 
   assert.ok(res.otherMatches!.some((m) => m.name === "alpha"));
 });
 
+// Stored offsets are UTF-16 code-unit indices into the decoded source; a byte
+// slice drifts by every extra UTF-8 byte (and surrogate pair) that precedes the
+// symbol. The BOM file checks that decoding and the parser agree on offset 0.
+// Covers: req~explore-exact-source~1
+test("explore returns exact source after multibyte text", async (t) => {
+  const root = tmpRepo(t);
+  // The declaration node starts at `function`, not at the `export` keyword.
+  const target = 'function target(a: number): string {\n  return "señal «" + a + "» —";\n}';
+  write(
+    root,
+    "src/multibyte.ts",
+    `// Diseño — «comillas» y la eñe, más un emoji 🚀 antes del símbolo.\n` +
+      `const label = "año — «x» 😀";\n` +
+      `export ${target}\n`,
+  );
+  const bomTarget = "function bommed(): number {\n  return 1;\n}";
+  write(root, "src/bom.ts", `\uFEFF// ñandú 🚀\nexport ${bomTarget}\n`);
+  await buildIndex(root);
+
+  const res = explore(root, "target");
+  assert.equal(res.found, true);
+  assert.ok(res.symbol!.source.startsWith("function target("), res.symbol!.source);
+  assert.ok(res.symbol!.source.endsWith("}"), res.symbol!.source);
+  assert.equal(res.symbol!.source, target);
+
+  const bom = explore(root, "bommed");
+  assert.equal(bom.found, true);
+  assert.equal(bom.symbol!.source, bomTarget);
+});
+
 // Covers: req~explore-file-path~1
 // Unique basename: `main.ts` occurs once in the seed fixture (only `src/main.ts`).
 test("explore resolves a repo-relative path or unique basename to a file symbol", async (t) => {

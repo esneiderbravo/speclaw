@@ -82,10 +82,30 @@ export function search(projectPath: string, query: string, limit = 25): SearchHi
   }
 }
 
-function readSource(projectPath: string, file: string, startByte: number, endByte: number): string {
+/**
+ * Read a symbol's source text from disk.
+ *
+ * @remarks The offsets are UTF-16 code-unit indices into the decoded file text
+ * (tree-sitter parses the `utf8`-decoded string), not byte offsets — so the file
+ * is decoded before slicing. A byte slice drifts on any preceding non-ASCII text.
+ *
+ * @param projectPath - Absolute project root.
+ * @param file - Repo-relative file path.
+ * @param startIndex - Inclusive start offset (`nodes.start_byte`).
+ * @param endIndex - Exclusive end offset (`nodes.end_byte`).
+ * @returns The symbol's source, or `""` when the file cannot be read.
+ *
+ * // Covers: req~explore-exact-source~1
+ */
+function readSource(
+  projectPath: string,
+  file: string,
+  startIndex: number,
+  endIndex: number,
+): string {
   try {
-    const buf = fs.readFileSync(path.join(projectPath, file));
-    return buf.subarray(startByte, endByte).toString("utf8");
+    const text = fs.readFileSync(path.join(projectPath, file), "utf8");
+    return text.slice(startIndex, endIndex);
   } catch {
     return "";
   }
