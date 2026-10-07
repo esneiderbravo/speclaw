@@ -5,6 +5,8 @@ All notable changes to this project are documented here. Speclaw follows
 
 ## [Unreleased]
 
+## [2.0.15] — 2026-10-07
+
 ### Fixed
 
 - `speclaw init` no longer asks which agents to use: it always creates only
