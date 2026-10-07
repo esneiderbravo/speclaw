@@ -183,3 +183,35 @@ test("sibling edit does not drift the sealed anchor", async (t) => {
   assert.equal(v!.state, "unchanged");
   assert.equal(report.summary.exitCode, 0);
 });
+
+test("reseal keeps the stamp of unchanged anchors and re-stamps only changed ones", async (t) => {
+  const root = tmpRepo(t);
+  write(
+    root,
+    "src/a.ts",
+    `export function alpha(): number { return 1; }\nexport function beta(): number { return 2; }\n`,
+  );
+  await buildIndex(root);
+  const md = `### Requirement: A\n\n\`alpha\` and \`beta\`\n`;
+  sealCapability(root, "demo", md, { now: "2026-01-01T00:00:00.000Z" });
+  const file = path.join(root, "lawbook", "anchors", "demo.json");
+  const before = fs.readFileSync(file, "utf8");
+
+  // Nothing changed: a reseal is byte-identical.
+  sealCapability(root, "demo", md, { now: "2026-02-02T00:00:00.000Z" });
+  assert.equal(fs.readFileSync(file, "utf8"), before);
+
+  // Only beta changes: only beta gets the new stamp.
+  write(
+    root,
+    "src/a.ts",
+    `export function alpha(): number { return 1; }\nexport function beta(): number { return 99; }\n`,
+  );
+  await buildIndex(root);
+  sealCapability(root, "demo", md, { now: "2026-03-03T00:00:00.000Z" });
+  const anchors = (JSON.parse(fs.readFileSync(file, "utf8")) as { anchors: AnchorRecord[] })
+    .anchors;
+  const at = (name: string): string => anchors.find((a) => a.symbolName === name)!.archivedAt;
+  assert.equal(at("alpha"), "2026-01-01T00:00:00.000Z");
+  assert.equal(at("beta"), "2026-03-03T00:00:00.000Z");
+});

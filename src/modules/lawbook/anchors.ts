@@ -330,7 +330,8 @@ export function sealCapability(
     const now = opts.now ?? new Date().toISOString();
     const sha = headSha(projectPath);
     const specId = opts.specId ?? capability;
-    const rows = resolveCandidates(db, projectPath, extractCandidates(markdown), specId, now, sha);
+    const fresh = resolveCandidates(db, projectPath, extractCandidates(markdown), specId, now, sha);
+    const rows = keepUnchangedStamps(readAnchorsFile(projectPath, capability), fresh);
     const dest = writeAnchorsFile(projectPath, {
       anchorsVersion: 1,
       capability,
@@ -349,6 +350,44 @@ export function sealCapability(
   } finally {
     db.close();
   }
+}
+
+/** Fields that identify one anchor across seals. */
+function anchorKey(a: AnchorRecord): string {
+  return [a.requirementId, a.scenarioId, a.symbolName, a.anchorKind, a.source].join("\0");
+}
+
+/** Fields whose change means the anchor was really re-sealed. */
+function sealedState(a: AnchorRecord): string {
+  return JSON.stringify([
+    a.specId,
+    a.filePath,
+    a.resolution,
+    a.contentHash,
+    a.rawHash,
+    a.normalizerVersion,
+  ]);
+}
+
+/**
+ * Keep the previous `archivedAt` / `commitSha` of every anchor whose sealed
+ * state did not change, so a reseal rewrites only the anchors that moved —
+ * an unchanged capability stays byte-identical and the drift age of an
+ * untouched anchor still counts from when it was really sealed.
+ *
+ * @param previous - The capability's anchors file before this seal, if any.
+ * @param fresh - The anchors just resolved, stamped with this seal's time and sha.
+ * @returns The anchors to write.
+ */
+function keepUnchangedStamps(previous: AnchorsFile | null, fresh: AnchorRecord[]): AnchorRecord[] {
+  if (!previous) return fresh;
+  const old = new Map(previous.anchors.map((a) => [anchorKey(a), a]));
+  return fresh.map((a) => {
+    const prior = old.get(anchorKey(a));
+    return prior && sealedState(prior) === sealedState(a)
+      ? { ...a, archivedAt: prior.archivedAt, commitSha: prior.commitSha }
+      : a;
+  });
 }
 
 /** Seal every canonical capability under lawbook/specs/ that has a spec.md. */
