@@ -306,7 +306,7 @@ export function shipChange(projectPath: string, name: string, opts: ShipOptions 
     if (pre.length) next.push(...pre);
     else archivedTo = specArchive(projectPath, name, date).archivedTo;
   }
-  if (gatesPassed && isGitRepo(projectPath)) markShipped(projectPath);
+  if (gatesPassed && isGitRepo(projectPath)) markShipped(projectPath, name);
   const t4 = Date.now();
 
   const gatesMs = t2 - t1;
@@ -357,48 +357,95 @@ function git(projectPath: string, args: string[]): string {
   return r.status === 0 ? r.stdout : "";
 }
 
-/** Fingerprint of the last shipped work; a manual ship and the hook share it. */
+/** The last shipped work; a manual ship and the hook share it. */
 const SHIP_MARKER = path.join(".speclaw", "ship-last");
 
-function markShipped(projectPath: string): void {
+/** What the last ship recorded: where, under which change name, and the work's fingerprint. */
+interface ShipMarker {
+  branch: string;
+  change: string;
+  fingerprint: string;
+}
+
+function currentBranch(projectPath: string): string {
+  return git(projectPath, ["rev-parse", "--abbrev-ref", "HEAD"]).trim();
+}
+
+function markShipped(projectPath: string, change: string): void {
   const marker = path.join(projectPath, SHIP_MARKER);
   fs.mkdirSync(path.dirname(marker), { recursive: true });
-  fs.writeFileSync(marker, workFingerprint(projectPath));
+  const body: ShipMarker = {
+    branch: currentBranch(projectPath),
+    change,
+    fingerprint: workFingerprint(projectPath),
+  };
+  fs.writeFileSync(marker, JSON.stringify(body) + "\n");
+}
+
+/** The last ship marker, or null; a pre-2.0.17 marker (a bare fingerprint) has no change name. */
+function readMarker(projectPath: string): ShipMarker | null {
+  const marker = path.join(projectPath, SHIP_MARKER);
+  if (!fs.existsSync(marker)) return null;
+  const raw = fs.readFileSync(marker, "utf8").trim();
+  try {
+    const m = JSON.parse(raw) as Partial<ShipMarker>;
+    if (typeof m.fingerprint === "string") {
+      return { branch: m.branch ?? "", change: m.change ?? "", fingerprint: m.fingerprint };
+    }
+  } catch {
+    // Legacy marker: the fingerprint alone.
+  }
+  return { branch: "", change: "", fingerprint: raw };
 }
 
 /**
- * Fingerprint of the work outside `lawbook/changes/`: the diff against HEAD
- * plus untracked file names. Ship writes under `lawbook/changes/`, so its own
- * output never changes the fingerprint.
+ * Fingerprint of the branch's work outside `lawbook/changes/`: the working tree
+ * diffed against the merge base with `main`/`master`, plus untracked files
+ * (names and contents). Committing that work leaves it unchanged — a commit is not new work —
+ * and ship writes under `lawbook/changes/`, so its own output never changes it.
+ * Without a merge base it falls back to the diff against HEAD plus HEAD itself.
  */
 function workFingerprint(projectPath: string): string {
-  const diff = git(projectPath, ["diff", "HEAD", "--", ".", ":(exclude)lawbook/changes"]);
-  const untracked = git(projectPath, ["ls-files", "--others", "--exclude-standard"])
-    .split("\n")
-    .filter((f) => f && !f.startsWith("lawbook/changes/") && !f.startsWith(".speclaw/"))
-    .join("\n");
-  const head = git(projectPath, ["rev-parse", "HEAD"]).trim();
-  return createHash("sha256").update(`${head}\n${diff}\n${untracked}`).digest("hex");
+  const base = mergeBase(projectPath, "main") ?? mergeBase(projectPath, "master");
+  const diff = git(projectPath, ["diff", base ?? "HEAD", "--", ".", ":(exclude)lawbook/changes"]);
+  const hash = createHash("sha256");
+  for (const f of git(projectPath, ["ls-files", "--others", "--exclude-standard"]).split("\n")) {
+    if (!f || f.startsWith("lawbook/changes/") || f.startsWith(".speclaw/")) continue;
+    // Contents, not just names: editing a new, not-yet-added file is new work.
+    hash.update(`${f}\n`);
+    try {
+      hash.update(fs.readFileSync(path.join(projectPath, f)));
+    } catch {
+      // Vanished or unreadable since listing: its name stands in.
+    }
+  }
+  const anchor = base ?? git(projectPath, ["rev-parse", "HEAD"]).trim();
+  return hash.update(`\n${anchor}\n${diff}`).digest("hex");
 }
 
 /**
  * The `Stop` hook body: when the agent ends a turn on a feature branch with
  * work that changed since the last ship, run {@link shipChange} for the change
- * named after the branch. Skips in milliseconds otherwise, so a turn that only
- * answered a question costs nothing.
+ * last shipped on this branch, else the one named after the branch. Skips in
+ * milliseconds otherwise, so a turn that only answered a question costs nothing.
  *
  * @param projectPath - Project root.
  * @returns Why it skipped, or the ship result.
  */
 export function shipOnStop(projectPath: string): ShipOnStopResult {
   if (!isGitRepo(projectPath)) return { skipped: "not-git" };
-  const branch = git(projectPath, ["rev-parse", "--abbrev-ref", "HEAD"]).trim();
+  const branch = currentBranch(projectPath);
   if (!branch || ["main", "master", "HEAD"].includes(branch)) return { skipped: "base-branch" };
   if (branchFiles(projectPath).length === 0) return { skipped: "no-changes" };
-  const marker = path.join(projectPath, SHIP_MARKER);
-  if (fs.existsSync(marker) && fs.readFileSync(marker, "utf8") === workFingerprint(projectPath)) {
+  const marker = readMarker(projectPath);
+  if (marker?.fingerprint === workFingerprint(projectPath)) {
     return { skipped: "unchanged-since-last-ship" };
   }
-  const change = changeNameForBranch(branch);
+  // A change shipped by name on this branch keeps receiving the branch's later
+  // work; the branch name would point at another (possibly archived) change.
+  const change =
+    marker && marker.branch === branch && marker.change
+      ? marker.change
+      : changeNameForBranch(branch);
   return { skipped: null, change, result: shipChange(projectPath, change) };
 }
