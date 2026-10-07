@@ -5,6 +5,19 @@ All notable changes to this project are documented here. Speclaw follows
 
 ## [Unreleased]
 
+## [2.0.12] — 2026-10-07
+
+### Fixed
+
+- `speclaw laws scan` and `speclaw verify` keep reporting injection findings
+  when `speclaw.lock` is unreadable. `laws scan` names the lock error and exits
+  1; `laws scan --json` now exits 1 on a lock error or an error finding, like
+  the text mode, and adds a `lockError` field.
+- `--question` on `speclaw cortex advance` (and `lawbook harness`) is truly
+  repeatable: each flag is one open question, and commas no longer split it.
+- `speclaw doctor` suggests `git checkout HEAD -- speclaw.lock` for an
+  unreadable lock, which also works during a conflicted merge.
+
 ## [2.0.11] — 2026-10-07
 
 ### Added
