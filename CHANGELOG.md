@@ -5,6 +5,22 @@ All notable changes to this project are documented here. Speclaw follows
 
 ## [Unreleased]
 
+## [2.0.17] — 2026-10-07
+
+### Fixed
+
+- The `Stop` hook (`speclaw ship-on-stop`) no longer re-ships work that was
+  only committed: its fingerprint is the branch's diff against the merge base,
+  not `HEAD`. Before, every commit after a ship looked like new work and
+  rewrote the change's (archived) report.
+- The hook ships the change last shipped by name on the branch
+  (`speclaw ship <name>`) instead of always the one named after the branch, so
+  a second change on a branch no longer has its work written into the first
+  change's archived report. The `.speclaw/ship-last` marker now records the
+  branch and change; an older fingerprint-only marker still works.
+- Editing an untracked file counts as new work: the fingerprint hashes the
+  contents of untracked files, not just their names.
+
 ## [2.0.16] — 2026-10-07
 
 ### Fixed

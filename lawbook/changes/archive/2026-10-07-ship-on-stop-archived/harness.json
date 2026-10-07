@@ -1,0 +1,46 @@
+{
+  "version": 1,
+  "change": "ship-on-stop-archived",
+  "stage": "done",
+  "level": 0,
+  "iteration": 0,
+  "maxRework": 3,
+  "verdicts": {
+    "review": null,
+    "test": "PASS"
+  },
+  "openQuestions": [],
+  "history": [
+    {
+      "at": "2026-10-07T20:58:35.576Z",
+      "from": "exploring",
+      "to": "exploring",
+      "op": "start"
+    },
+    {
+      "at": "2026-10-07T20:58:35.577Z",
+      "from": "exploring",
+      "to": "implementing",
+      "op": "advance"
+    },
+    {
+      "at": "2026-10-07T20:58:35.577Z",
+      "from": "implementing",
+      "to": "testing",
+      "op": "advance"
+    },
+    {
+      "at": "2026-10-07T20:58:35.578Z",
+      "from": "testing",
+      "to": "archiving",
+      "op": "advance"
+    },
+    {
+      "at": "2026-10-07T20:58:35.588Z",
+      "from": "archiving",
+      "to": "done",
+      "op": "advance",
+      "note": "archived by lawbook archive"
+    }
+  ]
+}

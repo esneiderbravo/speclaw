@@ -150,3 +150,46 @@ test("a manual ship marks the work shipped, so the Stop hook does not ship it tw
   assert.ok(manual.archivedTo);
   assert.deepEqual(shipOnStop(root), { skipped: "unchanged-since-last-ship" });
 });
+
+test("committing shipped work is not new work for the Stop hook", (t) => {
+  const root = gitFixture(t);
+  git(root, "checkout", "-qb", "fix/c-value");
+  fs.writeFileSync(path.join(root, "a.js"), "export const a = 7;\n");
+  const first = shipOnStop(root);
+  assert.equal(first.skipped, null);
+  git(root, "add", "a.js");
+  git(root, "commit", "-qm", "fix: c value");
+  assert.deepEqual(shipOnStop(root), { skipped: "unchanged-since-last-ship" });
+});
+
+test("the Stop hook keeps the change last shipped by name and never rewrites another archive", (t) => {
+  const root = gitFixture(t);
+  git(root, "checkout", "-qb", "fix/first-change");
+  fs.writeFileSync(path.join(root, "a.js"), "export const a = 8;\n");
+  const first = shipChange(root, "first-change");
+  assert.ok(first.archivedTo);
+  const firstReport = path.join(root, first.archivedTo!, "reports", "change.md");
+  const sealed = fs.readFileSync(firstReport, "utf8");
+
+  // A second change on the same branch, shipped by name, then more work on it.
+  fs.writeFileSync(path.join(root, "b.js"), "export const b = 1;\n");
+  const second = shipChange(root, "second-change");
+  assert.ok(second.archivedTo);
+  fs.writeFileSync(path.join(root, "b.js"), "export const b = 2;\n");
+  const hook = shipOnStop(root);
+  assert.equal(hook.skipped, null);
+  if (hook.skipped !== null) return;
+  assert.equal(hook.change, "second-change");
+  assert.equal(fs.readFileSync(firstReport, "utf8"), sealed, "first archive untouched");
+});
+
+test("a legacy fingerprint-only marker still skips unchanged work", (t) => {
+  const root = gitFixture(t);
+  git(root, "checkout", "-qb", "fix/d-value");
+  fs.writeFileSync(path.join(root, "a.js"), "export const a = 9;\n");
+  shipChange(root, "d-value");
+  const marker = path.join(root, ".speclaw", "ship-last");
+  const { fingerprint } = JSON.parse(fs.readFileSync(marker, "utf8")) as { fingerprint: string };
+  fs.writeFileSync(marker, fingerprint);
+  assert.deepEqual(shipOnStop(root), { skipped: "unchanged-since-last-ship" });
+});
