@@ -1,0 +1,42 @@
+{
+  "version": 1,
+  "change": "fix-compass-source-offsets",
+  "stage": "archiving",
+  "level": 0,
+  "iteration": 0,
+  "maxRework": 3,
+  "verdicts": {
+    "review": null,
+    "test": "PASS"
+  },
+  "openQuestions": [],
+  "history": [
+    {
+      "at": "2026-10-06T23:01:19.008Z",
+      "from": "exploring",
+      "to": "exploring",
+      "op": "start"
+    },
+    {
+      "at": "2026-10-06T23:02:35.629Z",
+      "from": "exploring",
+      "to": "implementing",
+      "op": "advance",
+      "note": "Explorer: readSource (query.ts:85-92) is the only consumer byte-slicing UTF-16 char indices; persisted hashes/node_text/embeddings unaffected; no schema bump, reindex, or reseal. Regression test in test/integration/compass.test.ts. Compass calls: 6."
+    },
+    {
+      "at": "2026-10-06T23:11:14.624Z",
+      "from": "implementing",
+      "to": "testing",
+      "op": "advance",
+      "note": "Implemented: readSource utf8 string slice + offset-contract docs + regression test (red→green) + Covers tags; build/check pass; compass integration 13/13; coverage ok 2/2."
+    },
+    {
+      "at": "2026-10-06T23:15:01.169Z",
+      "from": "testing",
+      "to": "archiving",
+      "op": "advance",
+      "note": "Review PASS (reports/review.md; F1 Covers tag fixed and bound to readSource). Test PASS: check/build ok, npm test 638/638, coverage ok 2/2, manual CLI verification incl. Spanish-text temp repo; reports/backend.md with red-before-green."
+    }
+  ]
+}
