@@ -42,9 +42,9 @@ function digest(parts: string[]): string {
 /**
  * Hash of the exact source bytes for a symbol range (detects cosmetic edits).
  *
- * @param source - Full file source as UTF-8 string.
- * @param startByte - Inclusive start offset.
- * @param endByte - Exclusive end offset.
+ * @param source - Full file source, decoded from UTF-8.
+ * @param startByte - Inclusive start offset: a UTF-16 code-unit index into `source`, despite the name.
+ * @param endByte - Exclusive end offset: a UTF-16 code-unit index into `source`, despite the name.
  */
 export function rawHash(source: string, startByte: number, endByte: number): string {
   return createHash("sha256").update(source.slice(startByte, endByte)).digest("hex").slice(0, 32);

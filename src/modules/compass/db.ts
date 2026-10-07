@@ -23,7 +23,9 @@ export interface NodeRow {
   kind: string;
   start_line: number;
   end_line: number;
+  /** Inclusive start offset — a UTF-16 code-unit index into the decoded source, despite the name. */
   start_byte: number;
+  /** Exclusive end offset — a UTF-16 code-unit index into the decoded source, despite the name. */
   end_byte: number;
   parent_id: number | null;
   signature: string | null;
@@ -49,6 +51,8 @@ CREATE TABLE IF NOT EXISTS files (
 );
 CREATE INDEX IF NOT EXISTS idx_files_is_test ON files(is_test);
 -- nodes: the definitions in the codebase (functions, classes, methods, types).
+-- start_byte/end_byte are UTF-16 code-unit offsets into the decoded source
+-- (tree-sitter's startIndex/endIndex), not UTF-8 byte offsets, despite the names.
 CREATE TABLE IF NOT EXISTS nodes (
   id INTEGER PRIMARY KEY,
   file_id INTEGER NOT NULL REFERENCES files(id) ON DELETE CASCADE,

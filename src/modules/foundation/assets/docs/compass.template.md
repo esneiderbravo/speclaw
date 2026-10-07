@@ -37,6 +37,12 @@ a request, not whole files.
 `compass_index` also takes `action: start|stop|status` to keep the index fresh
 automatically (a debounced incremental re-index on file change).
 
+Under Claude Code, a `SessionStart` hook refreshes an existing index when each
+session starts (`speclaw session-start`: silent, never fails, skips
+when `.speclaw/index.db` is absent, and leaves this file alone when nothing
+changed). The first build is always an explicit `compass_index` /
+`speclaw index`.
+
 If the graph is missing (no `.speclaw/index.db`), run `compass_index` first —
 a missing graph is not license to skip Compass. The only legitimate fallbacks
 to Grep/Read: a Compass call returned nothing useful for your query, or the

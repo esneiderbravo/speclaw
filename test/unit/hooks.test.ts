@@ -1,8 +1,19 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
+import { chmodSync, existsSync, readFileSync, readdirSync } from "node:fs";
+import path from "node:path";
 import { tmpRepo, read, has, write } from "../helpers/env.js";
 import { emptyReport } from "../../src/shared/install.js";
-import { compileHooks, mergeHooks, installHooks } from "../../src/modules/foundation/hooks.js";
+import {
+  compileHooks,
+  mergeHooks,
+  installHooks,
+  isSpeclawHook,
+  SESSION_START_COMMAND,
+  SESSION_START_MARKER,
+  type HookGroup,
+} from "../../src/modules/foundation/hooks.js";
 import type { Law, LawManifest } from "../../src/modules/foundation/laws.js";
 
 const lawOf = (over: Partial<Law> = {}): Law => ({
@@ -18,6 +29,9 @@ const lawOf = (over: Partial<Law> = {}): Law => ({
 });
 
 const manifest = (laws: Law[]): LawManifest => ({ version: 1, laws });
+
+/** The `server` of a merged hook, which may be a `command` hook without one. */
+const serverOf = (h: unknown): unknown => (h as { server?: unknown }).server;
 
 test("compileHooks maps each enforcement type to its event", () => {
   const { byEvent } = compileHooks(
@@ -61,11 +75,11 @@ test("mergeHooks preserves foreign entries and is idempotent", () => {
   assert.ok(
     once.PreToolUse!.some((g) => g.hooks.some((h) => (h as { type: string }).type === "command")),
   );
-  assert.ok(once.PreToolUse!.some((g) => g.hooks.some((h) => h.server === "speclaw")));
+  assert.ok(once.PreToolUse!.some((g) => g.hooks.some((h) => serverOf(h) === "speclaw")));
   // merging again over the result adds no duplicate speclaw group
   const twice = mergeHooks(once as Record<string, unknown>, byEvent);
   const speclawGroups = twice.PreToolUse!.filter((g) =>
-    g.hooks.some((h) => h.server === "speclaw"),
+    g.hooks.some((h) => serverOf(h) === "speclaw"),
   );
   assert.equal(speclawGroups.length, 1);
 });
@@ -165,7 +179,7 @@ test("installHooks never clobbers an unparseable settings file", (t) => {
 // Covers: req~compass-nudge~1
 test("compileHooks always emits the Read|Grep|Glob PostToolUse nudge entry, even with zero laws", () => {
   const { byEvent } = compileHooks(manifest([]));
-  assert.deepEqual(Object.keys(byEvent), ["PostToolUse"]);
+  assert.deepEqual(Object.keys(byEvent), ["PostToolUse", "SessionStart"]);
   const group = byEvent.PostToolUse![0]!;
   assert.equal(group.matcher, "Read|Grep|Glob");
   const hook = group.hooks[0]!;
@@ -230,3 +244,259 @@ test("installHooks with zero laws installs the nudge, keeps foreign entries, and
   assert.deepEqual(report.written, []);
   assert.deepEqual(report.refreshedDiverged, []);
 });
+
+// Covers: req~session-start-hook~1
+test("compileHooks always emits the SessionStart index-refresh command, even with zero laws", () => {
+  const { byEvent } = compileHooks(manifest([]));
+  const groups = byEvent.SessionStart!;
+  assert.equal(groups.length, 1);
+  assert.equal(groups[0]!.matcher, "startup|resume|clear|compact");
+  assert.equal(groups[0]!.hooks.length, 1);
+  const hook = groups[0]!.hooks[0]!;
+  // only the three keys Claude Code's command hook schema defines
+  assert.deepEqual(Object.keys(hook).sort(), ["command", "timeout", "type"]);
+  assert.equal(hook.type, "command");
+  assert.equal(hook.timeout, 30);
+  assert.equal(hook.command, SESSION_START_COMMAND);
+  assert.ok(hook.command.includes(SESSION_START_MARKER));
+  assert.ok(
+    hook.command.includes("npm_config_offline=true npx --no-install @esneiderbravo/speclaw"),
+  );
+  // a top-level command, never an `index` flag an older speclaw would ignore
+  assert.ok(!hook.command.includes("speclaw index"));
+  assert.ok(hook.command.includes("[ -f .speclaw/index.db ]"));
+  assert.ok(hook.command.endsWith("|| true"));
+  // every resolution branch carries the marker, so identity holds whichever runs
+  assert.equal(hook.command.split(SESSION_START_MARKER).length - 1, 3);
+});
+
+test("isSpeclawHook recognizes the session-start command and rejects user commands", () => {
+  assert.equal(isSpeclawHook({ type: "command", command: SESSION_START_COMMAND }), true);
+  assert.equal(
+    isSpeclawHook({ type: "command", command: "npx speclaw session-start || true" }),
+    true,
+  );
+  assert.equal(isSpeclawHook({ type: "command", command: "echo hello" }), false);
+  assert.equal(isSpeclawHook({ type: "command", command: "speclaw index" }), false);
+  assert.equal(isSpeclawHook({ type: "command" }), false);
+  assert.equal(isSpeclawHook({ type: "mcp_tool", server: "speclaw" }), true);
+  assert.equal(isSpeclawHook({ type: "mcp_tool", server: "other" }), false);
+  assert.equal(isSpeclawHook(null), false);
+});
+
+test("mergeHooks keeps exactly one speclaw SessionStart entry and preserves a user one", () => {
+  const { byEvent } = compileHooks(manifest([]));
+  const existing = {
+    SessionStart: [
+      { matcher: "startup", hooks: [{ type: "command", command: "echo user-start" }] },
+      // a stale speclaw entry with an older command shape is replaced, not duplicated
+      { hooks: [{ type: "command", command: "speclaw session-start", timeout: 10 }] },
+      // the pre-release `index --session-start` shape is speclaw's too
+      { hooks: [{ type: "command", command: "speclaw index --session-start", timeout: 30 }] },
+    ],
+  };
+  const once = mergeHooks(existing, byEvent);
+  const twice = mergeHooks(once as Record<string, unknown>, byEvent);
+  assert.deepEqual(twice, once);
+  const groups = twice.SessionStart! as HookGroup[];
+  const mine = groups.filter((g) => g.hooks.some((h) => isSpeclawHook(h)));
+  assert.equal(mine.length, 1);
+  assert.equal(mine[0]!.hooks.length, 1);
+  assert.deepEqual(mine[0]!.hooks[0], {
+    type: "command",
+    command: SESSION_START_COMMAND,
+    timeout: 30,
+  });
+  assert.ok(
+    groups.some(
+      (g) =>
+        g.matcher === "startup" &&
+        g.hooks.some((h) => (h as { command?: string }).command === "echo user-start"),
+    ),
+  );
+});
+
+test("installHooks writes the SessionStart entry for Claude only and reruns without drift", (t) => {
+  const root = tmpRepo(t);
+  const record: Record<string, string> = {};
+  const res = installHooks(root, ["claude", "cursor", "codex"], manifest([]), emptyReport(), {
+    record,
+  });
+  assert.deepEqual(res.hooked, ["claude"]);
+  const first = read(root, ".claude/settings.json");
+  const settings = JSON.parse(first) as { hooks: Record<string, HookGroup[]> };
+  assert.equal(settings.hooks.SessionStart!.length, 1);
+  assert.ok(!has(root, ".cursor/settings.json"));
+  assert.ok(!has(root, ".codex/settings.json"));
+
+  const report = emptyReport();
+  installHooks(root, ["claude"], manifest([]), report, { baselines: { ...record } });
+  assert.equal(read(root, ".claude/settings.json"), first);
+  assert.deepEqual(report.written, []);
+  assert.deepEqual(report.refreshedDiverged, []);
+});
+
+// The hook command is POSIX sh; these run it for real in temp dirs (via /bin/sh,
+// so a test may narrow PATH to its stubs). The env pins
+// CLAUDE_PROJECT_DIR to the temp dir: inherited from a live Claude Code session
+// it would point the command at the real repository. The npm settings the npx
+// branch sets are blanked so only the command itself can set them (a
+// developer's environment under `npm test` must not make the assertion pass).
+const runHookCommand = (cwd: string, env: Record<string, string> = {}) =>
+  spawnSync("/bin/sh", ["-c", SESSION_START_COMMAND], {
+    cwd,
+    encoding: "utf8",
+    env: {
+      ...process.env,
+      npm_config_offline: "",
+      npm_config_update_notifier: "",
+      CLAUDE_PROJECT_DIR: cwd,
+      ...env,
+    },
+  });
+
+/** Write an executable `sh` stub at `<root>/<rel>`. */
+const stub = (root: string, rel: string, body: string): void => {
+  const abs = write(root, rel, `#!/bin/sh\n${body}\n`);
+  chmodSync(abs, 0o755);
+};
+
+const posix = process.platform !== "win32";
+
+test("the session-start command does nothing without an index", { skip: !posix }, (t) => {
+  const root = tmpRepo(t);
+  // a local binary that would leave evidence if it were (wrongly) invoked
+  stub(root, "node_modules/.bin/speclaw", `echo "$@" > "${path.join(root, "called")}"`);
+  const res = runHookCommand(root);
+  assert.equal(res.status, 0);
+  assert.equal(res.stdout, "");
+  assert.equal(res.stderr, "");
+  assert.ok(!existsSync(path.join(root, ".speclaw/index.db")));
+  assert.ok(!existsSync(path.join(root, "called")));
+});
+
+test("the session-start command prefers the local binary", { skip: !posix }, (t) => {
+  const root = tmpRepo(t);
+  write(root, ".speclaw/index.db", "");
+  const local = path.join(root, "local-argv");
+  const onPath = path.join(root, "path-argv");
+  stub(root, "node_modules/.bin/speclaw", `echo "$@" > "${local}"; echo noisy; echo err >&2`);
+  stub(root, "bin/speclaw", `echo "$@" > "${onPath}"`);
+  const res = runHookCommand(root, { PATH: `${path.join(root, "bin")}:${process.env.PATH}` });
+  assert.equal(res.status, 0);
+  assert.equal(res.stdout, "");
+  assert.equal(res.stderr, "");
+  assert.equal(readFileSync(local, "utf8").trim(), "session-start");
+  assert.ok(!existsSync(onPath), "speclaw on PATH must not run when a local binary exists");
+});
+
+test("the session-start command falls back to speclaw on PATH", { skip: !posix }, (t) => {
+  const root = tmpRepo(t);
+  write(root, ".speclaw/index.db", "");
+  const onPath = path.join(root, "path-argv");
+  stub(root, "bin/speclaw", `echo "$@" > "${onPath}"`);
+  const res = runHookCommand(root, { PATH: `${path.join(root, "bin")}:${process.env.PATH}` });
+  assert.equal(res.status, 0);
+  assert.equal(res.stdout, "");
+  assert.equal(readFileSync(onPath, "utf8").trim(), "session-start");
+});
+
+test("an older speclaw on PATH rejects the command and touches nothing", { skip: !posix }, (t) => {
+  const root = tmpRepo(t);
+  write(root, ".speclaw/index.db", "");
+  const calls = path.join(root, "calls");
+  const indexed = path.join(root, "indexed");
+  // mimics a pre-2.0.7 CLI: `index` would index (and log a Compass call); any
+  // unknown command prints usage and exits 1 before doing anything
+  stub(
+    root,
+    "bin/speclaw",
+    [
+      `echo "$@" >> "${calls}"`,
+      `if [ "$1" = index ]; then touch "${indexed}"; exit 0; fi`,
+      'echo "Unknown command: $1" >&2; echo usage; exit 1',
+    ].join("\n"),
+  );
+  const before = readdirSync(path.join(root, ".speclaw")).sort();
+  const res = runHookCommand(root, { PATH: `${path.join(root, "bin")}:${process.env.PATH}` });
+  assert.equal(res.status, 0);
+  assert.equal(res.stdout, "");
+  assert.equal(res.stderr, "");
+  assert.equal(readFileSync(calls, "utf8").trim(), "session-start");
+  assert.ok(!existsSync(indexed), "an older speclaw must never be asked to index");
+  assert.deepEqual(readdirSync(path.join(root, ".speclaw")).sort(), before);
+  assert.equal(readFileSync(path.join(root, ".speclaw/index.db"), "utf8"), "");
+});
+
+test("the npx fallback runs offline and never installs", { skip: !posix }, (t) => {
+  const root = tmpRepo(t);
+  write(root, ".speclaw/index.db", "");
+  const argv = path.join(root, "npx-argv");
+  const env = path.join(root, "npx-env");
+  // PATH holds only this stub: no local binary, no speclaw on PATH, so the
+  // command must reach the npx branch
+  stub(
+    root,
+    "npxbin/npx",
+    `echo "$@" > "${argv}"; echo "$npm_config_offline $npm_config_update_notifier" > "${env}"`,
+  );
+  const res = runHookCommand(root, { PATH: path.join(root, "npxbin") });
+  assert.equal(res.status, 0);
+  assert.equal(res.stdout, "");
+  assert.equal(res.stderr, "");
+  assert.equal(
+    readFileSync(argv, "utf8").trim(),
+    "--no-install @esneiderbravo/speclaw session-start",
+  );
+  assert.equal(readFileSync(env, "utf8").trim(), "true false");
+});
+
+test("a failing refresh never fails the session", { skip: !posix }, (t) => {
+  const root = tmpRepo(t);
+  write(root, ".speclaw/index.db", "");
+  stub(root, "node_modules/.bin/speclaw", "echo boom >&2; exit 1");
+  const res = runHookCommand(root);
+  assert.equal(res.status, 0);
+  assert.equal(res.stdout, "");
+  assert.equal(res.stderr, "");
+});
+
+test(
+  "the session-start command resolves a project path that contains a space",
+  { skip: !posix },
+  (t) => {
+    const root = tmpRepo(t);
+    const project = path.join(root, "my project");
+    write(project, ".speclaw/index.db", "");
+    const argv = path.join(root, "argv");
+    stub(project, "node_modules/.bin/speclaw", `echo "$@" > "${argv}"; echo noisy`);
+    // run from elsewhere so only CLAUDE_PROJECT_DIR can lead to the project
+    const res = spawnSync("/bin/sh", ["-c", SESSION_START_COMMAND], {
+      cwd: root,
+      encoding: "utf8",
+      env: { ...process.env, CLAUDE_PROJECT_DIR: project },
+    });
+    assert.equal(res.status, 0);
+    assert.equal(res.stdout, "");
+    assert.equal(res.stderr, "");
+    assert.equal(readFileSync(argv, "utf8").trim(), "session-start");
+  },
+);
+
+test(
+  "a nonexistent CLAUDE_PROJECT_DIR exits 0 silently and runs nothing",
+  { skip: !posix },
+  (t) => {
+    const root = tmpRepo(t);
+    // the cwd has an index and a local binary: falling back to it would be wrong
+    write(root, ".speclaw/index.db", "");
+    const called = path.join(root, "called");
+    stub(root, "node_modules/.bin/speclaw", `echo "$@" > "${called}"`);
+    const res = runHookCommand(root, { CLAUDE_PROJECT_DIR: path.join(root, "does-not-exist") });
+    assert.equal(res.status, 0);
+    assert.equal(res.stdout, "");
+    assert.equal(res.stderr, "");
+    assert.ok(!existsSync(called), "no speclaw may run when the project dir is missing");
+    assert.ok(!existsSync(path.join(root, "does-not-exist")));
+  },
+);

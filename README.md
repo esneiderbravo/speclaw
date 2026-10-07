@@ -116,7 +116,7 @@ gh attestation verify <tarball> --owner esneiderbravo
 | Module | What it does |
 | :-- | :-- |
 | **Foundation** | The project's constitution: `LAWS.md` binding granular standards under `docs/standards/`, plus `CLAUDE.md` / `AGENTS.md`. **Enforced** via agent hooks (`speclaw check`), deterministic graph laws (`speclaw verify` / `laws verify`), multidialect compile (`laws compile`), and committed **`speclaw.lock`** digests + injection scan (`laws lock` / `accept` / `scan`). |
-| **Compass** | Local code graph (tree-sitter → `node:sqlite`): hybrid find (FTS5 + vectors + RRF + PageRank), impact, affected-tests, hotspots, coupling, visualize. Schema **10**. No LLM — lives in `.speclaw/` (gitignored). |
+| **Compass** | Local code graph (tree-sitter → `node:sqlite`): hybrid find (FTS5 + vectors + RRF + PageRank), impact, affected-tests, hotspots, coupling, visualize. Schema **10**. Refreshed silently at every Claude Code session start once built. No LLM — lives in `.speclaw/` (gitignored). |
 | **Lawbook** | Spec-driven workflow with **adaptive ceremony** (levels 0–3), EARS linting, requirement **coverage**, sealed **drift** anchors, bugfix + `lawbook_investigate`. Artifacts under `lawbook/`. |
 | **Cortex** | **One brain. Many agents.** The multi-agent loop: durable `harness.json`, MCP tool `cortex` (`status`/`start`/`advance`/`rework`/`brief`), CLI `speclaw cortex`, skill `/lawbook/cortex`. Dispatches explorer → planner → implementer → reviewer → tester → archiver. |
 | **Team** | Declare `team.owners` in `lawbook/config.yaml`; `speclaw owners --write` compiles a managed trailing block in `.github/CODEOWNERS` (GitHub: last match wins). Doctor checks the posture. CLI-only — no MCP tool. |
@@ -247,7 +247,10 @@ regenerate `ai-specs/` locally. Optional **`team.owners`** in
 
 **Enforcement artifacts.** For agents that support hooks, speclaw merges its law
 hooks into that agent's settings **by identity** — it never touches hooks you
-added yourself. The compiled law manifest lives in `.speclaw/laws-manifest.json`
+added yourself. The same merge adds one `SessionStart` command hook that
+silently refreshes an existing Compass index when a session starts
+(`speclaw session-start`; it skips when no index exists, never downloads or
+contacts the registry, and always exits 0). The compiled law manifest lives in `.speclaw/laws-manifest.json`
 (gitignored) and is **adapted to the target tree** on `init`/`update` — speclaw's
 own architecture laws are seeded only when those paths exist, and the cycle law
 follows `apps/*/src`, `packages/*/src`, or `src/` rather than copying

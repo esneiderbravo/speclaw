@@ -35,7 +35,8 @@ where it lives, how a value flows — call Compass **first**: `compass_find` to
 locate, `compass_explore` to read a symbol with its callers and callees (include
 `blast_radius` for what could break, `to` for a call path), and
 `compass_diff_context` for the context of a diff.
-Run `compass_index` first if the graph is missing.
+Run `compass_index` first if the graph is missing. Under Claude Code a
+`SessionStart` hook refreshes an existing index when each session starts.
 
 This includes files you already know the name of: to learn what `Foo` imports,
 uses, or depends on, run `compass_explore Foo` — do **not** `cat`/`sed`/`grep`/

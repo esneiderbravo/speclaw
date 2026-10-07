@@ -38,7 +38,8 @@ and callees, `compass_impact` (grouped by module; `format: flat` for the old lis
 `speclaw affected-tests --from-diff` for which tests to run,
 `compass_hotspots` / `speclaw hotspots` (activity × AST health, default 90d)
 and `compass_coupling` / `speclaw coupling` (Jaccard strength, `in_graph`,
-`isTestPair`). Run `compass_index` first if the graph is missing. Schema **10**
+`isTestPair`). Run `compass_index` first if the graph is missing (Claude Code
+sessions refresh an existing index at start via a `SessionStart` hook). Schema **10**
 stores FTS5/`node_text`/`pagerank` plus `embedding_cache`, Merkle `dir_hashes`, and
 `node_metrics` — reindex with `speclaw index` after a schema bump (9→10 migrates;
 8→9 preserves embeddings).
@@ -138,6 +139,13 @@ Planner clarifying questions always go to the human via the coordinator.
   Compass calls logged to `.speclaw/compass-calls.jsonl`. A PostToolUse
   `Read|Grep|Glob` hook adds a Compass-first nudge as context only — never a
   permission decision. `compass_index` returns totals plus a `nextStep`.
+- Session-start refresh (2.0.7): for Claude Code, `init` / `update` add one
+  `SessionStart` command hook that runs `speclaw session-start`
+  (local `node_modules/.bin` → `PATH` → offline `npx --no-install`; silent,
+  always exit 0, 30 s timeout; an older speclaw rejects the unknown command). It skips when `.speclaw/index.db` is absent, so the
+  first build stays `compass_index` / `speclaw index`. An unchanged project
+  takes the no-op fast path and leaves `docs/compass.md` alone. Existing
+  installs see the settings file as `refreshedDiverged` once on `update`.
 - `speclaw lawbook draft <name> [--level N] [--capability C]` (or
   `lawbook_change` action `draft`) scaffolds a change. Existing installs show
   the updated hooks as `refreshedDiverged` on `speclaw update`.

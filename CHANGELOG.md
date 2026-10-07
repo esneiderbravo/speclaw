@@ -5,6 +5,42 @@ All notable changes to this project are documented here. Speclaw follows
 
 ## [Unreleased]
 
+## [2.0.7] — 2026-10-06
+
+### Added
+
+- Session-start refresh for Claude Code. `speclaw init` / `speclaw update` add
+  one `SessionStart` command hook (matcher `startup|resume|clear|compact`,
+  30 s timeout) that runs the new `speclaw session-start` command. It resolves
+  the binary as `node_modules/.bin/speclaw` → `speclaw` on `PATH` →
+  `npm_config_update_notifier=false npm_config_offline=true npx --no-install
+  @esneiderbravo/speclaw`, so it never contacts a package registry. It is
+  silent, always exits 0, and skips when `.speclaw/index.db` is absent — the
+  first build stays `compass_index` / `speclaw index`. An older speclaw on
+  `PATH` rejects the unknown command and touches nothing. Hooks you added to
+  `SessionStart` are kept.
+- `speclaw session-start` refreshes an existing index without writing to the
+  Compass call log, the branded header, or the update notice.
+
+### Changed
+
+- `speclaw index` takes a no-op fast path when nothing changed (no file
+  re-extracted or removed, root hash unchanged, no `--force`, `--prune`, or
+  explicit `--max-cache-mb`): it skips `dir_hashes`, edge and import
+  resolution, PageRank, and embedding-cache upkeep, still advances
+  `indexed_at`, and leaves `docs/compass.md` alone unless its map block is
+  empty. On this repo the unchanged-index median drops from ~385 ms to
+  ~205 ms (M1 Max, Node 24).
+- Existing installs see `.claude/settings.json` as `refreshedDiverged` once on
+  the first `speclaw update`, as the `SessionStart` group is added.
+
+### Fixed
+
+- `compass_explore` returns the exact symbol source. It sliced the file as
+  UTF-8 bytes with UTF-16 offsets, so any multibyte character before a symbol
+  (`—`, `«»`, `ñ`, emoji) shifted the snippet early and cut its end. Stored
+  data was never affected: no reindex, schema bump, or drift reseal needed.
+
 ## [2.0.6] — 2026-10-06
 
 ### Changed

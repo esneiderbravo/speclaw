@@ -17,7 +17,11 @@
                 "hook_event_name": "${hook_event_name}",
                 "tool_name": "${tool_name}",
                 "tool_input": {
-                  "file_path": "${tool_input.file_path}"
+                  "file_path": "${tool_input.file_path}",
+                  "path": "${tool_input.path}",
+                  "pattern": "${tool_input.pattern}",
+                  "glob": "${tool_input.glob}",
+                  "type": "${tool_input.type}"
                 }
               }
             }
@@ -42,7 +46,38 @@
                 "hook_event_name": "${hook_event_name}",
                 "tool_name": "${tool_name}",
                 "tool_input": {
-                  "file_path": "${tool_input.file_path}"
+                  "file_path": "${tool_input.file_path}",
+                  "path": "${tool_input.path}",
+                  "pattern": "${tool_input.pattern}",
+                  "glob": "${tool_input.glob}",
+                  "type": "${tool_input.type}"
+                }
+              }
+            }
+          }
+        ]
+      },
+      {
+        "matcher": "Read|Grep|Glob",
+        "hooks": [
+          {
+            "type": "mcp_tool",
+            "server": "speclaw",
+            "tool": "speclaw_check",
+            "timeout": 5,
+            "input": {
+              "projectPath": "${cwd}",
+              "event": "${hook_event_name}",
+              "toolName": "${tool_name}",
+              "payload": {
+                "hook_event_name": "${hook_event_name}",
+                "tool_name": "${tool_name}",
+                "tool_input": {
+                  "file_path": "${tool_input.file_path}",
+                  "path": "${tool_input.path}",
+                  "pattern": "${tool_input.pattern}",
+                  "glob": "${tool_input.glob}",
+                  "type": "${tool_input.type}"
                 }
               }
             }
@@ -66,7 +101,11 @@
                 "hook_event_name": "${hook_event_name}",
                 "tool_name": "${tool_name}",
                 "tool_input": {
-                  "file_path": "${tool_input.file_path}"
+                  "file_path": "${tool_input.file_path}",
+                  "path": "${tool_input.path}",
+                  "pattern": "${tool_input.pattern}",
+                  "glob": "${tool_input.glob}",
+                  "type": "${tool_input.type}"
                 }
               }
             }
@@ -90,10 +129,26 @@
                 "hook_event_name": "${hook_event_name}",
                 "tool_name": "${tool_name}",
                 "tool_input": {
-                  "file_path": "${tool_input.file_path}"
+                  "file_path": "${tool_input.file_path}",
+                  "path": "${tool_input.path}",
+                  "pattern": "${tool_input.pattern}",
+                  "glob": "${tool_input.glob}",
+                  "type": "${tool_input.type}"
                 }
               }
             }
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "matcher": "startup|resume|clear|compact",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cd \"${CLAUDE_PROJECT_DIR:-.}\" 2>/dev/null && [ -f .speclaw/index.db ] && { if [ -x node_modules/.bin/speclaw ]; then node_modules/.bin/speclaw session-start; elif command -v speclaw >/dev/null 2>&1; then speclaw session-start; else npm_config_update_notifier=false npm_config_offline=true npx --no-install @esneiderbravo/speclaw session-start; fi; } >/dev/null 2>&1 || true",
+            "timeout": 30
           }
         ]
       }

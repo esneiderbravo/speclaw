@@ -1,0 +1,24 @@
+{
+  "level": 0,
+  "score": 0,
+  "signals": {
+    "filesTouched": 0,
+    "modulesTouched": 0,
+    "blastRadiusNodes": 0,
+    "affectedTests": 0,
+    "touchesPublicApi": false,
+    "maxHotspotScore": 0,
+    "touchesGlobalFile": false,
+    "onlyDocs": false,
+    "degraded": []
+  },
+  "rationale": "0 file(s), 0 module(s), 0 affected test(s), 0 blast node(s), no public API, no global file, hotspot=0.00 → score 0 → level 0 (cuts 3/8/15)",
+  "degraded": [],
+  "confirmedLevel": 1,
+  "confirmedBy": "human",
+  "confirmedAt": "2026-10-06T23:06:22.824Z",
+  "overrideReason": "Proposal with real paths scored 6 → level 1 (1 file, 3 affected tests, 52 blast nodes). Human confirmed level 1 on 2026-10-06 in the single question round.",
+  "promotions": [],
+  "changeType": "bug",
+  "resolution": "fixed"
+}

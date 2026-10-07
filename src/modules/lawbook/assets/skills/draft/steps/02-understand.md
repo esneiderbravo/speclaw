@@ -6,9 +6,11 @@
   `compass_find` or `compass_explore` only for a gap the brief names. Re-read
   a file under `docs/standards/` only when the brief does not cite it.
 - When the handoff has no complete explorer brief, refresh the index with
-  `compass_index`, then use `compass_explore` and `compass_find` (mode:
-  concept) before grep/read to locate the code and its blast radius. Read the
-  governing standards in `docs/standards/`.
+  `compass_index` (an existing index was already refreshed at session start
+  under Claude Code; refresh again after edits or when it is missing), then use
+  `compass_explore` and `compass_find` (mode: concept) before grep/read to
+  locate the code and its blast radius. Read the governing standards in
+  `docs/standards/`.
 - Clarify what the user wants (feature / fix / refactor) and confirm scope.
 - When `change.json` already has a `confirmedLevel` (the coordinator recorded
   it in the single question round), use that level and skip the separate level
