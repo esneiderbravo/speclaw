@@ -30,20 +30,18 @@ Claude-specific notes: [`CLAUDE.md`](CLAUDE.md). The law: [`LAWS.md`](LAWS.md).
    Merkle `dir_hashes`, `node_metrics`, `ref` edges) — reindex with `speclaw index`
    after a schema bump (11→12 forces a reindex; embeddings reused). Cheat sheet:
    [`docs/compass.md`](docs/compass.md).
-3. **Follow Cortex** (*One brain. Many agents.*) for every non-trivial change;
-   archive within the same PR. The primary agent is the **coordinator**
-   (`cortex` / `/lawbook/cortex`) — it MUST NOT implement product
-   code itself. It dispatches explorer → planner → implementer → reviewer →
-   tester → archiver (or adopts each role while obeying that role's
-   permission profile). Drive state with the `cortex` MCP tool or
-   `speclaw cortex`. Artifact volume follows the confirmed ceremony level
-   in `change.json` (0=quick … 3=full); missing `change.json` is level 3.
-   Propose, set, or promote with `lawbook_level` / `speclaw lawbook level`;
-   level 0 via `speclaw quick`. Bugs: `speclaw lawbook draft --bug`,
-   `bugfix.md`, `changeType: bug`; RCA first with `lawbook_investigate`.
-   Rules: [`docs/standards/lawbook.md`](docs/standards/lawbook.md).
-   Coverage: `speclaw coverage` / `lawbook_coverage`. Drift: `speclaw drift` /
-   `lawbook_drift`.
+3. **Cortex, always — one brain on the critical path** (*One brain. Many
+   agents.*). Branch `<type>/<slug>`, locate with Compass, implement the
+   change and its test yourself, run the tests, finish. The `Stop` hook
+   (`speclaw ship-on-stop`) — or `speclaw ship <change> --summary "<what and
+   why>"` as the last step on agents without hooks — records the change, runs
+   the gates once, writes the report from their real output, and archives
+   level-0 work. Review happens on the PR and never blocks the agent. Add
+   agents only to run three or more large, independent parts in parallel;
+   multi-day, cross-module features use the spec lane (`speclaw lawbook
+   draft`, ceremony levels, `bugfix.md` for bugs). Rules:
+   [`docs/standards/lawbook.md`](docs/standards/lawbook.md). Coverage:
+   `speclaw coverage`; drift: `speclaw drift`.
 4. **Run the quality gates yourself** before declaring anything done — see
    [`docs/standards/testing-standards.md`](docs/standards/testing-standards.md):
    - Lint + format: `npm run check` (Prettier `--check` + ESLint); `npm run format` to fix

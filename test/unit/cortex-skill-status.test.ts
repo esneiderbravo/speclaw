@@ -98,5 +98,5 @@ test("cortex complete step deletes the status timer", () => {
 test("cortex command mentions the status interval key", () => {
   const body = read("commands/cortex.md");
   assert.match(body, /`cortex\.statusIntervalMinutes`/);
-  assert.match(body, /default 5, `0` disables, at most 60/);
+  assert.match(body, /default 0, `0` disables, at most 60/);
 });

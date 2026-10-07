@@ -59,23 +59,21 @@ target is not indexed code — stylesheets, JSON/config, markdown, logs,
 generated files, lockfiles. Never skip Compass because grep "feels faster."
 See [`docs/compass.md`](docs/compass.md).
 
-## Rule 2 — Spec-driven Cortex loop, always
+## Rule 2 — Cortex, always — one brain on the critical path
 
-No non-trivial change lands without a lawbook change (propose → implement →
-verify → archive) run through **Cortex** (*One brain. Many agents.*). You are the
-**coordinator** unless you were spawned as a role agent: use the `cortex`
-skill / `/lawbook/cortex` and the `cortex` MCP tool; do **not** implement product code yourself.
-Role agents live in `ai-specs/agents/`. Artifact volume follows the
-**confirmed ceremony level** in `change.json` (0=quick … 3=full); missing
-`change.json` is still full ceremony (level 3). Propose/set/promote with
-`lawbook_level` / `speclaw lawbook level`; level 0 scaffolds via `speclaw
-quick`. Bugs use `speclaw lawbook draft --bug` and `bugfix.md` with
-`changeType: bug`; `lawbook_investigate` for graph-backed RCA first. The rules
-are in [`docs/standards/lawbook.md`](docs/standards/lawbook.md); workflow
-skills live in `ai-specs/skills/` and the `/lawbook` commands wrap them. A
-change is not done until it is archived — archiving belongs in the PR.
-Requirement → impl → test coverage is `speclaw coverage` / `lawbook_coverage`.
-Sealed spec↔code drift is `speclaw drift` / `lawbook_drift`.
+Every change is built with **Cortex** (*One brain. Many agents.*), and Cortex
+costs no more time than working alone (measured: `docs/benchmarks/cortex-speed.md`).
+Branch `<type>/<slug>`, locate with Compass, implement the change and its test
+yourself, run the tests, and stop: the `Stop` hook (`speclaw ship-on-stop`)
+records the change, runs the gates once, writes the report from their real
+output, and archives level-0 work with no agent turns; a failing gate comes
+back to you. Do not run `speclaw ship` yourself, edit its report, read the
+process docs, or drive the harness by hand. Review happens on the PR and never
+blocks the agent. Add agents only to run three or more large, independent
+parts in parallel (the `cortex` skill's fan-out lane); multi-day, cross-module
+features that need a written spec first use the spec lane (`speclaw lawbook
+draft`, ceremony levels, `bugfix.md` for bugs). Coverage: `speclaw coverage`;
+drift: `speclaw drift`. Rules: [`docs/standards/lawbook.md`](docs/standards/lawbook.md).
 
 ## Rule 3 — Quality gates are non-negotiable
 
