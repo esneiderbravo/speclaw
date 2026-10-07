@@ -484,6 +484,81 @@ All notable changes to this project are documented here. Speclaw follows
 - Package version **2.0.0**; GitHub Action pin for consumers: `esneiderbravo/speclaw@v2`.
 - Domain agent packs removed; empty packs catalog by default.
 
+## [1.0.1] — 2026-09-08
+
+### Fixed
+
+- Seed laws are adapted to the target repo instead of copying speclaw's own
+  architecture laws. `init`, `update`, the compile merge, and the `verify`
+  fallback include a seed law only when its paths exist, and scope the cycle
+  law to the detected source roots (`apps/*/src/**`, `packages/*/src/**`,
+  `src/**`, …), excluding tests and counting only `import` edges.
+- Existing manifest entries are never overwritten. Unmodified shipped laws
+  whose paths do not exist are pruned.
+- The graph engine honours a law's scope: cycle detection only considers files
+  matching its globs, so `shared/` code and specs extending a base class no
+  longer report false cycles.
+- The repo no longer ships dangling `.claude/` and `.cursor/` symlinks into the
+  uncommitted `ai-specs/`, which broke extracting the GitHub Action
+  (`Could not find file .claude/skills`).
+
+## [1.0.0] — 2026-08-25
+
+### Added
+
+- Incremental Compass index (schema **9**): embeddings preserved across
+  reindex by a content-hash cache, unchanged files skipped by mtime/size, and
+  no-op runs short-circuited by directory hashes. `--force` / `--prune`.
+- Hybrid retrieval in `compass_find` (schema **10**): BM25 (FTS5), vector, and
+  name matches fused with RRF and personalized PageRank; degrades softly
+  without FTS5.
+- Laws compile into agent rule dialects: delimited `AGENTS.md` / `CLAUDE.md`
+  blocks plus Claude, Cursor, Copilot, and CodeRabbit artifacts. rulesync
+  rules import as draft laws that do not gate `verify`.
+- EARS linter for requirements and a property-coverage gate (`Needs: ptest`
+  links to recognized runners).
+- `speclaw.lock` pins rule digests and `verify` scans for prompt injection, so
+  a Rules File Backdoor edit fails CI. Accepting a new digest is human-only.
+- `speclaw owners` compiles `team.owners` in `lawbook/config.yaml` into a
+  managed `CODEOWNERS`; `doctor` checks it.
+
+### Changed
+
+- Engines raised to Node **>=22.16**.
+- README and brand art refreshed for ceremony levels 0–3, integrity, owners,
+  and the eight canonical tools.
+
+## [0.4.0] — 2026-08-23
+
+### Changed
+
+- The MCP surface is consolidated to **eight** canonical tools.
+  `compass_find` merges `compass_search` and `compass_recall`
+  (`mode: exact | concept`); `compass_explore` adds callers, callees, blast
+  radius, affected tests, and hotspot; `lawbook_change` carries the lifecycle
+  actions; `speclaw_setup` carries init, agent, and pack setup.
+- Tool output has a token budget (`brief` / `full`) with explicit
+  `truncated[]` lists.
+- Retired tool names stay as deprecation aliases for two minor versions
+  (`SPECLAW_NO_ALIASES=1` to drop them).
+
+### Added
+
+- `compass_diff_context` — changed symbols, blast radius, tests, and hotspots
+  for a diff in one call.
+
+### Removed
+
+- `scaffold`, `doctor`, and `compass_visualize` from MCP; they stay on the CLI.
+
+## [0.3.13] — 2026-08-23
+
+### Added
+
+- A `bug` change type: `draft --bug` writes `bugfix.md`, and
+  `lawbook_investigate` ranks suspects from the code graph for root-cause
+  analysis instead of running feature ceremony.
+
 ## [0.3.12] — 2026-08-23
 
 ### Added
@@ -608,3 +683,234 @@ All notable changes to this project are documented here. Speclaw follows
 
 - Context budget measurement, `speclaw budget`, `--minimal` exposure, JIT
   lawbook skill steps, compact map in `docs/compass.md`.
+
+## [0.3.4] — 2026-08-15
+
+### Added
+
+- `speclaw verify` — CI gate over the declared laws. Text, JSON
+  (`schemaVersion: 1`), SARIF 2.1.0, and markdown output; `--ci`, `--sarif`,
+  `--json`, `--format`, `--fail-on`, `--strict-engines`. Exit codes 0–4 are
+  public API; a shallow clone under `--ci` exits `3` asking for
+  `fetch-depth: 0`.
+- `init` and `update` write `.github/workflows/speclaw.yml` when it is
+  missing, and the package root ships an `action.yml`
+  (`uses: esneiderbravo/speclaw@v1`).
+
+### Fixed
+
+- On a clean clone (no `.speclaw/laws-manifest.json`), `verify` falls back to
+  the seed laws instead of passing empty. `scaffold` appends seed laws whose id
+  is absent and never overwrites an existing entry.
+
+## [0.3.3] — 2026-08-15
+
+### Added
+
+- `deps` and `graph` law backends: file-level from/to import rules over the
+  Compass index, and cycle / reachability checks (iterative Tarjan). An
+  unresolved edge counts as unknown, never as a pass.
+- `law_verify` MCP tool and `speclaw laws verify`, reporting each law as
+  passed, failed, skipped, or unknown. Without an index the result is
+  `skipped: no-index`.
+- `doctor` reports whether the graph engines are available.
+
+## [0.3.2] — 2026-08-13
+
+### Added
+
+- Laws compile into agent hooks: a blocking law is denied at the keystroke by a
+  `PreToolUse` hook instead of relying on the model to recall `LAWS.md`.
+- `speclaw_check` MCP tool and `speclaw check` CLI (`--dry-run`,
+  `--hook-payload -`, exit code 2 on deny). Verdicts are
+  allow / warn / deny / escalate and the check fails open.
+- `.speclaw/laws-manifest.json` with a seed of starter laws, including a
+  universal `.env` block. Hooks merge into the agent's settings without
+  touching foreign entries; Claude Code only.
+- `doctor` reports context coverage and validates law globs.
+
+## [0.3.1] — 2026-08-12
+
+### Added
+
+- A git-history layer (`logForPath`, `churn`, `coChanges`, `lastTouch`) for
+  drift and hotspot features, with full-history scans cached in the Compass
+  index per `HEAD` (schema **4**). No CLI or MCP surface yet.
+
+## [0.3.0] — 2026-08-11
+
+### Changed
+
+- Discipline reports are an open set: one `reports/<discipline>.md` per area a
+  change touches (backend, frontend, api, database, infra, security, …).
+  `api.md` is mandatory whenever a change touches an API surface. Shipped as
+  the always-applied `spec-reports-disciplines` rule.
+
+## [0.2.1] — 2026-08-11
+
+### Changed
+
+- `ai-specs/` is regenerable, so `init` and `update` gitignore it and rebuild
+  it locally. Agent directories (`.claude/`, `.cursor/`, …) are left to the
+  user. A repo that already committed `ai-specs/` gets the exact
+  `git rm -r --cached ai-specs` command to run.
+
+## [0.2.0] — 2026-08-04
+
+### Added
+
+- `draft` and `explore` refresh the index first, list the canonical
+  capabilities, and reuse their exact names.
+- `lawbook_validate` warns (without blocking) about near-duplicate capability
+  names and requirements dropped against the canonical spec.
+- `lawbook_sync` and `lawbook_archive` report each promoted spec as created or
+  updated.
+
+## [0.1.15] — 2026-08-04
+
+### Added
+
+- `speclaw version` (`--version`, `-v`) prints the installed version and, when
+  interactive, a clickable npm link if a newer one exists.
+- A one-line brand header on interactive commands, suppressed for
+  machine-read output and non-TTY runs, with an ASCII fallback for legacy
+  Windows consoles.
+
+## [0.1.14] — 2026-08-04
+
+### Changed
+
+- Verification must stay isolated (temp copy, in-memory or test store,
+  rollback). Writing to a real data store during verification is a stop
+  condition in the agent contracts, the build skill, and the testing standard.
+
+## [0.1.13] — 2026-08-04
+
+### Changed
+
+- Discipline reports follow a fixed seven-part structure (header, gates table,
+  tests added, scenario coverage, pre-existing failures, pending manual steps,
+  verdict).
+- `speclaw update` overwrites diverged managed files in place (recover from
+  git); `--backup` keeps a `<file>.bak`.
+
+## [0.1.12] — 2026-08-04
+
+### Changed
+
+- `speclaw update` refreshes managed files (`ai-specs/` skills, commands,
+  rules, agents) to the current version. Personalized files (`CLAUDE.md`,
+  `AGENTS.md`, `LAWS.md`, standards) are never edited; update prints an agent
+  prompt with the cumulative migrations to apply.
+
+## [0.1.11] — 2026-08-04
+
+### Added
+
+- Every change carries a `reports/` folder for per-discipline test results.
+- Archive is a hard gate: it refuses while a task is unchecked, `reports/` is
+  empty, or the delta specs are not synced.
+- `sync` and `archive` reconcile the delta specs against what was built.
+
+### Changed
+
+- Agent contracts make Compass mandatory first, before grep or reading files.
+
+## [0.1.10] — 2026-08-03
+
+### Changed
+
+- `design.md` and `tasks.md` are always created for a change, never optional.
+- README: spec-driven workflow section with the loop diagram and artifacts
+  table.
+
+## [0.1.9] — 2026-08-03
+
+### Added
+
+- ESLint + Prettier quality gate (`lint`, `format`, `check`) run in CI.
+
+## [0.1.8] — 2026-08-03
+
+### Changed
+
+- The per-agent MCP config (`.mcp.json`, `.cursor/mcp.json`, …) is added to
+  `.gitignore` on `init` and `agent add`.
+
+## [0.1.7] — 2026-08-03
+
+### Added
+
+- `init` warns before any prompt when a newer speclaw is available, and
+  recommends `speclaw update` first.
+
+## [0.1.6] — 2026-08-03
+
+### Fixed
+
+- An index database from an older version is detected as stale and rebuilt,
+  instead of failing with errors like `table edges has no column named
+  src_node_id`.
+
+## [0.1.5] — 2026-08-03
+
+### Added
+
+- `speclaw update`: upgrades the global package, then applies only what is new
+  to the project (`--check`, `--migrate-only`). Existing files are untouched.
+- A background update notifier, checked at most once a day; opt out with
+  `NO_UPDATE_NOTIFIER` or `SPECLAW_NO_UPDATE_NOTIFIER`.
+- `ai-specs/.speclaw.json` records the installed version and packs.
+
+### Changed
+
+- Docs lead with the global install (`npm i -g @esneiderbravo/speclaw`).
+
+## [0.1.4] — 2026-08-02
+
+### Fixed
+
+- `speclaw visualize` no longer throws `Cannot access 'dragging' before
+  initialization` in the browser.
+
+## [0.1.3] — 2026-08-02
+
+### Changed
+
+- `init` no longer prompts for a ticket prefix or team language; both are
+  inferred from the repo's commits, branches, and docs.
+
+## [0.1.2] — 2026-08-02
+
+### Added
+
+- `speclaw visualize` and the `compass_visualize` MCP tool: an offline,
+  interactive code graph in `.speclaw/graph.html`.
+
+### Changed
+
+- The `spec/` workspace is renamed `lawbook/` (directory, `lawbook_*` tools,
+  `/lawbook:` commands, `speclaw lawbook` CLI).
+- The handoff prompt prints as plain, copy-pasteable text.
+
+## [0.1.1] — 2026-08-02
+
+### Fixed
+
+- README images render on npm.
+
+### Changed
+
+- Published from CI with npm Trusted Publishing (OIDC).
+
+## [0.1.0] — 2026-08-02
+
+### Added
+
+- First release of speclaw, as a CLI and an MCP server, under
+  `@esneiderbravo/speclaw`.
+- Foundation: `LAWS.md`, granular standards, and `CLAUDE.md` / `AGENTS.md`.
+- Compass: a local tree-sitter code graph and vector store. No LLM, no
+  external CLIs.
+- Spec: a draft → build → sync → archive workflow engine.
+- Tools: opt-in skill and agent packs.
