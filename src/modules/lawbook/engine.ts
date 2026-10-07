@@ -78,7 +78,17 @@ coverage:
 # EARS requirement linter (strict by default for new projects).
 ears:
   severity: strict
-  vagueWords: [appropriately, properly, as needed, efficiently, user-friendly, robust, adecuadamente, correctamente]
+  vagueWords:
+    [
+      appropriately,
+      properly,
+      as needed,
+      efficiently,
+      user-friendly,
+      robust,
+      adecuadamente,
+      correctamente,
+    ]
   silentCodes: []
 `;
 
