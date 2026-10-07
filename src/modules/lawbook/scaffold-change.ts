@@ -12,6 +12,7 @@ import {
   type CeremonyTargets,
   type ChangeType,
 } from "./levels.js";
+import { formatJson } from "../../shared/json.js";
 
 // Covers: req~feature-draft~1
 
@@ -108,7 +109,7 @@ export function scaffoldChange(
   let record: CeremonyRecord | UnconfirmedRecord;
   if (level === undefined) {
     record = opts.changeType ? { ...stored, changeType: opts.changeType } : { ...stored };
-    fs.writeFileSync(path.join(changeDir, "change.json"), JSON.stringify(record, null, 2) + "\n");
+    fs.writeFileSync(path.join(changeDir, "change.json"), formatJson(record));
   } else {
     let confirmed = setCeremonyLevel(projectPath, name, {
       proposal: stored,

@@ -36,6 +36,7 @@ export {
   type HarnessVerdict,
 } from "./types.js";
 import type { CeremonyLevel, HarnessStage, HarnessState, HarnessVerdict } from "./types.js";
+import { formatJson } from "../../shared/json.js";
 
 /**
  * Result of a gated `advance`: the persisted state plus the Compass-first gate
@@ -114,7 +115,7 @@ export function readHarness(projectPath: string, change: string): HarnessState |
 
 function writeHarness(projectPath: string, change: string, state: HarnessState): void {
   const p = harnessPath(projectPath, change);
-  fs.writeFileSync(p, JSON.stringify(state, null, 2) + "\n");
+  fs.writeFileSync(p, formatJson(state));
 }
 
 function nextAfterExplore(level: CeremonyLevel): HarnessStage {
@@ -409,7 +410,7 @@ export function completeHarnessOnArchive(
       { at: nowIso(), from: "archiving", to: "done", op: "advance", note },
     ],
   };
-  fs.writeFileSync(p, JSON.stringify(next, null, 2) + "\n");
+  fs.writeFileSync(p, formatJson(next));
   return { completed: true, restore: () => fs.writeFileSync(p, original) };
 }
 

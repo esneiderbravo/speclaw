@@ -11,6 +11,7 @@ import {
   matchesAny,
   inferModule,
 } from "../compass/affected-config.js";
+import { formatJson } from "../../shared/json.js";
 
 /** Confirmed / proposed ceremony level. */
 export type CeremonyLevel = 0 | 1 | 2 | 3;
@@ -501,7 +502,7 @@ export function writeCeremonyRecord(
 ): void {
   const p = changeJsonPath(projectPath, change);
   fs.mkdirSync(path.dirname(p), { recursive: true });
-  fs.writeFileSync(p, JSON.stringify(record, null, 2) + "\n");
+  fs.writeFileSync(p, formatJson(record));
 }
 
 /**
