@@ -80,6 +80,13 @@ CREATE TABLE IF NOT EXISTS node_metrics (
   branches INTEGER NOT NULL
 );
 -- edges: a reference from one node to a named target, resolved lazily.
+-- src_node_id is never NULL for an edge indexed under schema 11: a reference
+-- outside any definition is owned by its file's file-owner node (kind 'file').
+-- is_member = 1 marks a member call on a foreign receiver (never bound by name);
+-- 2 a member call on an import binding, bound only once the import with the
+-- same spec in the same file resolves to a project file (a package otherwise).
+-- spec: JS/TS module specifier of an import edge, or of the import binding a
+-- call's receiver/callee comes from.
 CREATE TABLE IF NOT EXISTS edges (
   id INTEGER PRIMARY KEY,
   src_node_id INTEGER REFERENCES nodes(id) ON DELETE CASCADE,
@@ -87,9 +94,12 @@ CREATE TABLE IF NOT EXISTS edges (
   dst_name TEXT NOT NULL,
   dst_node_id INTEGER,
   kind TEXT NOT NULL,
-  line INTEGER NOT NULL
+  line INTEGER NOT NULL,
+  is_member INTEGER NOT NULL DEFAULT 0,
+  spec TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_edges_dst ON edges(dst_name);
+CREATE INDEX IF NOT EXISTS idx_edges_srcfile ON edges(src_file_id, kind);
 CREATE INDEX IF NOT EXISTS idx_edges_src ON edges(src_node_id);
 CREATE INDEX IF NOT EXISTS idx_edges_dstid ON edges(dst_node_id);
 -- embedding_cache: vectors keyed by embedder-input content hash (survives reindex).
@@ -265,7 +275,14 @@ export function probeFts5Support(): boolean {
 }
 
 /** Schema version stamped into the `meta` table on first creation. */
-export const SCHEMA_VERSION = "10";
+export const SCHEMA_VERSION = "11";
+
+/**
+ * `nodes.kind` of the synthetic per-file owner node. It owns the references that
+ * sit outside any definition (top-level imports, calls in callbacks) and is
+ * hidden from find, name lookup, PageRank, FTS, embeddings, and metrics.
+ */
+export const FILE_NODE_KIND = "file";
 
 /** The stamped schema version, or null if the db predates versioning / has no meta table. */
 function readSchemaVersion(db: DatabaseSync): string | null {
@@ -280,7 +297,7 @@ function readSchemaVersion(db: DatabaseSync): string | null {
 
 /**
  * Decide whether an existing database is from an incompatible schema and must be
- * rebuilt. Schema 8→9 and 9→10 are handled by migrators instead of a wipe.
+ * rebuilt. Schema 8→9, 9→10, and 10→11 are handled by migrators instead of a wipe.
  */
 function isStale(db: DatabaseSync): boolean {
   const hasEdges = db
@@ -288,12 +305,20 @@ function isStale(db: DatabaseSync): boolean {
     .get();
   if (!hasEdges) return false;
   const ver = readSchemaVersion(db);
-  if (ver === "8" || ver === "9") return false; // migrate in openDb
+  if (ver === "8" || ver === "9" || ver === "10") return false; // migrate in openDb
+  if (ver === "11" && !hasEdgeSpec(db)) return false; // pre-release 11: migrate in openDb
   if (ver !== SCHEMA_VERSION) return true;
   const edgeCols = (db.prepare("PRAGMA table_info(edges)").all() as { name: string }[]).map(
     (c) => c.name,
   );
-  if (!edgeCols.includes("src_node_id") || !edgeCols.includes("dst_node_id")) return true;
+  if (
+    !edgeCols.includes("src_node_id") ||
+    !edgeCols.includes("dst_node_id") ||
+    !edgeCols.includes("is_member") ||
+    !edgeCols.includes("spec")
+  ) {
+    return true;
+  }
   const fileCols = (db.prepare("PRAGMA table_info(files)").all() as { name: string }[]).map(
     (c) => c.name,
   );
@@ -479,15 +504,77 @@ export function migrate9to10(db: DatabaseSync): void {
   }
 }
 
+/** Whether `edges` already has the schema-11 `spec` column (or does not exist yet). */
+function hasEdgeSpec(db: DatabaseSync): boolean {
+  const cols = (db.prepare("PRAGMA table_info(edges)").all() as { name: string }[]).map(
+    (c) => c.name,
+  );
+  return cols.length === 0 || cols.includes("spec");
+}
+
+/** Reason recorded with the needs-reindex marker by the 10→11 migration. */
+export const SCHEMA_11_REINDEX_REASON =
+  "schema 11 adds file-owner nodes, member-call flags and full import text; reindex required";
+
+/**
+ * Migrate schema 10 → 11: add `edges.is_member` and `edges.spec` (each only
+ * when missing, so a pre-release schema-11 index lacking `spec` takes the same
+ * path), set the needs-reindex marker, and stamp `"11"`, all in one
+ * `BEGIN IMMEDIATE` transaction. The next index
+ * run re-extracts every file (edge ownership and import text change), while
+ * `embedding_cache` is untouched so unchanged symbols reuse their vectors.
+ *
+ * @param db - Open connection already at schema 10.
+ * @throws If any step fails; the transaction is rolled back and the stamp stays `"10"`.
+ */
+export function migrate10to11(db: DatabaseSync): void {
+  // Covers: req~schema-edge-membership~1
+  db.exec("BEGIN IMMEDIATE");
+  try {
+    const cols = (db.prepare("PRAGMA table_info(edges)").all() as { name: string }[]).map(
+      (c) => c.name,
+    );
+    // No edges table yet (a partial older index): the schema DDL creates it with the column.
+    if (cols.length > 0 && !cols.includes("is_member")) {
+      db.exec("ALTER TABLE edges ADD COLUMN is_member INTEGER NOT NULL DEFAULT 0");
+    }
+    if (cols.length > 0 && !cols.includes("spec")) {
+      db.exec("ALTER TABLE edges ADD COLUMN spec TEXT");
+    }
+    db.prepare(
+      "INSERT INTO meta(key, value) VALUES ('needs_reindex', '1') ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+    ).run();
+    db.prepare(
+      "INSERT INTO meta(key, value) VALUES ('reindex_reason', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+    ).run(SCHEMA_11_REINDEX_REASON);
+    db.prepare(
+      "INSERT INTO meta(key, value) VALUES ('schema_version', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+    ).run("11");
+    db.exec("COMMIT");
+  } catch (err) {
+    try {
+      db.exec("ROLLBACK");
+    } catch {
+      /* already rolled back */
+    }
+    throw new Error(
+      `schema 10→11 migration failed — delete .speclaw/index.db to rebuild: ${(err as Error).message}`,
+      { cause: err },
+    );
+  }
+}
+
 /**
  * Open (creating if needed) the index database at `<projectPath>/.speclaw/index.db`.
  *
  * Ensures the `.speclaw` directory exists, enables WAL journaling and foreign
- * keys, and applies the schema. Schema 8→9 and 9→10 migrate in place
- * (embeddings preserved). Other incompatible schemas are wiped and rebuilt.
+ * keys, and applies the schema. Schema 8→9, 9→10, and 10→11 migrate in place
+ * and chain forward (embeddings preserved). Other incompatible schemas are wiped
+ * and rebuilt.
  *
  * @param projectPath - Absolute path to the project root.
  * @returns An open connection to the index database.
+ * @throws If an in-place migration fails (the connection is closed first).
  */
 export function openDb(projectPath: string): DatabaseSync {
   const dir = path.join(projectPath, ".speclaw");
@@ -503,14 +590,15 @@ export function openDb(projectPath: string): DatabaseSync {
     }
   })();
 
-  if (ver === "8") {
-    migrate8to9(db, projectPath);
-    migrate9to10(db);
-    db.exec(SCHEMA);
-    ensureEmbeddingsView(db);
-    ensureFts(db);
-  } else if (ver === "9") {
-    migrate9to10(db);
+  if (ver === "8" || ver === "9" || ver === "10" || (ver === "11" && !hasEdgeSpec(db))) {
+    try {
+      if (ver === "8") migrate8to9(db, projectPath);
+      if (ver === "8" || ver === "9") migrate9to10(db);
+      migrate10to11(db);
+    } catch (err) {
+      db.close();
+      throw err;
+    }
     db.exec(SCHEMA);
     ensureEmbeddingsView(db);
     ensureFts(db);

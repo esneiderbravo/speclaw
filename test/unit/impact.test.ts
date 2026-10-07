@@ -142,3 +142,23 @@ export function b(): number { return a(); }
   const ids = (res.nodes ?? []).map((n) => n.nodeId);
   assert.equal(ids.length, new Set(ids).size);
 });
+
+// Covers: req~impact-id-first~1
+test("declaration-less importer appears in the reverse closure", async (t) => {
+  const root = tmpRepo(t);
+  write(root, "src/a.ts", `export function shared(): number { return 1; }\n`);
+  // No function, class, method, interface, type, or enum: only an import.
+  write(
+    root,
+    "src/b.ts",
+    `import { shared } from "./a.js";
+export const alias = shared;
+`,
+  );
+  await buildIndex(root);
+  const res = impact(root, { symbol: "shared", format: "flat" });
+  const fileNode = (res.nodes ?? []).find((n) => n.file === "src/b.ts");
+  assert.ok(fileNode, JSON.stringify(res.nodes));
+  assert.equal(fileNode.kind, "file");
+  assert.equal(fileNode.name, "src/b.ts");
+});

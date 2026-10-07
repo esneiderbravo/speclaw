@@ -214,7 +214,7 @@ export function registerCompass(server: McpServer, opts: RegisterOpts = {}): voi
 
   defineAliasTool(server, {
     name: "compass_affected_tests",
-    description: "Deprecated alias — use compass_diff_context or explore.",
+    description: "Deprecated alias — use compass_diff_context or explore; command may be null.",
     inputSchema: {
       projectPath: z.string(),
       files: z.array(z.string()).optional(),

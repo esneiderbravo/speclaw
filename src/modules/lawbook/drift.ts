@@ -4,7 +4,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import type { DatabaseSync } from "node:sqlite";
-import { openDb, indexExists, needsReindex } from "../compass/db.js";
+import { openDb, indexExists, needsReindex, FILE_NODE_KIND } from "../compass/db.js";
 import { NORMALIZER_VERSION } from "../compass/hash.js";
 import { logForPath } from "../../shared/git-history.js";
 import {
@@ -128,7 +128,7 @@ export function classifyAnchor(
       `SELECT n.id AS id, n.name AS name, n.kind AS kind, f.path AS path,
               n.norm_hash AS normHash, n.body_hash AS bodyHash
          FROM nodes n JOIN files f ON f.id = n.file_id
-        WHERE n.name = ?`,
+        WHERE n.name = ? AND n.kind <> '${FILE_NODE_KIND}'`,
     )
     .all(a.symbolName) as unknown as NodeRow[];
 

@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
-import { indexExists, openDb } from "../compass/db.js";
+import { indexExists, openDb, FILE_NODE_KIND } from "../compass/db.js";
 import { explore, impact, recall } from "../compass/query.js";
 import { affectedTests } from "../compass/affected.js";
 import { hotspots, coupling } from "../compass/hotspots.js";
@@ -87,6 +87,7 @@ function resolveAtLine(
         `SELECT s.name, s.kind, s.start_line AS startLine, s.signature
          FROM nodes s JOIN files f ON f.id = s.file_id
          WHERE f.path = ? AND s.start_line <= ? AND s.end_line >= ?
+           AND s.kind <> '${FILE_NODE_KIND}'
          ORDER BY (s.end_line - s.start_line) ASC
          LIMIT 1`,
       )

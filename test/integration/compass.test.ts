@@ -7,7 +7,10 @@ import { seedSampleRepo } from "../helpers/fixtures.js";
 import { buildIndex } from "../../src/modules/compass/indexer.js";
 import { search, explore, recall, impact, trace } from "../../src/modules/compass/query.js";
 import { graphData, visualize } from "../../src/modules/compass/visualize.js";
-import { indexExists, indexPath } from "../../src/modules/compass/db.js";
+import { generateCompactMap } from "../../src/modules/compass/map.js";
+import { indexExists, indexPath, openDb } from "../../src/modules/compass/db.js";
+import { affectedTests } from "../../src/modules/compass/affected.js";
+import { exploreRich, findSymbols } from "../../src/modules/compass/explore-rich.js";
 
 test("buildIndex parses a multi-language repo into nodes, edges, and embeddings", async (t) => {
   const root = tmpRepo(t);
@@ -87,13 +90,14 @@ test("explore returns exact source after multibyte text", async (t) => {
   assert.equal(bom.symbol!.source, bomTarget);
 });
 
-// Covers: req~explore-file-path~1
+// Covers: req~explore-file-path~2
 // Unique basename: `main.ts` occurs once in the seed fixture (only `src/main.ts`).
 test("explore resolves a repo-relative path or unique basename to a file symbol", async (t) => {
   const root = tmpRepo(t);
   seedSampleRepo(root);
   // Stem `scroll` is not the first function; stem `onlyclass` is a class after a function;
-  // stem `Marker` is an interface after another symbol. `blank.ts` defines nothing.
+  // stem `Marker` is an interface after another symbol. `blank.ts` defines nothing
+  // and references nothing.
   // `dup.ts` is shared by two directories, so the basename is ambiguous and the
   // suffix `src/dup.ts` is not unique.
   write(
@@ -159,8 +163,12 @@ test("explore resolves a repo-relative path or unique basename to a file symbol"
   assert.equal(asInterface.symbol!.name, "Marker");
   assert.equal(asInterface.symbol!.kind, "interface");
 
+  // A symbol-less file always has a file-owner node (so imports of it
+  // resolve), and path explore lands on it.
   const blank = explore(root, "src/blank.ts");
-  assert.equal(blank.found, false);
+  assert.equal(blank.found, true);
+  assert.equal(blank.symbol?.kind, "file");
+  assert.deepEqual(blank.callees, []);
   assert.match(blank.message ?? "", /no symbols/i);
   assert.doesNotMatch(blank.message ?? "", /0 similar/);
 
@@ -266,4 +274,203 @@ test("buildIndex is incremental — unchanged files are skipped, removed files p
   fs.rmSync(path.join(root, "src", "greet.js"));
   const third = await buildIndex(root);
   assert.equal(third.removed, 1);
+});
+
+/** Explore output read structurally (fields added by schema 11). */
+interface ExploreShape {
+  callees?: Array<{ name: string; file?: string; line: number }>;
+  unresolvedCallees?: { count: number; sample: string[] };
+}
+
+/** `src/a.ts` defines `alpha`; `test/a.test.ts` declares nothing and calls it in a callback. */
+function seedCallbackRepo(root: string): void {
+  write(root, "src/a.ts", "export function alpha(): number { return 1; }\n");
+  write(
+    root,
+    "test/a.test.ts",
+    `import { alpha } from "../src/a.js";
+import { test } from "node:test";
+
+test("alpha", () => {
+  const items: number[] = [];
+  items.push(alpha());
+});
+`,
+  );
+}
+
+// Covers: req~compass-mcp-surface~1
+test("callees list only resolved symbols and count the unresolved", async (t) => {
+  const root = tmpRepo(t);
+  write(
+    root,
+    "src/caller.ts",
+    `export function helper2(): number { return 2; }
+export function caller(items: number[]): void {
+  helper2();
+  items.push(1);
+  items.map((x) => x + 1);
+  console.log(items);
+  helper2();
+}
+`,
+  );
+  await buildIndex(root);
+
+  const res = explore(root, "caller") as unknown as ExploreShape;
+  const callees = res.callees ?? [];
+  assert.ok(callees.length > 0);
+  assert.ok(
+    callees.every((c) => typeof c.file === "string" && c.file.length > 0),
+    JSON.stringify(callees),
+  );
+  assert.deepEqual(
+    callees.map((c) => c.name),
+    ["helper2"],
+    "resolved callees are de-duplicated by node id",
+  );
+  assert.ok((res.unresolvedCallees?.count ?? 0) >= 3, JSON.stringify(res.unresolvedCallees));
+  assert.ok(res.unresolvedCallees?.sample.includes("push"));
+  assert.ok(res.unresolvedCallees?.sample.includes("log"));
+});
+
+// Covers: req~impact-id-first~1
+test("member calls on non-project receivers do not bind by name", async (t) => {
+  const root = tmpRepo(t);
+  write(root, "src/stack.ts", "export function push(x: number): number { return x; }\n");
+  write(
+    root,
+    "src/use.ts",
+    `import * as stack from "./stack.js";
+export function useIt(items: number[]): void {
+  items.push(1);
+}
+export function viaNamespace(): number {
+  return stack.push(2);
+}
+export class Box {
+  push(x: number): number { return x; }
+  run(): number { return this.push(3); }
+}
+`,
+  );
+  await buildIndex(root);
+
+  const db = openDb(root);
+  const rows = db
+    .prepare(
+      `SELECT owner.name AS owner, e.is_member AS isMember, e.dst_node_id AS dst
+       FROM edges e JOIN nodes owner ON owner.id = e.src_node_id
+       WHERE e.kind = 'call' AND e.dst_name = 'push' ORDER BY e.line`,
+    )
+    .all() as Array<{ owner: string; isMember: number; dst: number | null }>;
+  db.close();
+  const byOwner = new Map(rows.map((r) => [r.owner, r]));
+  assert.equal(byOwner.get("useIt")?.isMember, 1);
+  assert.equal(byOwner.get("useIt")?.dst, null);
+  assert.equal(byOwner.get("viaNamespace")?.isMember, 2, "import binding receiver");
+  assert.notEqual(byOwner.get("viaNamespace")?.dst, null, "its import resolved, so it binds");
+  assert.equal(byOwner.get("run")?.isMember, 0, "this receiver");
+
+  const names = (impact(root, { symbol: "push", format: "flat" }).nodes ?? []).map((n) => n.name);
+  assert.ok(!names.includes("useIt"), names.join(","));
+  const callers = explore(root, "push").callers ?? [];
+  assert.ok(!callers.some((c) => c.name === "useIt"), JSON.stringify(callers));
+});
+
+// Covers: req~impact-id-first~1
+test("a function called only from a test callback lists that caller", async (t) => {
+  const root = tmpRepo(t);
+  seedCallbackRepo(root);
+  await buildIndex(root);
+
+  const res = explore(root, "alpha");
+  assert.ok(
+    (res.callers ?? []).some((c) => c.kind === "file" && c.file === "test/a.test.ts"),
+    JSON.stringify(res.callers),
+  );
+  const db = openDb(root);
+  const orphan = db.prepare("SELECT COUNT(*) AS n FROM edges WHERE src_node_id IS NULL").get() as {
+    n: number;
+  };
+  db.close();
+  assert.equal(orphan.n, 0, "every indexed edge has an owner");
+  assert.ok(affectedTests(root, { symbols: ["alpha"] }).tests.length >= 1);
+});
+
+// Covers: req~compass-mcp-surface~1
+test("file-owner nodes are hidden from find and name explore", async (t) => {
+  const root = tmpRepo(t);
+  seedCallbackRepo(root);
+  seedSampleRepo(root);
+  // A pure re-export barrel and a symbol-less module also get a file-owner node.
+  write(root, "src/index.ts", `export * from "./main.js";\n`);
+  write(root, "src/consts.ts", "export const LIMIT = 3;\n");
+  const stats = await buildIndex(root);
+
+  const db = openDb(root);
+  const fileNodes = db
+    .prepare("SELECT id, name FROM nodes WHERE kind = 'file' ORDER BY name")
+    .all() as Array<{ id: number; name: string }>;
+  const sideRows = (table: string): number =>
+    Number(
+      (
+        db
+          .prepare(
+            `SELECT COUNT(*) AS n FROM ${table} WHERE node_id IN (SELECT id FROM nodes WHERE kind = 'file')`,
+          )
+          .get() as { n: number }
+      ).n,
+    );
+  const sides = {
+    pagerank: sideRows("pagerank"),
+    node_text: sideRows("node_text"),
+    node_metrics: sideRows("node_metrics"),
+    node_embeddings: sideRows("node_embeddings"),
+  };
+  const visible = Number(
+    (db.prepare("SELECT COUNT(*) AS n FROM nodes WHERE kind <> 'file'").get() as { n: number }).n,
+  );
+  db.close();
+
+  assert.deepEqual(
+    fileNodes.map((n) => n.name),
+    ["src/consts.ts", "src/index.ts", "src/main.ts", "test/a.test.ts"],
+    "files with orphan references, re-exports, or no symbols get a file-owner node",
+  );
+  assert.deepEqual(sides, { pagerank: 0, node_text: 0, node_metrics: 0, node_embeddings: 0 });
+  assert.equal(stats.totals.nodes, visible);
+
+  assert.ok(!search(root, "a.test").some((h) => h.kind === "file"));
+  const found = (await findSymbols(root, "a.test", "exact")) as { hits: Array<{ kind: string }> };
+  assert.ok(!found.hits.some((h) => h.kind === "file"));
+  // A name lookup never lands on the file node: `src/main.ts` resolves by path to gamma.
+  assert.equal(explore(root, "src/main.ts").symbol?.name, "gamma");
+  for (const q of ["src/index.ts", "index", "consts"]) {
+    assert.ok(!search(root, q).some((h) => h.kind === "file"), q);
+    const hits = (await findSymbols(root, q, "exact")) as { hits: Array<{ kind: string }> };
+    assert.ok(!hits.hits.some((h) => h.kind === "file"), q);
+  }
+  const graph = graphData(root);
+  assert.ok(!graph.nodes.some((n) => n.kind === "file"), JSON.stringify(graph.nodes));
+  assert.equal(graph.total, visible);
+  assert.match(generateCompactMap(root) ?? "", new RegExp(` ${visible} nodes`));
+});
+
+// Covers: req~explore-file-path~2
+test("path explore of a declaration-less file resolves to its file-owner node", async (t) => {
+  const root = tmpRepo(t);
+  seedCallbackRepo(root);
+  await buildIndex(root);
+
+  const res = explore(root, "test/a.test.ts");
+  assert.equal(res.found, true, res.message);
+  assert.equal(res.symbol?.kind, "file");
+  assert.equal(res.symbol?.file, "test/a.test.ts");
+  assert.ok(
+    (res.callees ?? []).some((c) => c.name === "alpha" && c.file === "src/a.ts"),
+    JSON.stringify(res.callees),
+  );
+  const rich = await exploreRich({ projectPath: root, node: "test/a.test.ts" });
+  assert.deepEqual(rich.affectedTests?.files, ["test/a.test.ts"]);
 });

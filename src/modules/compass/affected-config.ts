@@ -30,10 +30,15 @@ const DEFAULT_TARGETS: AffectedConfig["targets"] = {
     exclude: ["**/*.{test,spec}.{ts,tsx,js,jsx,mts,cts}", "test/**", "tests/**"],
   },
   test: {
+    // The `**/` forms cover workspace packages (`apps/web/src/**`), whose
+    // changes would otherwise be filtered out before any test is selected.
     include: [
       "src/**",
       "test/**",
       "tests/**",
+      "**/src/**",
+      "**/test/**",
+      "**/tests/**",
       "**/*.{test,spec}.{ts,tsx,js,jsx}",
       "**/conftest.py",
     ],

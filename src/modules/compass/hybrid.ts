@@ -3,7 +3,7 @@
  * personalized PageRank → structural rerank → token budget.
  */
 
-import { openDb, indexExists, ftsAvailable } from "./db.js";
+import { openDb, indexExists, ftsAvailable, FILE_NODE_KIND } from "./db.js";
 import { getEmbedder, fromBlob, cosine } from "./embedder.js";
 import { isGitRepo, worktreeChangedFiles } from "../../shared/git.js";
 import {
@@ -177,7 +177,7 @@ export async function hybridSearch(
         .prepare(
           `SELECT n.id
            FROM nodes n
-           WHERE n.name LIKE ?
+           WHERE n.name LIKE ? AND n.kind <> '${FILE_NODE_KIND}'
            ORDER BY (n.name = ?) DESC, length(n.name) ASC
            LIMIT 20`,
         )
@@ -198,9 +198,12 @@ export async function hybridSearch(
       number,
       { name: string; kind: string; file: string; line: number; signature: string | null }
     >();
+    // File-owner nodes have no metadata here, so they never become a hit, even
+    // when the ego-graph expansion reaches one through a call edge.
     const loadMeta = db.prepare(
       `SELECT n.id, n.name, n.kind, f.path AS file, n.start_line AS line, n.signature
-       FROM nodes n JOIN files f ON f.id = n.file_id WHERE n.id = ?`,
+       FROM nodes n JOIN files f ON f.id = n.file_id
+       WHERE n.id = ? AND n.kind <> '${FILE_NODE_KIND}'`,
     );
     for (const id of fused.keys()) {
       const row = loadMeta.get(id) as
@@ -320,7 +323,9 @@ export async function hybridSearch(
     const prNodeIds = [...subgraphNodes, ...[...fileIdsNeeded].map((fid) => fileNodeId(fid))];
 
     const defCount = new Map<string, number>();
-    const allNames = db.prepare("SELECT name FROM nodes").all() as Array<{ name: string }>;
+    const allNames = db
+      .prepare(`SELECT name FROM nodes WHERE kind <> '${FILE_NODE_KIND}'`)
+      .all() as Array<{ name: string }>;
     for (const r of allNames) defCount.set(r.name, (defCount.get(r.name) ?? 0) + 1);
     const refCount = new Map<string, number>();
     const mentioned = new Set(q.split(/[^A-Za-z0-9_$]+/).filter((t) => t.length > 1));

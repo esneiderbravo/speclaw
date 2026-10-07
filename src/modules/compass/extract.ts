@@ -34,10 +34,28 @@ export interface ExtractedSymbol {
 
 /** A call or import reference found within a source file. */
 export interface ExtractedRef {
+  /** Callee name for a call; for an import, the whole statement (whitespace collapsed, ≤1024 chars). */
   name: string;
   kind: "call" | "import";
   line: number;
-  ownerIndex: number | null; // enclosing symbol index, or null for file scope
+  /** Enclosing symbol index, or null for file scope (owned by the file-owner node). */
+  ownerIndex: number | null;
+  /**
+   * The edge's `is_member` value. `1` for a member call on a foreign receiver
+   * (`items.push()`, `a.b.f()`, `f().g()`): not `this`/`super` (Python
+   * `self`/`cls`) and not an import binding of the same file; never resolved by
+   * global name. `2` for a JS/TS member call whose receiver is an import binding
+   * (`svc.getUser()`): resolved only once that binding's import ({@link spec})
+   * resolves to a project file, so package receivers (`path.parse()`) stay
+   * foreign. `0` otherwise, and always for imports.
+   */
+  member: 0 | 1 | 2;
+  /**
+   * JS/TS module specifier: on an import, its own; on a call whose receiver
+   * (member call) or callee (bare call) is an import binding, that binding's.
+   * Null otherwise and for Python.
+   */
+  spec: string | null;
 }
 
 /**
@@ -64,6 +82,13 @@ export interface Extraction {
   symbols: ExtractedSymbol[];
   refs: ExtractedRef[];
   coverage: ExtractedCoverage[];
+  /**
+   * JS/TS module specifiers this file re-exports (`export * from "./x"`,
+   * `export { a } from "./x"`). A re-export binds no local name and is not an
+   * import reference; the indexer only uses it to give the file a file-owner
+   * node, so an import of a pure barrel resolves to the barrel.
+   */
+  reexports: string[];
 }
 
 const COMMENT_TYPES = new Set(["comment", "line_comment", "block_comment"]);
@@ -100,6 +125,114 @@ function calleeName(node: Node, lang: LangConfig): string | null {
   }
   if (fn.type === "identifier") return fn.text;
   return fn.text.split(/[.\s(]/)[0] || null;
+}
+
+/** Python receivers that mean "this class/instance". */
+const PY_SELF = new Set(["self", "cls"]);
+
+/**
+ * The receiver of a member call (`recv.f()`), or null for a plain call.
+ * `kind` is `self` for `this`/`super`/`self`/`cls`, `ident` for a bare
+ * identifier (classified later against the file's import bindings), and
+ * `other` for any chain, subscript, or call result.
+ */
+function callReceiver(
+  node: Node,
+  lang: LangConfig,
+): { kind: "self" | "ident" | "other"; text: string } | null {
+  const fn = node.childForFieldName(lang.callField);
+  if (!fn) return null;
+  if (fn.type === "identifier" || fn.type === "super") return null;
+  if (fn.type !== "member_expression" && fn.type !== "attribute") {
+    return { kind: "other", text: fn.text };
+  }
+  const obj = fn.childForFieldName("object");
+  if (!obj) return { kind: "other", text: fn.text };
+  if (obj.type === "this" || obj.type === "super") return { kind: "self", text: obj.text };
+  if (obj.type === "identifier") {
+    // Python's `self`/`cls` are conventions, not keywords; JS `self` is a global.
+    if (lang.id === "python" && PY_SELF.has(obj.text)) return { kind: "self", text: obj.text };
+    return { kind: "ident", text: obj.text };
+  }
+  return { kind: "other", text: obj.text };
+}
+
+/** Longest import text stored on an edge (`dst_name`). */
+export const IMPORT_TEXT_CAP = 1024;
+
+/**
+ * Module specifier of a raw import statement (`from "x"`, `import "x"`,
+ * `require("x")`, `import("x")`), or null when the text has none.
+ *
+ * @param text - Import statement text, whitespace collapsed.
+ */
+export function importSpecifier(text: string): string | null {
+  const m =
+    text.match(/\bfrom\s+['"]([^'"]+)['"]/) ??
+    text.match(/^import\s+['"]([^'"]+)['"]/) ??
+    text.match(/\brequire\s*\(\s*['"]([^'"]+)['"]/) ??
+    text.match(/\bimport\s*\(\s*['"]([^'"]+)['"]/);
+  return m ? m[1]! : null;
+}
+
+/**
+ * Import text as stored on its edge: unchanged up to {@link IMPORT_TEXT_CAP}
+ * characters, else the head of the statement, ` … `, and its trailing `from`
+ * clause, so the specifier at the end survives the cap. Bindings and the
+ * specifier are read from the full text before capping; this only bounds what
+ * is stored.
+ *
+ * @param text - Import statement text, whitespace collapsed.
+ */
+export function capImportText(text: string): string {
+  if (text.length <= IMPORT_TEXT_CAP) return text;
+  const tail =
+    text.match(/\s(from\s+['"][^'"]+['"].*)$/)?.[1] ??
+    text.match(/((?:require|import)\s*\(\s*['"][^'"]+['"].*)$/)?.[1];
+  if (!tail || tail.length > IMPORT_TEXT_CAP / 2) return text.slice(0, IMPORT_TEXT_CAP);
+  return `${text.slice(0, IMPORT_TEXT_CAP - tail.length - 3)} … ${tail}`;
+}
+
+/**
+ * Local names an import statement binds: default, namespace (`* as ns`), and
+ * named (`{ a, b as c }` → `a`, `c`) for JS/TS; `import a.b` → `a`,
+ * `import x as y` → `y`, `from m import a, b as c` → `a`, `c` for Python.
+ *
+ * @param text - Import statement text, whitespace collapsed.
+ * @param langId - Language id of the file.
+ */
+export function importBindings(text: string, langId: string): string[] {
+  const out: string[] = [];
+  const ident = /^[A-Za-z_$][\w$]*$/;
+  const localOf = (part: string): string | null => {
+    const bits = part.trim().split(/\s+as\s+/);
+    const name = (bits[1] ?? bits[0] ?? "").trim().replace(/^type\s+/, "");
+    return ident.test(name) ? name : null;
+  };
+  if (langId === "python") {
+    const from = text.match(/^from\s+\S+\s+import\s+(.+)$/);
+    const list = from ? from[1]! : (text.match(/^import\s+(.+)$/)?.[1] ?? "");
+    for (const raw of list.replace(/[()]/g, "").split(",")) {
+      const bits = raw.trim().split(/\s+as\s+/);
+      const name = bits[1] ?? (from ? bits[0] : bits[0]?.split(".")[0]);
+      if (name && ident.test(name.trim())) out.push(name.trim());
+    }
+    return out;
+  }
+  const clause = text.match(/^import\s+(?:type\s+)?(.+?)\s+from\s/)?.[1];
+  if (!clause) return out;
+  const ns = clause.match(/\*\s+as\s+([A-Za-z_$][\w$]*)/);
+  if (ns) out.push(ns[1]!);
+  const brace = clause.match(/\{([^}]*)\}/);
+  if (brace) {
+    for (const part of brace[1]!.split(",")) {
+      const name = localOf(part);
+      if (name) out.push(name);
+    }
+  }
+  const def = clause.match(/^([A-Za-z_$][\w$]*)\s*(?:,|$)/);
+  if (def) out.push(def[1]!);
+  return out;
 }
 
 /** First line of the node's text, trimmed — a lightweight signature. */
@@ -311,6 +444,17 @@ export async function extract(source: string, lang: LangConfig): Promise<Extract
   const symbols: ExtractedSymbol[] = [];
   const refs: ExtractedRef[] = [];
   const rawCoverage: Omit<ExtractedCoverage, "ownerIndex">[] = [];
+  // Identifier receivers and bare callees are classified after the walk, once
+  // every import binding of the file is known (imports may follow their first
+  // use). Whether a binding is a package is not decided here: that needs the
+  // project's alias/baseUrl config, so resolveEdges decides it from whether the
+  // binding's import (matched by `spec`) resolved to a project file.
+  const identReceivers: Array<{ ref: ExtractedRef; receiver: string }> = [];
+  const bareCalls: ExtractedRef[] = [];
+  const bindings = new Set<string>();
+  // JS/TS import binding → its import's module specifier.
+  const bindingSpecs = new Map<string, string>();
+  const reexports: string[] = [];
 
   const walk = (node: Node, ownerIndex: number | null): void => {
     let nextOwner = ownerIndex;
@@ -341,16 +485,44 @@ export async function extract(source: string, lang: LangConfig): Promise<Extract
       }
     } else if (node.type === lang.callNode) {
       const name = calleeName(node, lang);
-      if (name) refs.push({ name, kind: "call", line: node.startPosition.row + 1, ownerIndex });
+      if (name) {
+        const receiver = callReceiver(node, lang);
+        const ref: ExtractedRef = {
+          name,
+          kind: "call",
+          line: node.startPosition.row + 1,
+          ownerIndex,
+          member: receiver !== null && receiver.kind === "other" ? 1 : 0,
+          spec: null,
+        };
+        if (receiver?.kind === "ident") identReceivers.push({ ref, receiver: receiver.text });
+        else if (receiver === null) bareCalls.push(ref);
+        refs.push(ref);
+      }
     } else if (importSet.has(node.type)) {
+      // Covers: req~import-resolution~1
+      // The whole statement, so a specifier on a later line is still parseable.
+      // Bindings and the specifier come from the full text; only storage is capped.
+      const text = node.text.replace(/\s+/g, " ").trim();
+      const bound = importBindings(text, lang.id);
+      const spec = lang.id === "python" ? null : importSpecifier(text);
+      for (const b of bound) {
+        bindings.add(b);
+        if (spec !== null) bindingSpecs.set(b, spec);
+      }
       refs.push({
-        name: node.text.split("\n")[0]!.trim().slice(0, 200),
+        name: capImportText(text),
         kind: "import",
         line: node.startPosition.row + 1,
         ownerIndex,
+        member: 0,
+        spec,
       });
     } else if (COMMENT_TYPES.has(node.type)) {
       rawCoverage.push(...parseCoverageComment(node, ownerIndex));
+    } else if (node.type === "export_statement" && lang.id !== "python") {
+      const source = node.childForFieldName("source");
+      if (source && source.text.length >= 2) reexports.push(source.text.slice(1, -1));
     }
 
     for (let i = 0; i < node.childCount; i++) {
@@ -361,5 +533,11 @@ export async function extract(source: string, lang: LangConfig): Promise<Extract
 
   walk(tree.rootNode, null);
   tree.delete();
-  return { symbols, refs, coverage: attachCoverage(rawCoverage, symbols) };
+  for (const { ref, receiver } of identReceivers) {
+    const spec = bindingSpecs.get(receiver) ?? null;
+    ref.member = !bindings.has(receiver) ? 1 : spec !== null ? 2 : 0;
+    ref.spec = spec;
+  }
+  for (const ref of bareCalls) ref.spec = bindingSpecs.get(ref.name) ?? null;
+  return { symbols, refs, coverage: attachCoverage(rawCoverage, symbols), reexports };
 }

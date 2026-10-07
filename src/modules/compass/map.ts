@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
-import { openDb } from "./db.js";
+import { openDb, FILE_NODE_KIND } from "./db.js";
 import { estimateTokens } from "../../shared/tokens.js";
 import { loadDeclaredBudget } from "../../shared/exposure.js";
 
@@ -21,7 +21,11 @@ export function generateCompactMap(projectPath: string): string | null {
   const db = openDb(projectPath);
   try {
     const fileCount = (db.prepare("SELECT COUNT(*) AS c FROM files").get() as { c: number }).c;
-    const nodeCount = (db.prepare("SELECT COUNT(*) AS c FROM nodes").get() as { c: number }).c;
+    const nodeCount = (
+      db.prepare(`SELECT COUNT(*) AS c FROM nodes WHERE kind <> '${FILE_NODE_KIND}'`).get() as {
+        c: number;
+      }
+    ).c;
     if (fileCount === 0) return null;
 
     const hubs = db
