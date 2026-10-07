@@ -5,6 +5,24 @@ All notable changes to this project are documented here. Speclaw follows
 
 ## [Unreleased]
 
+## [2.0.16] — 2026-10-07
+
+### Fixed
+
+- A default `speclaw init` (only `.agents/`) now registers the `speclaw` MCP
+  server in `.mcp.json` (gitignored). Before, the generic agent had no MCP
+  entry, so a freshly initialized repo had no Compass or lawbook tools and the
+  agent contract (Compass first) could not be followed.
+- `speclaw agent add <id>` and the `configure-agent` setup action now install
+  the agent's hooks too (Claude Code: `SessionStart`, `PostToolUse`,
+  `Stop`), recording the settings baseline so a later `update` treats it as
+  speclaw's own. Before, adding Claude Code after init left it without the
+  session-start reindex, the edit reindex, and the `ship-on-stop` hook, so
+  finished work was never recorded in the lawbook.
+- The `lawbook/config.yaml` written by init no longer fails a host repo's
+  `prettier --check .`: the EARS `vagueWords` list is emitted in the wrapped
+  form Prettier produces, and still loads the same words.
+
 ## [2.0.15] — 2026-10-07
 
 ### Fixed
