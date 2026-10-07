@@ -250,7 +250,11 @@ hooks into that agent's settings **by identity** — it never touches hooks you
 added yourself. The same merge adds one `SessionStart` command hook that
 silently refreshes an existing Compass index when a session starts
 (`speclaw session-start`; it skips when no index exists, never downloads or
-contacts the registry, and always exits 0). The compiled law manifest lives in `.speclaw/laws-manifest.json`
+contacts the registry, and always exits 0), and one separate `PostToolUse`
+command hook for `Write|Edit|MultiEdit|NotebookEdit` that hands each edited
+file to `speclaw reindex-file`, which re-indexes it in a detached background
+process (silent, always exit 0; PageRank and the compact map catch up on the
+next full run). The compiled law manifest lives in `.speclaw/laws-manifest.json`
 (gitignored) and is **adapted to the target tree** on `init`/`update` — speclaw's
 own architecture laws are seeded only when those paths exist, and the cycle law
 follows `apps/*/src`, `packages/*/src`, or `src/` rather than copying

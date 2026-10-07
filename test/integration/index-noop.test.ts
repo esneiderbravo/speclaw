@@ -4,7 +4,7 @@ import { rmSync, statSync } from "node:fs";
 import path from "node:path";
 import { tmpRepo, write, read, has } from "../helpers/env.js";
 import { seedSampleRepo, SAMPLE_UTIL_TS } from "../helpers/fixtures.js";
-import { buildIndex } from "../../src/modules/compass/indexer.js";
+import { buildIndex, indexFiles } from "../../src/modules/compass/indexer.js";
 import { openDb } from "../../src/modules/compass/db.js";
 import { MAP_START, MAP_END } from "../../src/modules/compass/map.js";
 
@@ -134,6 +134,41 @@ test("a changed file still runs the full pass and rewrites the map", async (t) =
   assert.ok(writes.includes("pagerank:INSERT"), writes.join(","));
   assert.ok(writes.includes("dir_hashes:INSERT"), writes.join(","));
   assert.ok(statSync(mapPath(root)).mtimeMs > mtimeBefore, "the map is written");
+});
+
+// Covers: req~index-noop-fast-path~1
+test("a pending per-file reindex forces the full pass, then the fast path returns", async (t) => {
+  const root = await indexedProject(t);
+  write(
+    root,
+    "src/util.ts",
+    SAMPLE_UTIL_TS + "\nexport function added(): number {\n  return 2;\n}\n",
+  );
+  await indexFiles(root, ["src/util.ts"]);
+  const marker = (): string | undefined => {
+    const db = openDb(root);
+    const row = db.prepare("SELECT value FROM meta WHERE key = 'post_pending'").get() as
+      { value: string } | undefined;
+    db.close();
+    return row?.value;
+  };
+  assert.equal(marker(), "1");
+  const mtimeBefore = statSync(mapPath(root)).mtimeMs;
+  watchWrites(root);
+  await sleep(20);
+
+  const stats = await buildIndex(root);
+
+  // the per-file run already stored the new hashes: only the marker forces the pass
+  assert.equal(stats.files, 0);
+  const writes = loggedWrites(root);
+  assert.ok(writes.includes("pagerank:INSERT"), writes.join(","));
+  assert.ok(statSync(mapPath(root)).mtimeMs > mtimeBefore, "the map is written");
+  assert.equal(marker(), undefined);
+
+  const again = await buildIndex(root);
+  assert.equal(again.rootUnchanged, true);
+  assert.deepEqual(loggedWrites(root), []);
 });
 
 test("a removed file is not a no-op", async (t) => {

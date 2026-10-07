@@ -103,12 +103,44 @@ const LEGACY_SESSION_START_MARKER = "speclaw index --session-start";
  * Output is discarded because `SessionStart` stdout enters the agent's context,
  * and `|| true` keeps the exit code 0 in every case.
  */
-export const SESSION_START_COMMAND =
-  'cd "${CLAUDE_PROJECT_DIR:-.}" 2>/dev/null && [ -f .speclaw/index.db ] && { ' +
-  "if [ -x node_modules/.bin/speclaw ]; then node_modules/.bin/speclaw session-start; " +
-  "elif command -v speclaw >/dev/null 2>&1; then speclaw session-start; " +
-  "else npm_config_update_notifier=false npm_config_offline=true npx --no-install @esneiderbravo/speclaw session-start; fi; " +
-  "} >/dev/null 2>&1 || true";
+export const SESSION_START_COMMAND = speclawCommand("session-start");
+
+/**
+ * Substring every edit-reindex command contains, in each of its resolution
+ * branches. It is the merge identity of the `PostToolUse` reindex hook.
+ */
+export const REINDEX_FILE_MARKER = "speclaw reindex-file";
+
+/**
+ * The POSIX `sh` command the edit `PostToolUse` hook runs: the session-start
+ * command with `reindex-file` as the subcommand, so it keeps the same index
+ * guard, resolution order, offline npx, discarded output, and exit 0. The hook
+ * payload on stdin passes through `sh` to speclaw unchanged. A speclaw older
+ * than the command rejects it as unknown (exit 1) before touching the index.
+ */
+export const REINDEX_FILE_COMMAND = speclawCommand("reindex-file");
+
+/** Seconds the edit hook may run; the command returns once it has spawned the work. */
+const REINDEX_TIMEOUT_SECONDS = 10;
+
+/**
+ * Build a guarded, fail-safe speclaw hook command for one top-level subcommand
+ * (see {@link SESSION_START_COMMAND} for the shape). The only difference
+ * between the hook commands is the subcommand.
+ *
+ * @param sub - The top-level speclaw command the hook runs.
+ * @returns The POSIX `sh` command string.
+ */
+export function speclawCommand(sub: "session-start" | "reindex-file"): string {
+  // Covers: req~edit-reindex-hook~1
+  return (
+    'cd "${CLAUDE_PROJECT_DIR:-.}" 2>/dev/null && [ -f .speclaw/index.db ] && { ' +
+    `if [ -x node_modules/.bin/speclaw ]; then node_modules/.bin/speclaw ${sub}; ` +
+    `elif command -v speclaw >/dev/null 2>&1; then speclaw ${sub}; ` +
+    `else npm_config_update_notifier=false npm_config_offline=true npx --no-install @esneiderbravo/speclaw ${sub}; fi; ` +
+    "} >/dev/null 2>&1 || true"
+  );
+}
 
 /** `SessionStart` matcher covering every session source Claude Code reports. */
 const SESSION_START_MATCHER = "startup|resume|clear|compact";
@@ -156,8 +188,8 @@ export const NUDGE_MATCHER = "Read|Grep|Glob";
 /**
  * True when a hook object is one speclaw owns (safe to replace on merge): an
  * `mcp_tool` hook on the `speclaw` server, or a `command` hook whose command
- * contains {@link SESSION_START_MARKER} (or the pre-release
- * `index --session-start` marker). A user `command` hook without the
+ * contains {@link SESSION_START_MARKER}, {@link REINDEX_FILE_MARKER}, or the
+ * pre-release `index --session-start` marker. A user `command` hook without a
  * marker is never speclaw's.
  *
  * @param h - A hook object read from an agent's settings (any shape).
@@ -169,15 +201,21 @@ export function isSpeclawHook(h: unknown): boolean {
   return (
     o?.type === "command" &&
     typeof o?.command === "string" &&
-    (o.command.includes(SESSION_START_MARKER) || o.command.includes(LEGACY_SESSION_START_MARKER))
+    (o.command.includes(SESSION_START_MARKER) ||
+      o.command.includes(REINDEX_FILE_MARKER) ||
+      o.command.includes(LEGACY_SESSION_START_MARKER))
   );
 }
 
 /**
  * speclaw's compiled groups keyed by {@link HookEvent}: the `speclaw_check`
- * events carry `mcp_tool` hooks, `SessionStart` carries the `command` hook.
+ * events carry `mcp_tool` hooks, `SessionStart` carries the `command` hook, and
+ * `PostToolUse` carries both (the edit reindex group is a `command` hook).
  */
-export type CompiledByEvent = { [E in CheckEvent]?: HookGroup<SpeclawHook>[] } & {
+export type CompiledByEvent = {
+  [E in Exclude<CheckEvent, "PostToolUse">]?: HookGroup<SpeclawHook>[];
+} & {
+  PostToolUse?: HookGroup<SpeclawHook | SpeclawCommandHook>[];
   SessionStart?: HookGroup<SpeclawCommandHook>[];
 };
 
@@ -194,8 +232,10 @@ export interface CompiledHooks {
  * `feedback`, `Stop` for `gate`, and `InstructionsLoaded` whenever any law exists
  * (the context-coverage audit). Two groups are always emitted, even with no
  * laws: one `PostToolUse` group matching `Read|Grep|Glob` for the Compass-first
- * nudge, and one `SessionStart` group whose `command` hook refreshes the index
- * silently when a session starts. A law whose scope contains a malformed glob is
+ * nudge, a separate `PostToolUse` group matching the mutating tools whose
+ * `command` hook re-indexes the edited file in the background, and one
+ * `SessionStart` group whose `command` hook refreshes the index silently when a
+ * session starts. A law whose scope contains a malformed glob is
  * excluded and reported, so a bad pattern fails loudly at generation rather than
  * silently matching nothing at runtime.
  *
@@ -221,6 +261,13 @@ export function compileHooks(manifest: LawManifest): CompiledHooks {
   byEvent.PostToolUse = [{ matcher: NUDGE_MATCHER, hooks: [{ ...SPECLAW_HOOK }] }];
   if (hasFeedback)
     byEvent.PostToolUse.unshift({ matcher: MUTATION_MATCHER, hooks: [{ ...SPECLAW_HOOK }] });
+  // Covers: req~edit-reindex-hook~1
+  // Its own group, never folded into the feedback `mcp_tool` group, and only
+  // the keys the agent's hook schema defines (no `async`).
+  byEvent.PostToolUse.push({
+    matcher: MUTATION_MATCHER,
+    hooks: [{ type: "command", command: REINDEX_FILE_COMMAND, timeout: REINDEX_TIMEOUT_SECONDS }],
+  });
   if (hasGate) byEvent.Stop = [{ hooks: [{ ...SPECLAW_HOOK }] }];
   if (valid.length > 0) byEvent.InstructionsLoaded = [{ hooks: [{ ...SPECLAW_HOOK }] }];
   // Covers: req~session-start-hook~1

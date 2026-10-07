@@ -12,6 +12,9 @@ import {
   isSpeclawHook,
   SESSION_START_COMMAND,
   SESSION_START_MARKER,
+  REINDEX_FILE_COMMAND,
+  REINDEX_FILE_MARKER,
+  speclawCommand,
   type HookGroup,
 } from "../../src/modules/foundation/hooks.js";
 import type { Law, LawManifest } from "../../src/modules/foundation/laws.js";
@@ -203,11 +206,13 @@ test("compileHooks never puts the nudge matcher on PreToolUse", () => {
     ]),
   );
   assert.ok(byEvent.PreToolUse!.every((g) => !/Read|Grep|Glob/.test(g.matcher ?? "")));
-  // feedback laws keep their mutation group alongside the nudge group
+  // feedback laws keep their mutation group alongside the nudge group; the
+  // edit reindex group is a separate, last group
   assert.deepEqual(
     byEvent.PostToolUse!.map((g) => g.matcher),
-    ["Write|Edit|MultiEdit|NotebookEdit", "Read|Grep|Glob"],
+    ["Write|Edit|MultiEdit|NotebookEdit", "Read|Grep|Glob", "Write|Edit|MultiEdit|NotebookEdit"],
   );
+  assert.equal(byEvent.PostToolUse![0]!.hooks[0]!.type, "mcp_tool");
 });
 
 test("installHooks with zero laws installs the nudge, keeps foreign entries, and reruns without drift", (t) => {
@@ -500,3 +505,228 @@ test(
     assert.ok(!existsSync(path.join(root, "does-not-exist")));
   },
 );
+
+const PAYLOAD = JSON.stringify({
+  hook_event_name: "PostToolUse",
+  tool_name: "Edit",
+  tool_input: { file_path: "/tmp/x/src/a.ts", old_string: "a", new_string: "b" },
+  cwd: "/tmp/x",
+});
+
+/** Run the edit reindex hook command through `sh -c` with `PAYLOAD` on stdin. */
+const runReindexCommand = (cwd: string, env: Record<string, string> = {}) =>
+  spawnSync("/bin/sh", ["-c", REINDEX_FILE_COMMAND], {
+    cwd,
+    input: PAYLOAD,
+    encoding: "utf8",
+    env: {
+      ...process.env,
+      npm_config_offline: "",
+      npm_config_update_notifier: "",
+      CLAUDE_PROJECT_DIR: cwd,
+      ...env,
+    },
+  });
+
+/** The single speclaw reindex group of a compiled or merged `PostToolUse` list. */
+const reindexGroups = (groups: HookGroup[] | undefined): HookGroup[] =>
+  (groups ?? []).filter((g) =>
+    g.hooks.some((h) =>
+      String((h as { command?: unknown }).command ?? "").includes(REINDEX_FILE_MARKER),
+    ),
+  );
+
+// Covers: req~edit-reindex-hook~1
+test("SESSION_START_COMMAND is byte-identical to the 2.0.7 string", () => {
+  assert.equal(
+    SESSION_START_COMMAND,
+    'cd "${CLAUDE_PROJECT_DIR:-.}" 2>/dev/null && [ -f .speclaw/index.db ] && { ' +
+      "if [ -x node_modules/.bin/speclaw ]; then node_modules/.bin/speclaw session-start; " +
+      "elif command -v speclaw >/dev/null 2>&1; then speclaw session-start; " +
+      "else npm_config_update_notifier=false npm_config_offline=true npx --no-install @esneiderbravo/speclaw session-start; fi; " +
+      "} >/dev/null 2>&1 || true",
+  );
+  // the reindex command differs only in the subcommand
+  assert.equal(REINDEX_FILE_COMMAND, speclawCommand("reindex-file"));
+  assert.equal(
+    SESSION_START_COMMAND.replaceAll("session-start", "reindex-file"),
+    REINDEX_FILE_COMMAND,
+  );
+});
+
+// Covers: req~edit-reindex-hook~1
+test("compileHooks always emits a separate edit reindex command group, even with zero laws", () => {
+  const { byEvent } = compileHooks(manifest([]));
+  const groups = reindexGroups(byEvent.PostToolUse as HookGroup[]);
+  assert.equal(groups.length, 1);
+  assert.equal(groups[0]!.matcher, "Write|Edit|MultiEdit|NotebookEdit");
+  assert.equal(groups[0]!.hooks.length, 1);
+  const hook = groups[0]!.hooks[0] as { type: string; command: string; timeout: number };
+  // only the keys Claude Code's command hook schema defines: no `async`
+  assert.deepEqual(Object.keys(hook).sort(), ["command", "timeout", "type"]);
+  assert.equal(hook.type, "command");
+  assert.equal(hook.timeout, 10);
+  assert.equal(hook.command, REINDEX_FILE_COMMAND);
+  assert.ok(
+    hook.command.includes("npm_config_offline=true npx --no-install @esneiderbravo/speclaw"),
+  );
+  // never an index or session-start subcommand an older speclaw would run
+  assert.ok(!hook.command.includes("speclaw index"));
+  assert.ok(!hook.command.includes("session-start"));
+  assert.equal(hook.command.split(REINDEX_FILE_MARKER).length - 1, 3);
+  assert.equal(isSpeclawHook(hook), true);
+});
+
+// Covers: req~edit-reindex-hook~1
+test("the reindex group never folds into the feedback mcp_tool group", () => {
+  const { byEvent } = compileHooks(manifest([lawOf({ id: "law~f~1", enforcement: "feedback" })]));
+  const post = byEvent.PostToolUse as HookGroup[];
+  const feedback = post.filter((g) =>
+    g.hooks.some((h) => (h as { type?: string }).type === "mcp_tool"),
+  );
+  assert.ok(feedback.length >= 1);
+  for (const g of feedback) {
+    assert.ok(g.hooks.every((h) => (h as { type?: string }).type === "mcp_tool"));
+  }
+  assert.equal(reindexGroups(post).length, 1);
+  assert.equal(reindexGroups(post)[0]!.hooks.length, 1);
+});
+
+// Covers: req~edit-reindex-hook~1
+test("mergeHooks keeps exactly one reindex group and preserves a user PostToolUse command", () => {
+  const { byEvent } = compileHooks(manifest([]));
+  const existing = {
+    PostToolUse: [
+      { matcher: "Write|Edit", hooks: [{ type: "command", command: "prettier --write" }] },
+      // a stale speclaw reindex entry with another shape is replaced, not duplicated
+      {
+        matcher: "Edit",
+        hooks: [{ type: "command", command: "speclaw reindex-file", timeout: 5 }],
+      },
+    ],
+  };
+  const once = mergeHooks(existing, byEvent);
+  const twice = mergeHooks(once as Record<string, unknown>, byEvent);
+  assert.deepEqual(twice, once);
+  const post = twice.PostToolUse as HookGroup[];
+  assert.equal(reindexGroups(post).length, 1);
+  assert.deepEqual(reindexGroups(post)[0]!.hooks[0], {
+    type: "command",
+    command: REINDEX_FILE_COMMAND,
+    timeout: 10,
+  });
+  assert.ok(
+    post.some(
+      (g) =>
+        g.matcher === "Write|Edit" &&
+        g.hooks.length === 1 &&
+        (g.hooks[0] as { command?: string }).command === "prettier --write",
+    ),
+  );
+  assert.equal(isSpeclawHook({ type: "command", command: "prettier --write" }), false);
+});
+
+// Covers: req~edit-reindex-hook~1
+test("installHooks writes the reindex group for Claude only and reruns without drift", (t) => {
+  const root = tmpRepo(t);
+  const record: Record<string, string> = {};
+  installHooks(root, ["claude", "cursor"], manifest([]), emptyReport(), { record });
+  const first = read(root, ".claude/settings.json");
+  const settings = JSON.parse(first) as { hooks: Record<string, HookGroup[]> };
+  assert.equal(reindexGroups(settings.hooks.PostToolUse).length, 1);
+  assert.ok(!has(root, ".cursor/settings.json"));
+  const report = emptyReport();
+  installHooks(root, ["claude"], manifest([]), report, { baselines: { ...record } });
+  assert.equal(read(root, ".claude/settings.json"), first);
+  assert.deepEqual(report.written, []);
+});
+
+// Covers: req~edit-reindex-hook~1
+test("the reindex command does nothing without an index", { skip: !posix }, (t) => {
+  const root = tmpRepo(t);
+  stub(root, "node_modules/.bin/speclaw", `echo "$@" > "${path.join(root, "called")}"`);
+  const res = runReindexCommand(root);
+  assert.equal(res.status, 0);
+  assert.equal(res.stdout, "");
+  assert.equal(res.stderr, "");
+  assert.ok(!existsSync(path.join(root, ".speclaw/index.db")));
+  assert.ok(!existsSync(path.join(root, "called")));
+});
+
+// Covers: req~edit-reindex-hook~1
+test("the local binary receives reindex-file and the hook payload bytes", { skip: !posix }, (t) => {
+  const root = tmpRepo(t);
+  write(root, ".speclaw/index.db", "");
+  const argv = path.join(root, "argv");
+  const stdin = path.join(root, "stdin");
+  stub(
+    root,
+    "node_modules/.bin/speclaw",
+    `echo "$@" > "${argv}"; cat > "${stdin}"; echo noisy; echo err >&2`,
+  );
+  const res = runReindexCommand(root);
+  assert.equal(res.status, 0);
+  assert.equal(res.stdout, "");
+  assert.equal(res.stderr, "");
+  assert.equal(readFileSync(argv, "utf8").trim(), "reindex-file");
+  assert.equal(readFileSync(stdin, "utf8"), PAYLOAD);
+});
+
+// Covers: req~edit-reindex-hook~1
+test("an older speclaw on PATH rejects reindex-file and touches nothing", { skip: !posix }, (t) => {
+  const root = tmpRepo(t);
+  write(root, ".speclaw/index.db", "");
+  const calls = path.join(root, "calls");
+  const indexed = path.join(root, "indexed");
+  stub(
+    root,
+    "bin/speclaw",
+    [
+      `echo "$@" >> "${calls}"`,
+      `if [ "$1" = index ] || [ "$1" = session-start ]; then touch "${indexed}"; exit 0; fi`,
+      'echo "Unknown command: $1" >&2; echo usage; exit 1',
+    ].join("\n"),
+  );
+  const before = readdirSync(path.join(root, ".speclaw")).sort();
+  const res = runReindexCommand(root, { PATH: `${path.join(root, "bin")}:${process.env.PATH}` });
+  assert.equal(res.status, 0);
+  assert.equal(res.stdout, "");
+  assert.equal(res.stderr, "");
+  assert.equal(readFileSync(calls, "utf8").trim(), "reindex-file");
+  assert.ok(!existsSync(indexed), "an older speclaw must never be asked to index");
+  assert.deepEqual(readdirSync(path.join(root, ".speclaw")).sort(), before);
+  assert.equal(readFileSync(path.join(root, ".speclaw/index.db"), "utf8"), "");
+});
+
+// Covers: req~edit-reindex-hook~1
+test("the reindex npx fallback runs offline and never installs", { skip: !posix }, (t) => {
+  const root = tmpRepo(t);
+  write(root, ".speclaw/index.db", "");
+  const argv = path.join(root, "npx-argv");
+  const env = path.join(root, "npx-env");
+  stub(
+    root,
+    "npxbin/npx",
+    `echo "$@" > "${argv}"; echo "$npm_config_offline $npm_config_update_notifier" > "${env}"`,
+  );
+  const res = runReindexCommand(root, { PATH: path.join(root, "npxbin") });
+  assert.equal(res.status, 0);
+  assert.equal(res.stdout, "");
+  assert.equal(res.stderr, "");
+  assert.equal(
+    readFileSync(argv, "utf8").trim(),
+    "--no-install @esneiderbravo/speclaw reindex-file",
+  );
+  assert.equal(readFileSync(env, "utf8").trim(), "true false");
+});
+
+// Covers: req~edit-reindex-hook~1
+test("a failing reindex never fails the edit", { skip: !posix }, (t) => {
+  const root = tmpRepo(t);
+  write(root, ".speclaw/index.db", "");
+  stub(root, "node_modules/.bin/speclaw", "cat >/dev/null; echo boom >&2; exit 1");
+  const res = runReindexCommand(root);
+  assert.equal(res.status, 0);
+  assert.equal(res.stdout, "");
+  assert.equal(res.stderr, "");
+});

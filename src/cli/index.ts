@@ -38,7 +38,8 @@ const HEADER_COMMANDS = new Set<string | undefined>([
  * forced-color signal counts as interactive so the header is exercisable in a
  * child process. `budget --json`, `doctor --json`, and `coverage` when emitting
  * TAP/JSON (or when stdout is not a TTY) are machine-consumed and suppress the
- * header. `session-start` is not header-eligible: it must print nothing.
+ * header. `session-start` and `reindex-file` are not header-eligible: they must print
+ * nothing.
  */
 function maybeHeader(cmd: string | undefined, flags: ReturnType<typeof parseFlags>): void {
   if (!process.stdout.isTTY && process.env.FORCE_COLOR !== "1") return;
@@ -100,6 +101,9 @@ async function dispatch(
       return (await import("./commands/index-build.js")).runWatch(flags);
     case "session-start":
       return (await import("./commands/session-start.js")).runSessionStart();
+    case "reindex-file":
+      // Raw argv: the shared flag parser would read `-- <path>` as a flag value.
+      return (await import("./commands/reindex-file.js")).runReindexFile(process.argv.slice(3));
     case "explore":
     case "search":
     case "recall":
@@ -160,8 +164,8 @@ async function main(): Promise<void> {
   const flags = parseFlags(rest);
   maybeHeader(cmd, flags);
   await dispatch(cmd, flags);
-  // The SessionStart hook's refresh must stay silent: no update notice either.
-  if (cmd === "session-start") return;
+  // The SessionStart and edit hooks must stay silent: no update notice either.
+  if (cmd === "session-start" || cmd === "reindex-file") return;
   await maybeNotifyUpdate(cmd);
 }
 
