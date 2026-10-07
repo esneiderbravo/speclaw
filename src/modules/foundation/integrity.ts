@@ -51,6 +51,13 @@ export interface IntegrityReport {
   findings: ScanFinding[];
   /** Findings shaped for {@link VerifyReport}. */
   verifyFindings: Finding[];
+  /**
+   * Why `speclaw.lock` exists but could not be read (merge-conflict markers, an
+   * unsupported `lockfileVersion`, or the wrong structure). Absent when the lock
+   * is readable or missing. When set, `ok` is false and the scan findings are
+   * still reported.
+   */
+  lockError?: string;
 }
 
 export interface VerifyIntegrityOpts {
@@ -75,23 +82,31 @@ export function verifyIntegrity(opts: VerifyIntegrityOpts): IntegrityReport {
   try {
     lock = readLockfile(projectPath);
   } catch (err) {
+    // An unreadable lock only blocks the digest/symlink comparison; the scan
+    // never needs the lock, so its findings must still be reported.
+    // Covers: req~injection-scan~1
+    const lockError = (err as Error).message;
+    const scanned = doScan ? scanAll(projectPath) : [];
     return {
       ok: false,
       lockPresent: fs.existsSync(lockfilePath(projectPath)),
       rootMatches: false,
-      guidance: (err as Error).message,
+      guidance: lockError,
       files: [],
       symlinks: [],
-      findings: [],
+      findings: scanned,
       verifyFindings: [
         {
           lawId: "integrity~lockfile~1",
           severity: "error",
           engine: "integrity",
           file: "speclaw.lock",
-          message: (err as Error).message,
+          message: lockError,
         },
+        ...scanned.filter((f) => f.severity === "error").map(scanToFinding),
+        ...scanned.filter((f) => f.severity === "warn").map(scanToFinding),
       ],
+      lockError,
     };
   }
 

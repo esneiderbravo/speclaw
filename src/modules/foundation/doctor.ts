@@ -637,7 +637,7 @@ function specsOrphansCheck(projectPath: string): DoctorCheck {
  */
 export const UNREADABLE_LOCK_REMEDY =
   "resolve the merge conflict in speclaw.lock or restore it from git " +
-  "(git checkout -- speclaw.lock); upgrade speclaw if the lockfileVersion is newer. " +
+  "(git checkout HEAD -- speclaw.lock); upgrade speclaw if the lockfileVersion is newer. " +
   "Last resort: delete it and run speclaw laws lock — this re-baselines every " +
   "pinned file and accepts any pending drift";
 

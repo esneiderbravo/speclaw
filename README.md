@@ -310,6 +310,10 @@ speclaw laws accept AGENTS.md   # interactive TTY only — never via MCP
 speclaw laws lock --force       # list drifted files, confirm, re-baseline — interactive TTY only
 ```
 
+`speclaw laws scan` (text or `--json`) exits 1 when `speclaw.lock` cannot be
+read or a finding has severity `error`. On an unreadable lock it names the lock
+error (`lockError` in the JSON) and still reports every injection finding.
+
 A lock refresh (`init`, `update`, `laws compile`, `laws lock`) never launders an
 edit: a strict file (`CLAUDE.md`, `AGENTS.md`, compiled rules) that drifted from
 the lock outside speclaw **keeps its locked digest**, and the command warns

@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { parseFlags } from "./lib/args.js";
+import { parseFlags, REPEATABLE_FLAGS } from "./lib/args.js";
 import { ui, header } from "./lib/ui.js";
 import { maybeNotifyUpdate } from "./lib/update-check.js";
 import { GLOBAL_HELP as HELP, helpFor, knownCommands, wantsHelp } from "./lib/help.js";
@@ -161,7 +161,7 @@ async function main(): Promise<void> {
     process.exitCode = 0;
     return;
   }
-  const flags = parseFlags(rest);
+  const flags = parseFlags(rest, REPEATABLE_FLAGS);
   maybeHeader(cmd, flags);
   await dispatch(cmd, flags);
   // The SessionStart and edit hooks must stay silent: no update notice either.

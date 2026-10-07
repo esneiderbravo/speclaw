@@ -89,13 +89,20 @@ export async function runLaws(flags: Flags): Promise<void> {
   }
 
   if (sub === "scan") {
+    // Text and --json share one exit rule: 1 on an unreadable lock or any
+    // error-severity finding, else 0.
+    // Covers: req~injection-scan~1, req~laws-integrity-cli~1
     const report = verifyIntegrity({ projectPath: process.cwd(), checks: "scan" });
+    const failed =
+      report.lockError !== undefined || report.findings.some((f) => f.severity === "error");
     if (flags.json) {
       console.log(JSON.stringify(report, null, 2));
+      if (failed) process.exit(1);
       return;
     }
     ui.heading("speclaw laws scan");
-    if (report.findings.length === 0) {
+    if (report.lockError !== undefined) ui.err(report.lockError);
+    if (report.findings.length === 0 && report.lockError === undefined) {
       ui.ok("No injection findings.");
       return;
     }
@@ -105,7 +112,7 @@ export async function runLaws(flags: Flags): Promise<void> {
       if (f.severity === "error") ui.err(msg);
       else ui.warn(msg);
     }
-    if (report.findings.some((f) => f.severity === "error")) process.exit(1);
+    if (failed) process.exit(1);
     return;
   }
 

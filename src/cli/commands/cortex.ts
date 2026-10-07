@@ -1,6 +1,6 @@
 import { handleHarness, readHarness, type HarnessOp } from "../../modules/cortex/harness.js";
 import { briefForStage } from "../../modules/cortex/brief.js";
-import { Flags, list } from "../lib/args.js";
+import { Flags, repeated } from "../lib/args.js";
 import { ui } from "../lib/ui.js";
 
 const OPS = ["status", "start", "advance", "rework", "brief"] as const;
@@ -44,7 +44,8 @@ export async function runCortex(flags: Flags): Promise<void> {
       change: changeName,
       harnessOp: op as HarnessOp,
       verdict: verdict ?? null,
-      openQuestions: list(flags.question),
+      // Covers: req~harness-state~1
+      openQuestions: repeated(flags.question),
       pauseForQuestions: Boolean(flags["pause-questions"]),
       note: typeof flags.note === "string" ? flags.note : undefined,
     });
