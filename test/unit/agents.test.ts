@@ -86,12 +86,18 @@ test("configureAgent merges into an existing MCP config without clobbering it", 
   assert.ok(mcp.mcpServers.speclaw);
 });
 
-test("configureAgent handles an agent without an MCP file (no .mcp.json written)", (t) => {
+test("configureAgent registers the speclaw MCP server for the generic agent too", (t) => {
   const root = tmpRepo(t);
   seedAiSpecs(root);
   configureAgent(root, "agents", emptyReport());
   assert.ok(has(root, ".agents/skills"));
-  assert.ok(!has(root, ".mcp.json"));
+  const mcp = JSON.parse(read(root, ".mcp.json"));
+  assert.deepEqual(mcp.mcpServers.speclaw, mcpEntry());
+  assert.match(read(root, ".gitignore"), /\.mcp\.json/);
+});
+
+test("every agent speclaw can configure declares an MCP file", () => {
+  for (const a of AGENTS) assert.ok(a.mcpFile, `${a.id} has no mcpFile`);
 });
 
 test("configureAgent throws on an unknown agent id", (t) => {

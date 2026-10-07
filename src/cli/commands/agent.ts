@@ -1,10 +1,11 @@
-import { AGENTS, agentById, configureAgent, detectConfiguredAgents } from "../../shared/agents.js";
+import { AGENTS, agentById, detectConfiguredAgents } from "../../shared/agents.js";
+import { addAgent } from "../../modules/foundation/scaffold.js";
 import { emptyReport } from "../../shared/install.js";
 import { Flags } from "../lib/args.js";
 import { ui } from "../lib/ui.js";
 
 /**
- * List configured agents or configure a new one (symlinks + MCP).
+ * List configured agents or configure a new one (symlinks, MCP, and hooks).
  *
  * @param flags - Parsed flags; `_[0]` is the subcommand (`list`/`add`) and `_[1]` the agent id.
  */
@@ -30,7 +31,7 @@ export async function runAgent(flags: Flags): Promise<void> {
       process.exit(1);
     }
     const report = emptyReport();
-    configureAgent(cwd, id, report);
+    addAgent(cwd, id, report);
     ui.ok(`${agentById(id)!.label} configured`);
     for (const s of report.symlinks) ui.info(s);
     for (const w of report.written) ui.info(w);

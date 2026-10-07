@@ -19,6 +19,19 @@ test("default init creates only .agents/, linked into ai-specs/", { skip: !cliBu
     assert.equal(fs.readlinkSync(link), path.join("..", "ai-specs", target));
     assert.ok(fs.existsSync(link), `.agents/${target} resolves`);
   }
+  const mcp = JSON.parse(fs.readFileSync(path.join(root, ".mcp.json"), "utf8"));
+  assert.ok(mcp.mcpServers.speclaw, "default init registers the speclaw MCP server");
+});
+
+test("agent add claude after init installs the session hooks", { skip: !cliBuilt() }, (t) => {
+  const root = tmpRepo(t);
+  assert.equal(runCli(["init", "--yes"], { cwd: root, timeout: 120_000 }).code, 0);
+  const r = runCli(["agent", "add", "claude"], { cwd: root, timeout: 60_000 });
+  assert.equal(r.code, 0, r.stderr);
+  const settings = JSON.parse(fs.readFileSync(path.join(root, ".claude", "settings.json"), "utf8"));
+  for (const event of ["SessionStart", "PostToolUse", "Stop"]) {
+    assert.ok(settings.hooks[event], `${event} hook installed`);
+  }
 });
 
 test("init --agents claude still wires Claude Code explicitly", { skip: !cliBuilt() }, (t) => {
