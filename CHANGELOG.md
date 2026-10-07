@@ -22,6 +22,19 @@ All notable changes to this project are documented here. Speclaw follows
 - The `lawbook/config.yaml` written by init no longer fails a host repo's
   `prettier --check .`: the EARS `vagueWords` list is emitted in the wrapped
   form Prettier produces, and still loads the same words.
+- `change.json`, `harness.json`, and spec anchor files are written in the
+  layout Prettier gives them (short arrays on one line), so a committed
+  `lawbook/` stays green under `prettier --check .`.
+- `.gitignore` entries that share a comment (e.g. one agent's links) join one
+  block instead of repeating the comment for every entry.
+
+### Changed
+
+- The generated block in `AGENTS.md` now states the agent workflow — Compass
+  first, Cortex for every change, the `Stop` hook (or `speclaw ship`) to record
+  it in the lawbook — when the hand-written part of the file doesn't. `update`
+  never edits the personalized `AGENTS.md`, so projects scaffolded before Cortex,
+  or with a hand-written `AGENTS.md`, never learned to record their work.
 
 ## [2.0.15] — 2026-10-07
 
