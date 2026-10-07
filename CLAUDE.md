@@ -39,10 +39,13 @@ and callees, `compass_impact` (grouped by module; `format: flat` for the old lis
 `compass_hotspots` / `speclaw hotspots` (activity × AST health, default 90d)
 and `compass_coupling` / `speclaw coupling` (Jaccard strength, `in_graph`,
 `isTestPair`). Run `compass_index` first if the graph is missing (Claude Code
-sessions refresh an existing index at start via a `SessionStart` hook). Schema **10**
+sessions refresh an existing index at start via a `SessionStart` hook). Schema **11**
 stores FTS5/`node_text`/`pagerank` plus `embedding_cache`, Merkle `dir_hashes`, and
-`node_metrics` — reindex with `speclaw index` after a schema bump (9→10 migrates;
-8→9 preserves embeddings).
+`node_metrics` — reindex with `speclaw index` after a schema bump (10→11 forces a
+reindex; embeddings reused). Each Write/Edit is re-indexed right after the edit;
+PageRank and the compact map in `docs/compass.md` catch up on the next full run;
+files created or renamed by shell commands and edits by agents without hooks are
+picked up at the next session start or `compass_index`.
 
 This includes files you already know the name of: to learn what `Foo` imports,
 uses, or depends on, run `compass_explore Foo` — do **not** `cat`/`sed`/`grep`/
@@ -114,9 +117,20 @@ Planner clarifying questions always go to the human via the coordinator.
   `SPECLAW_MINIMAL=1` omit setup MCP tools (no server-side `defer_loading`).
 - `speclaw doctor --json` is the support report (redacted by default). Stable
   install: `npx @esneiderbravo/speclaw@latest init`.
+- `speclaw update` upgrades itself: when npm reports a newer release it
+  re-executes as `npx -y @esneiderbravo/speclaw@<latest> update` (also in CI) and
+  that release applies its own migrations. Opt out with `--no-self-update` or
+  `SPECLAW_NO_SELF_UPDATE=1`. The agent MCP entry is pinned to the installed
+  version (`npx -y @esneiderbravo/speclaw@<version> mcp`); `update` re-pins a
+  stock entry and keeps a custom one. Run `speclaw update` so the pinned MCP
+  entry moves to 2.0.10; an older speclaw opening this index rebuilds it from
+  scratch.
 - Optional `.speclaw/affected.json` overrides affected-test globals/test globs.
-  After a Compass schema bump (now **10**, FTS5 + pagerank + embedding cache), reindex
-  with `speclaw index` (9→10 preserves embeddings); photograph bodies once with
+  Affected-test `command` may be `null` (with `commandReason`) when no test is
+  reachable; `commands[]` lists one `{ cwd, command, files }` per package — never
+  run `command` blindly.
+  After a Compass schema bump (now **11**, FTS5 + pagerank + embedding cache), reindex
+  with `speclaw index` (10→11 forces a reindex; embeddings reused); photograph bodies once with
   `speclaw drift --reseal` if anchors are new or stale. Hotspots/coupling
   default history window is 90 days.
 - Ceremony levels 0–3 live in `change.json`. `speclaw quick` scaffolds level 0;
@@ -129,6 +143,10 @@ Planner clarifying questions always go to the human via the coordinator.
   lock` / `accept` / `scan`; digest **accept** is interactive TTY only — never
   via MCP. `speclaw verify` folds integrity with deps/graph. Strict paths:
   `AGENTS.md` / `CLAUDE.md` / compiled rules; standards docs are advisory.
+  A lock refresh (init/update/`laws compile`/`laws lock`) never re-baselines a
+  strict file edited outside speclaw: it keeps the locked digest and warns `run
+  speclaw laws accept <path>`; `speclaw laws lock --force` re-baselines on an
+  interactive TTY only.
 - Optional `team.owners` in `lawbook/config.yaml` (capability names and `"*"` →
   `@user` / `@org/team` / email). `speclaw owners --write` writes a managed
   block at the **end** of `.github/CODEOWNERS` (last match wins; CLI only).
@@ -146,10 +164,17 @@ Planner clarifying questions always go to the human via the coordinator.
   first build stays `compass_index` / `speclaw index`. An unchanged project
   takes the no-op fast path and leaves `docs/compass.md` alone. Existing
   installs see the settings file as `refreshedDiverged` once on `update`.
+  Each Write/Edit is re-indexed right after the edit (a `PostToolUse`
+  `Write|Edit|MultiEdit|NotebookEdit` hook, timeout 10, hands the file to
+  `speclaw reindex-file` in a detached background process: silent, always exit
+  0, skipped when `.speclaw/index.db` is absent, never downloads). PageRank and
+  the compact map in `docs/compass.md` catch up on the next full run; files
+  created or renamed by shell commands and edits by agents without hooks are
+  picked up at the next session start or `compass_index`.
 - `speclaw lawbook draft <name> [--level N] [--capability C]` (or
   `lawbook_change` action `draft`) scaffolds a change. Existing installs show
   the updated hooks as `refreshedDiverged` on `speclaw update`.
-- speclaw **2.0**: Foundation (hooks + lock), Compass (schema 10), Lawbook
+- speclaw **2.0**: Foundation (hooks + lock), Compass (schema 11), Lawbook
   (ceremony 0–3), Cortex (multi-agent loop; nine canonical MCP tools), Team
   (`owners --write`). Install: `npx @esneiderbravo/speclaw@latest init`. CI:
   `esneiderbravo/speclaw@v2`.

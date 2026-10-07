@@ -101,9 +101,20 @@ Claude-specific notes: [`CLAUDE.md`](CLAUDE.md). The law: [`LAWS.md`](LAWS.md).
   `SPECLAW_MINIMAL=1` omit setup MCP tools (no server-side `defer_loading`).
 - `speclaw doctor --json` is the support report (redacted by default). Stable
   install: `npx @esneiderbravo/speclaw@latest init`.
+- `speclaw update` upgrades itself: when npm reports a newer release it
+  re-executes as `npx -y @esneiderbravo/speclaw@<latest> update` (also in CI) and
+  that release applies its own migrations. Opt out with `--no-self-update` or
+  `SPECLAW_NO_SELF_UPDATE=1`. The agent MCP entry is pinned to the installed
+  version (`npx -y @esneiderbravo/speclaw@<version> mcp`); `update` re-pins a
+  stock entry and keeps a custom one. Run `speclaw update` so the pinned MCP
+  entry moves to 2.0.10; an older speclaw opening this index rebuilds it from
+  scratch.
 - Optional `.speclaw/affected.json` overrides affected-test globals/test globs.
-  Compass schema **10** (`node_text` / FTS5 / `pagerank` + embedding cache from 9) — reindex
-  with `speclaw index` (9→10 preserves embeddings); photograph bodies once with
+  Affected-test `command` may be `null` (with `commandReason`) when no test is
+  reachable; `commands[]` lists one `{ cwd, command, files }` per package — never
+  run `command` blindly.
+  Compass schema **11** (`node_text` / FTS5 / `pagerank` + embedding cache) — reindex
+  with `speclaw index` (10→11 forces a reindex; embeddings reused); photograph bodies once with
   `speclaw drift --reseal` if anchors are new or stale. Hotspots/coupling default
   history window is 90 days.
 - Ceremony 0–3 in `change.json`; `speclaw quick` for level 0; `lawbook_level`
@@ -116,6 +127,10 @@ Claude-specific notes: [`CLAUDE.md`](CLAUDE.md). The law: [`LAWS.md`](LAWS.md).
   only — never via MCP. `speclaw verify` folds integrity findings with
   deps/graph. Strict paths: `AGENTS.md` / `CLAUDE.md` / compiled rules;
   standards docs are advisory.
+  A lock refresh (init/update/`laws compile`/`laws lock`) never re-baselines a
+  strict file edited outside speclaw: it keeps the locked digest and warns `run
+  speclaw laws accept <path>`; `speclaw laws lock --force` re-baselines on an
+  interactive TTY only.
 - Optional `team.owners` in `lawbook/config.yaml` maps capabilities (and `"*"`)
   to `@user` / `@org/team` / email. `speclaw owners --write` compiles a managed
   block at the **end** of `.github/CODEOWNERS` (GitHub: last match wins; CLI
@@ -133,11 +148,18 @@ Claude-specific notes: [`CLAUDE.md`](CLAUDE.md). The law: [`LAWS.md`](LAWS.md).
   first build stays `compass_index` / `speclaw index`. An unchanged project
   takes the no-op fast path and leaves `docs/compass.md` alone. Existing
   installs see the settings file as `refreshedDiverged` once on `update`.
+  Each Write/Edit is re-indexed right after the edit (a `PostToolUse`
+  `Write|Edit|MultiEdit|NotebookEdit` hook, timeout 10, hands the file to
+  `speclaw reindex-file` in a detached background process: silent, always exit
+  0, skipped when `.speclaw/index.db` is absent, never downloads). PageRank and
+  the compact map in `docs/compass.md` catch up on the next full run; files
+  created or renamed by shell commands and edits by agents without hooks are
+  picked up at the next session start or `compass_index`.
 - `speclaw lawbook draft <name> [--level N] [--capability C]` (or
   `lawbook_change` action `draft`) scaffolds a change. Existing installs show
   the updated hooks as `refreshedDiverged` on `speclaw update`.
 - speclaw **2.0** is the official release: Foundation (hooks + `speclaw.lock`),
-  Compass (schema 10), Lawbook (ceremony 0–3, coverage, drift, bugfix),
+  Compass (schema 11), Lawbook (ceremony 0–3, coverage, drift, bugfix),
   Cortex (multi-agent loop; nine canonical MCP tools including `cortex`),
   Team (`team.owners` → `speclaw owners --write`).
   Install: `npx @esneiderbravo/speclaw@latest init`. CI consumers:

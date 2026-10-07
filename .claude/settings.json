@@ -83,6 +83,16 @@
             }
           }
         ]
+      },
+      {
+        "matcher": "Write|Edit|MultiEdit|NotebookEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cd \"${CLAUDE_PROJECT_DIR:-.}\" 2>/dev/null && [ -f .speclaw/index.db ] && { if [ -x node_modules/.bin/speclaw ]; then node_modules/.bin/speclaw reindex-file; elif command -v speclaw >/dev/null 2>&1; then speclaw reindex-file; else npm_config_update_notifier=false npm_config_offline=true npx --no-install @esneiderbravo/speclaw reindex-file; fi; } >/dev/null 2>&1 || true",
+            "timeout": 10
+          }
+        ]
       }
     ],
     "InstructionsLoaded": [
