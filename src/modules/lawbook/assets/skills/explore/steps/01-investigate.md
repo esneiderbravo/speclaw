@@ -6,7 +6,9 @@
   callees. Use `compass_diff_context` when the question is about a diff.
 - **Index only when needed.** Run `compass_index` only when `compass_find`
   returns nothing or reports a missing or stale index, then retry the find. It
-  is incremental (unchanged files skipped by hash).
+  is incremental (unchanged files skipped by hash). Under Claude Code the
+  `SessionStart` hook already refreshes an existing index when the session
+  starts, so it is usually current.
 - **Read/Grep code only with a named reason.** Before any Read/Grep/Glob of
   indexed source code, name which Rule 1 fallback holds: (1) a Compass call ran
   and returned nothing useful for the query, (2) the graph is missing and

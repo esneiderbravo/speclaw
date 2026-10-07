@@ -2,7 +2,8 @@
 
 - Use `compass_explore` before editing to see a symbol's callers/callees and
   blast radius; re-run `compass_index` after significant edits to keep the
-  graph fresh.
+  graph fresh (the `SessionStart` hook refreshes it only when a session
+  starts).
 - Make the smallest correct change; match the surrounding code.
 - The code must satisfy the delta spec exactly. If reality diverges from the
   spec, update the spec in the change (not silently) — the two must agree.

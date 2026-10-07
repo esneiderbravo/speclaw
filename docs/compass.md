@@ -46,7 +46,10 @@ CLI-only: `speclaw index`, `explore`, `search`/`recall` (hybrid; `--focus` `--ma
 `doctor`, `laws verify`. Requires **Node ≥22.16** for FTS5 (soft-degrades without it).
 
 If the graph is missing (no `.speclaw/index.db`), run `compass_index` first —
-a missing graph is not license to skip Compass. The only legitimate fallbacks
+a missing graph is not license to skip Compass. Under Claude Code an existing
+index is also refreshed when each session starts (see
+[Session-start refresh](#session-start-refresh-hooks)); the first build is
+always explicit. The only legitimate fallbacks
 to Grep/Read: a Compass call returned nothing useful for your query, or the
 target isn't indexed code (stylesheets, JSON/config, markdown, logs).
 
@@ -59,6 +62,15 @@ how much is indexed. `nextStep` is a one-line hint, e.g. `Index ready: 412
 files, 3,180 symbols. Next: compass_find "<concept>" or compass_explore
 <symbol> — do not grep.` Both fields are in `--json` output; the human output
 prints a `Totals:` line and the hint.
+
+**No-op fast path.** A run without `--force`, `--prune`, or an explicit
+`--max-cache-mb` that re-extracts nothing, removes nothing, and finds the
+Merkle root unchanged (`rootUnchanged: true`) skips the global
+post-processing: the `dir_hashes` rewrite, edge and import resolution,
+PageRank, and the embedding-cache touch and eviction. It writes only
+`meta.indexed_at` (so `doctor`'s freshness check stays accurate) and does not
+rewrite `docs/compass.md` unless its map block is empty. Totals and `nextStep`
+are still reported. Any real change runs the full pass and rewrites the map.
 
 ## Compass-first enforcement
 
@@ -128,14 +140,61 @@ under `refreshedDiverged`. That is expected: speclaw merged its new entry by
 identity and kept every non-speclaw hook. Use `update --backup` to keep a
 `.bak` copy.
 
+### Session-start refresh (hooks)
+
+For hook-capable agents (Claude Code), `init` / `update` also install one
+`SessionStart` entry, laws or not:
+
+```json
+"SessionStart": [{ "matcher": "startup|resume|clear|compact",
+  "hooks": [{ "type": "command", "command": "cd \"${CLAUDE_PROJECT_DIR:-.}\" … speclaw session-start …", "timeout": 30 }] }]
+```
+
+The POSIX `sh` command refreshes the index before the agent asks anything, so
+Compass answers from a graph that matches the working tree after a `git pull`,
+a branch switch, or edits made outside the agent.
+
+- **Skips when absent.** The command does nothing when `.speclaw/index.db` does
+  not exist (the check runs in the shell, before Node starts). It never builds
+  a first index; that stays `compass_index` / `speclaw index`.
+- **Local first, never the network.** It runs `node_modules/.bin/speclaw`, else
+  `speclaw` on `PATH`, else
+  `npm_config_offline=true npx --no-install @esneiderbravo/speclaw` with
+  `npm_config_update_notifier=false`: npx neither installs nor revalidates
+  against the registry, npm's own update notifier stays off, so it makes no
+  registry request and only runs a copy already in the npx cache.
+- **Silent and fail-safe.** Output is discarded (`SessionStart` stdout would
+  enter the agent's context) and `|| true` keeps the exit code 0. The hook is
+  blocking with a 30 s timeout. A run that exceeds it is killed and its
+  transaction rolls back, so it repeats (and times out) at every session start;
+  after a large pull or a forced reindex, run `speclaw index` / `compass_index`
+  once yourself.
+- **`speclaw session-start`.** The command the hook runs: it exits 0
+  without creating an index when none exists, otherwise runs an incremental
+  index (no force, no prune; flags are ignored), prints nothing, swallows
+  every error (including `SQLITE_BUSY` from a concurrent writer, after the
+  5 s busy timeout), and is not written to the call log. On an unchanged
+  project it takes the no-op fast path, so it leaves `docs/compass.md` alone.
+- **Merge identity.** A `command` hook whose command contains
+  `speclaw session-start` is speclaw's: re-running `init` / `update`
+  replaces it instead of adding a second one. Any other `SessionStart` hook is
+  left untouched.
+
+**Upgrading.** The new entry makes `speclaw update` report the settings file
+under `refreshedDiverged` once, as for the nudge above. `session-start` is a
+top-level command, so an older speclaw (before 2.0.7) that resolves first —
+for example a stale global install on `PATH` — rejects it as unknown and exits
+before indexing, logging, or touching any file; the refresh simply does not
+happen until that binary is upgraded.
+
 ### The Cortex evidence gate
 
 See [`cortex.md`](cortex.md#compass-first-evidence-gate-compassgate).
 
 <!-- speclaw:map:start -->
-speclaw · 234 files · 959 nodes
-src/ (121)  test/ (107)  scripts/ (5)  eslint.config.js/ (1)
-hubs: tmpRepo 364 · write 303 · has 151 · parse 114 · log 79 · openDb 78 · run 66 · commit 52 · runCli 50 · recordCompassCall 36 · text 34 · read 34
+speclaw · 238 files · 990 nodes
+src/ (122)  test/ (109)  scripts/ (6)  eslint.config.js/ (1)
+hubs: tmpRepo 378 · write 324 · has 157 · parse 116 · log 79 · run 68 · runCli 59 · commit 52 · read 52 · recordCompassCall 36 · text 34 · gitInit 33
 entry: src/server.ts (mcp) · src/cli/index.ts (bin)
 <!-- speclaw:map:end -->
 

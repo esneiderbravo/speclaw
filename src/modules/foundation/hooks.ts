@@ -5,10 +5,12 @@ import { InstallReport, sha256 } from "../../shared/install.js";
 import { CheckEvent } from "./check.js";
 import { LawManifest, Law, globError, hasBackend } from "./laws.js";
 
-// The hook compiler: it turns declared laws into agent hook entries and merges
-// them into an agent's settings by identity. All knowledge of the hook wire
-// format lives here — nothing else in the codebase knows what a hook looks like,
-// so a change in Claude Code's (young) hook surface is contained to this file.
+// The hook compiler: it turns declared laws into agent hook entries, adds the
+// session-start index refresh, and merges both into an agent's settings by
+// identity. Two hook shapes exist: the `speclaw_check` `mcp_tool` hook and the
+// `SessionStart` `command` hook. All knowledge of the hook wire format lives
+// here — nothing else in the codebase knows what a hook looks like, so a change
+// in Claude Code's (young) hook surface is contained to this file.
 
 /**
  * Arguments Claude Code substitutes into `speclaw_check` via `${…}` from the
@@ -32,7 +34,10 @@ export interface SpeclawHookInput {
   };
 }
 
-/** The single hook object every speclaw hook is; the `{type, server}` pair is its merge identity. */
+/**
+ * The `speclaw_check` hook object, used by every law-driven event and the
+ * Compass-first nudge; the `{type, server}` pair is its merge identity.
+ */
 export interface SpeclawHook {
   type: "mcp_tool";
   server: "speclaw";
@@ -41,11 +46,75 @@ export interface SpeclawHook {
   input: SpeclawHookInput;
 }
 
-/** One matcher group in an agent's settings: a tool-name matcher and its hooks. */
-export interface HookGroup {
-  matcher?: string;
-  hooks: SpeclawHook[];
+/**
+ * The session-start `command` hook object. Only `type`, `command`, and `timeout`
+ * are written; a `command` containing {@link SESSION_START_MARKER} is its merge
+ * identity.
+ */
+export interface SpeclawCommandHook {
+  type: "command";
+  command: string;
+  /** Seconds before Claude Code abandons the (blocking) hook. */
+  timeout: number;
 }
+
+/** Every hook object speclaw writes. */
+export type AnySpeclawHook = SpeclawHook | SpeclawCommandHook;
+
+/**
+ * One matcher group in an agent's settings: a matcher (a tool name, or a
+ * `SessionStart` source) and its hooks.
+ */
+export interface HookGroup<H extends AnySpeclawHook = AnySpeclawHook> {
+  matcher?: string;
+  hooks: H[];
+}
+
+/**
+ * Every hook event speclaw writes: the `speclaw_check` events plus
+ * `SessionStart`, which never reaches `speclaw_check` (so `CheckEvent` stays
+ * narrow).
+ */
+export type HookEvent = CheckEvent | "SessionStart";
+
+/**
+ * Substring every speclaw session-start command contains, in each of its
+ * resolution branches. It is the merge identity of the `SessionStart` hook.
+ */
+export const SESSION_START_MARKER = "speclaw session-start";
+
+/**
+ * The marker of the unreleased `index --session-start` hook shape that
+ * pre-release 2.0.7 builds wrote. Still recognized so a merge replaces such an
+ * entry instead of keeping it next to the current one.
+ */
+const LEGACY_SESSION_START_MARKER = "speclaw index --session-start";
+
+/**
+ * The POSIX `sh` command the `SessionStart` hook runs. The `index.db` guard runs
+ * in the shell, so a project without an index pays no Node start-up. It invokes
+ * the top-level `session-start` command, which a speclaw older than 2.0.7
+ * rejects as unknown (exit 1) before indexing, logging, or notifying, so a stale
+ * binary first in the resolution order does nothing. speclaw resolves as local
+ * `node_modules/.bin`, then `PATH`, then `npx --no-install` with
+ * `npm_config_offline=true` and `npm_config_update_notifier=false`, so npx
+ * neither installs nor contacts the registry (offline alone still lets npm's
+ * own update notifier query it).
+ * Output is discarded because `SessionStart` stdout enters the agent's context,
+ * and `|| true` keeps the exit code 0 in every case.
+ */
+export const SESSION_START_COMMAND =
+  'cd "${CLAUDE_PROJECT_DIR:-.}" 2>/dev/null && [ -f .speclaw/index.db ] && { ' +
+  "if [ -x node_modules/.bin/speclaw ]; then node_modules/.bin/speclaw session-start; " +
+  "elif command -v speclaw >/dev/null 2>&1; then speclaw session-start; " +
+  "else npm_config_update_notifier=false npm_config_offline=true npx --no-install @esneiderbravo/speclaw session-start; fi; " +
+  "} >/dev/null 2>&1 || true";
+
+/** `SessionStart` matcher covering every session source Claude Code reports. */
+const SESSION_START_MATCHER = "startup|resume|clear|compact";
+
+/** Seconds the blocking session-start hook may run (index wait plus a real refresh). */
+const SESSION_START_TIMEOUT = 30;
 
 /** Claude Code `${path}` templates — see https://code.claude.com/docs/en/hooks */
 const SPECLAW_HOOK_INPUT: SpeclawHookInput = {
@@ -84,15 +153,37 @@ const MUTATION_MATCHER = "Write|Edit|MultiEdit|NotebookEdit";
  */
 export const NUDGE_MATCHER = "Read|Grep|Glob";
 
-/** True when a hook object is one speclaw owns (safe to replace on merge). */
-function isSpeclawHook(h: unknown): boolean {
-  const o = h as { type?: unknown; server?: unknown };
-  return o?.type === "mcp_tool" && o?.server === "speclaw";
+/**
+ * True when a hook object is one speclaw owns (safe to replace on merge): an
+ * `mcp_tool` hook on the `speclaw` server, or a `command` hook whose command
+ * contains {@link SESSION_START_MARKER} (or the pre-release
+ * `index --session-start` marker). A user `command` hook without the
+ * marker is never speclaw's.
+ *
+ * @param h - A hook object read from an agent's settings (any shape).
+ * @returns Whether speclaw owns the hook.
+ */
+export function isSpeclawHook(h: unknown): boolean {
+  const o = h as { type?: unknown; server?: unknown; command?: unknown };
+  if (o?.type === "mcp_tool" && o?.server === "speclaw") return true;
+  return (
+    o?.type === "command" &&
+    typeof o?.command === "string" &&
+    (o.command.includes(SESSION_START_MARKER) || o.command.includes(LEGACY_SESSION_START_MARKER))
+  );
 }
+
+/**
+ * speclaw's compiled groups keyed by {@link HookEvent}: the `speclaw_check`
+ * events carry `mcp_tool` hooks, `SessionStart` carries the `command` hook.
+ */
+export type CompiledByEvent = { [E in CheckEvent]?: HookGroup<SpeclawHook>[] } & {
+  SessionStart?: HookGroup<SpeclawCommandHook>[];
+};
 
 /** The result of compiling a manifest: the per-event groups plus any rejected laws. */
 export interface CompiledHooks {
-  byEvent: Partial<Record<CheckEvent, HookGroup[]>>;
+  byEvent: CompiledByEvent;
   /** Laws excluded from generation because a scope glob was malformed. */
   invalid: Array<{ lawId: string; pattern: string; error: string }>;
 }
@@ -101,8 +192,10 @@ export interface CompiledHooks {
  * Compile a law manifest into the hook groups speclaw contributes, one per event
  * the laws demand: `PreToolUse` when any `bloqueo` law exists, `PostToolUse` for
  * `feedback`, `Stop` for `gate`, and `InstructionsLoaded` whenever any law exists
- * (the context-coverage audit). One `PostToolUse` group matching `Read|Grep|Glob`
- * is always emitted for the Compass-first nudge, even with no laws. A law whose scope contains a malformed glob is
+ * (the context-coverage audit). Two groups are always emitted, even with no
+ * laws: one `PostToolUse` group matching `Read|Grep|Glob` for the Compass-first
+ * nudge, and one `SessionStart` group whose `command` hook refreshes the index
+ * silently when a session starts. A law whose scope contains a malformed glob is
  * excluded and reported, so a bad pattern fails loudly at generation rather than
  * silently matching nothing at runtime.
  *
@@ -130,6 +223,13 @@ export function compileHooks(manifest: LawManifest): CompiledHooks {
     byEvent.PostToolUse.unshift({ matcher: MUTATION_MATCHER, hooks: [{ ...SPECLAW_HOOK }] });
   if (hasGate) byEvent.Stop = [{ hooks: [{ ...SPECLAW_HOOK }] }];
   if (valid.length > 0) byEvent.InstructionsLoaded = [{ hooks: [{ ...SPECLAW_HOOK }] }];
+  // Covers: req~session-start-hook~1
+  byEvent.SessionStart = [
+    {
+      matcher: SESSION_START_MATCHER,
+      hooks: [{ type: "command", command: SESSION_START_COMMAND, timeout: SESSION_START_TIMEOUT }],
+    },
+  ];
 
   return { byEvent, invalid };
 }
@@ -138,7 +238,7 @@ export function compileHooks(manifest: LawManifest): CompiledHooks {
  * Merge speclaw's compiled hook groups into an existing `hooks` object by
  * identity: for every event, drop the groups speclaw owns (a group whose hooks
  * are all speclaw's) and re-add the freshly compiled ones, never touching a
- * group with a foreign `server` or `type`. Idempotent, marker-free, and it
+ * hook that is not speclaw's (see {@link isSpeclawHook}). Idempotent, and it
  * cannot delete another tool's hooks.
  *
  * @param existing - The current `hooks` object from the agent's settings (any shape).
@@ -147,7 +247,7 @@ export function compileHooks(manifest: LawManifest): CompiledHooks {
  */
 export function mergeHooks(
   existing: Record<string, unknown> | undefined,
-  compiled: CompiledHooks["byEvent"],
+  compiled: CompiledByEvent,
 ): Record<string, HookGroup[]> {
   const out: Record<string, HookGroup[]> = {};
   const events = new Set<string>([...Object.keys(existing ?? {}), ...Object.keys(compiled)]);
@@ -157,7 +257,7 @@ export function mergeHooks(
     const kept = prior
       .map((g) => ({ ...g, hooks: (g.hooks ?? []).filter((h) => !isSpeclawHook(h)) }))
       .filter((g) => g.hooks.length > 0);
-    const mine = compiled[event as CheckEvent] ?? [];
+    const mine: HookGroup[] = compiled[event as HookEvent] ?? [];
     const merged = [...kept, ...mine];
     if (merged.length > 0) out[event] = merged;
   }
@@ -179,7 +279,7 @@ export function mergeHooks(
 function installForAgent(
   projectPath: string,
   agent: AgentDef,
-  compiled: CompiledHooks["byEvent"],
+  compiled: CompiledByEvent,
   report: InstallReport,
   opts: { baselines?: Record<string, string>; backup?: boolean; record?: Record<string, string> },
 ): void {

@@ -20,6 +20,7 @@ Setup
 
 Compass (code intelligence — the same surface agents use via MCP)
   index                    (Re)build the local code graph (--force / --prune / --json)
+  session-start            Silent, fail-safe refresh of an existing index (SessionStart hook)
   watch                    Keep the index fresh on file changes
   explore <node>           A node's source + callers/callees
   search <query>           Hybrid find (BM25+vector+name); --focus --max-tokens --explain
@@ -102,7 +103,7 @@ const HEADER_COMMANDS = new Set<string | undefined>([
  * forced-color signal counts as interactive so the header is exercisable in a
  * child process. `budget --json`, `doctor --json`, and `coverage` when emitting
  * TAP/JSON (or when stdout is not a TTY) are machine-consumed and suppress the
- * header.
+ * header. `session-start` is not header-eligible: it must print nothing.
  */
 function maybeHeader(cmd: string | undefined, flags: ReturnType<typeof parseFlags>): void {
   if (!process.stdout.isTTY && process.env.FORCE_COLOR !== "1") return;
@@ -151,6 +152,8 @@ async function dispatch(
       return (await import("./commands/index-build.js")).runIndex(flags);
     case "watch":
       return (await import("./commands/index-build.js")).runWatch(flags);
+    case "session-start":
+      return (await import("./commands/session-start.js")).runSessionStart();
     case "explore":
     case "search":
     case "recall":
@@ -200,6 +203,8 @@ async function main(): Promise<void> {
   const flags = parseFlags(rest);
   maybeHeader(cmd, flags);
   await dispatch(cmd, flags);
+  // The SessionStart hook's refresh must stay silent: no update notice either.
+  if (cmd === "session-start") return;
   await maybeNotifyUpdate(cmd);
 }
 

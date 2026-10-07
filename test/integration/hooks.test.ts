@@ -47,10 +47,27 @@ test("scaffold seeds the law manifest and installs Claude hooks", (t) => {
     ),
   );
 
+  // the session-start index refresh is installed once, as a blocking command hook
+  // Covers: req~session-start-hook~1
+  const sessionStart = settings.hooks.SessionStart as Array<{
+    matcher?: string;
+    hooks: Array<{ type: string; command: string; timeout: number }>;
+  }>;
+  assert.equal(sessionStart.length, 1);
+  assert.equal(sessionStart[0]!.matcher, "startup|resume|clear|compact");
+  assert.equal(sessionStart[0]!.hooks[0]!.type, "command");
+  assert.equal(sessionStart[0]!.hooks[0]!.timeout, 30);
+  assert.match(sessionStart[0]!.hooks[0]!.command, /speclaw session-start/);
+  assert.match(
+    sessionStart[0]!.hooks[0]!.command,
+    /npm_config_offline=true npx --no-install @esneiderbravo\/speclaw/,
+  );
+
   // a rerun with the same inputs leaves the settings byte-identical (no drift)
   const before = read(root, ".claude/settings.json");
   scaffold(root, sampleProfile(), [], ["claude"]);
   assert.equal(read(root, ".claude/settings.json"), before);
+  assert.equal(JSON.parse(before).hooks.SessionStart.length, 1);
 
   // the settings baseline is recorded so update/--backup can detect divergence
   const baselines = readManifest(root)!.baselines;

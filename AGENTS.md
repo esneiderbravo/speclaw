@@ -20,7 +20,8 @@ Claude-specific notes: [`CLAUDE.md`](CLAUDE.md). The law: [`LAWS.md`](LAWS.md).
    `compass_find` / `compass_explore` **before** any grep/sed/cat/Read,
    including files you already know by name. Fall back to manual file tools only
    after Compass returns nothing useful, the graph is missing (`compass_index`
-   first), or the target isn't indexed code (stylesheets, config, logs).
+   first; Claude Code sessions refresh an existing index at start), or the
+   target isn't indexed code (stylesheets, config, logs).
    `compass_impact` is grouped by module (`format: flat` escape hatch);
    prefer `compass_affected_tests` / `speclaw affected-tests --from-diff` over
    the full suite. `compass_hotspots` / `speclaw hotspots` ranks activity × AST
@@ -125,6 +126,13 @@ Claude-specific notes: [`CLAUDE.md`](CLAUDE.md). The law: [`LAWS.md`](LAWS.md).
   Compass calls logged to `.speclaw/compass-calls.jsonl`. A PostToolUse
   `Read|Grep|Glob` hook adds a Compass-first nudge as context only — never a
   permission decision. `compass_index` returns totals plus a `nextStep`.
+- Session-start refresh (2.0.7): for Claude Code, `init` / `update` add one
+  `SessionStart` command hook that runs `speclaw session-start`
+  (local `node_modules/.bin` → `PATH` → offline `npx --no-install`; silent,
+  always exit 0, 30 s timeout; an older speclaw rejects the unknown command). It skips when `.speclaw/index.db` is absent, so the
+  first build stays `compass_index` / `speclaw index`. An unchanged project
+  takes the no-op fast path and leaves `docs/compass.md` alone. Existing
+  installs see the settings file as `refreshedDiverged` once on `update`.
 - `speclaw lawbook draft <name> [--level N] [--capability C]` (or
   `lawbook_change` action `draft`) scaffolds a change. Existing installs show
   the updated hooks as `refreshedDiverged` on `speclaw update`.

@@ -236,6 +236,13 @@ export type ProgressFn = (e: ProgressEvent) => void;
  * and an embedding cache keyed by embedder-input hash so renames/moves do not
  * recompute vectors. The whole run executes in a single transaction.
  *
+ * A run without force, prune, or an explicit `maxCacheMB` that re-extracts and
+ * removes nothing and finds the root hash unchanged is a no-op: it skips the
+ * dir-hash rewrite, edge/import resolution, PageRank, and the embedding-cache
+ * touch and eviction, writes only `meta.indexed_at`, and rewrites
+ * `docs/compass.md` only when its map block is empty. It still returns full
+ * statistics (`totals`, `nextStep`).
+ *
  * @param projectPath - Absolute path to the project root.
  * @param onProgressOrOpts - Progress callback (legacy) or {@link BuildIndexOptions}.
  */
@@ -338,6 +345,8 @@ export async function buildIndex(
   );
 
   const allFiles = [...walkFiles(projectPath)];
+  // Set inside the transaction; read after it to decide whether the map is written.
+  let noop: boolean | undefined;
   db.exec("BEGIN");
   try {
     let done = 0;
@@ -500,54 +509,66 @@ export async function buildIndex(
       prevRoot && prevRoot.hash === rootHash && !force && stats.files === 0,
     );
 
-    const now = Date.now();
-    db.prepare("DELETE FROM dir_hashes").run();
-    const insDir = db.prepare(
-      "INSERT INTO dir_hashes(path, hash, n_files, updated_at) VALUES (?, ?, ?, ?)",
-    );
-    for (const [dir, hash] of dirMap) {
-      const nFiles = [...fileHashes.keys()].filter((f) =>
-        dir === "" ? true : f === dir || f.startsWith(dir + "/"),
-      ).length;
-      insDir.run(dir, hash, nFiles, now);
-    }
+    // Covers: req~index-noop-fast-path~1
+    // No-op fast path: nothing re-extracted or removed and the same root means
+    // dir hashes, edges, PageRank, and the cache are already what a full pass
+    // would write — skip them so a run on every session start stays cheap.
+    // `rootUnchanged` already implies no force (explicit or needs_reindex); an
+    // explicit prune or cache cap is a maintenance request and runs in full.
+    noop = stats.rootUnchanged && !prune && opts.maxCacheMB === undefined && stats.removed === 0;
 
-    db.exec(`
-      UPDATE edges SET dst_node_id = (
-        SELECT n.id FROM nodes n
-        WHERE n.name = edges.dst_name
-        ORDER BY CASE WHEN n.file_id = edges.src_file_id THEN 0 ELSE 1 END, n.id
-        LIMIT 1
-      )
-      WHERE kind = 'call' AND dst_node_id IS NULL
-    `);
+    if (!noop) {
+      const now = Date.now();
+      db.prepare("DELETE FROM dir_hashes").run();
+      const insDir = db.prepare(
+        "INSERT INTO dir_hashes(path, hash, n_files, updated_at) VALUES (?, ?, ?, ?)",
+      );
+      for (const [dir, hash] of dirMap) {
+        const nFiles = [...fileHashes.keys()].filter((f) =>
+          dir === "" ? true : f === dir || f.startsWith(dir + "/"),
+        ).length;
+        insDir.run(dir, hash, nFiles, now);
+      }
 
-    resolveImportEdges(db, projectPath);
+      db.exec(`
+        UPDATE edges SET dst_node_id = (
+          SELECT n.id FROM nodes n
+          WHERE n.name = edges.dst_name
+          ORDER BY CASE WHEN n.file_id = edges.src_file_id THEN 0 ELSE 1 END, n.id
+          LIMIT 1
+        )
+        WHERE kind = 'call' AND dst_node_id IS NULL
+      `);
 
-    recomputeGlobalPagerank(db);
+      resolveImportEdges(db, projectPath);
 
-    // Touch last_seen for all live content hashes under active model
-    db.prepare(
-      `UPDATE embedding_cache SET last_seen_at = ?
-       WHERE model = ?
-         AND content_hash IN (SELECT content_hash FROM nodes WHERE content_hash IS NOT NULL)`,
-    ).run(now, embedder.id);
+      recomputeGlobalPagerank(db);
 
-    if (prune) {
-      const cutoff = now - retentionDays * 24 * 60 * 60 * 1000;
+      // Touch last_seen for all live content hashes under active model
       db.prepare(
-        `DELETE FROM embedding_cache
-         WHERE last_seen_at < ?
-           AND content_hash NOT IN (SELECT content_hash FROM nodes WHERE content_hash IS NOT NULL)`,
-      ).run(cutoff);
+        `UPDATE embedding_cache SET last_seen_at = ?
+         WHERE model = ?
+           AND content_hash IN (SELECT content_hash FROM nodes WHERE content_hash IS NOT NULL)`,
+      ).run(now, embedder.id);
+
+      if (prune) {
+        const cutoff = now - retentionDays * 24 * 60 * 60 * 1000;
+        db.prepare(
+          `DELETE FROM embedding_cache
+           WHERE last_seen_at < ?
+             AND content_hash NOT IN (SELECT content_hash FROM nodes WHERE content_hash IS NOT NULL)`,
+        ).run(cutoff);
+      }
+
+      evictCacheBySize(db, maxCacheMB);
     }
 
-    evictCacheBySize(db, maxCacheMB);
-
+    // Written on every run, no-op included, so doctor's freshness check sees a
+    // verified-current index as fresh.
     db.prepare(
       "INSERT INTO meta(key, value) VALUES ('indexed_at', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
     ).run(new Date().toISOString());
-    clearNeedsReindex(db);
+    if (!noop) clearNeedsReindex(db);
 
     stats.totals = countTotals(db);
     stats.nextStep = indexNextStep(stats.totals);
@@ -561,8 +582,10 @@ export async function buildIndex(
   }
 
   try {
-    const { writeCompactMap } = await import("./map.js");
-    writeCompactMap(projectPath);
+    const { writeCompactMap, compactMapPending } = await import("./map.js");
+    // A no-op run leaves the tracked docs/compass.md alone (no working-tree
+    // churn) unless its map block is still empty.
+    if (!noop || compactMapPending(projectPath)) writeCompactMap(projectPath);
   } catch {
     // Map generation must never fail an index run.
   }

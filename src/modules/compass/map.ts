@@ -101,6 +101,29 @@ export interface WriteMapResult {
 }
 
 /**
+ * True when `docs/compass.md` holds both map markers with nothing but
+ * whitespace between them — a freshly scaffolded or reset map block that a
+ * no-op index run must still fill. False when the file or a marker is missing
+ * (there is nothing a map write could fill) or the block already has a map.
+ *
+ * @param projectPath - Project root.
+ * @returns Whether the compact map block is present but empty.
+ */
+export function compactMapPending(projectPath: string): boolean {
+  const compassPath = path.join(projectPath, "docs", "compass.md");
+  let text: string;
+  try {
+    text = fs.readFileSync(compassPath, "utf8");
+  } catch {
+    return false;
+  }
+  const start = text.indexOf(MAP_START);
+  const end = text.indexOf(MAP_END);
+  if (start < 0 || end < 0 || end < start) return false;
+  return text.slice(start + MAP_START.length, end).trim() === "";
+}
+
+/**
  * Replace content between map markers in `docs/compass.md`. Preserves content
  * outside markers. Does nothing (with reason) when markers are missing or the
  * map cannot be generated.

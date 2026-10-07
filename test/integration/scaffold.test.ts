@@ -1,5 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { readdirSync, readFileSync } from "node:fs";
+import { join, relative } from "node:path";
 import { tmpRepo, write, read, has } from "../helpers/env.js";
 import { sampleProfile } from "../helpers/fixtures.js";
 import { scaffold } from "../../src/modules/foundation/scaffold.js";
@@ -54,7 +56,24 @@ test("scaffold installs role agents without any tool pack", (t) => {
   assert.ok(has(root, "ai-specs/skills/cortex/SKILL.md"));
   assert.ok(has(root, "ai-specs/commands/lawbook/cortex.md"));
   assert.deepEqual(Object.keys(loadPacks()), []);
+  // Cursor declares no hooks capability, so no settings file carries SessionStart
+  assert.deepEqual(jsonFilesMentioning(root, "SessionStart"), []);
 });
+
+/** Relative paths of the JSON files under `root` whose text contains `needle`. */
+function jsonFilesMentioning(root: string, needle: string): string[] {
+  const hits: string[] = [];
+  const walk = (dir: string): void => {
+    for (const e of readdirSync(dir, { withFileTypes: true })) {
+      const abs = join(dir, e.name);
+      if (e.isDirectory() && !e.isSymbolicLink()) walk(abs);
+      else if (e.isFile() && e.name.endsWith(".json") && readFileSync(abs, "utf8").includes(needle))
+        hits.push(relative(root, abs));
+    }
+  };
+  walk(root);
+  return hits;
+}
 
 test("scaffold throws on an unknown pack", (t) => {
   const root = tmpRepo(t);

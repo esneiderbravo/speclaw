@@ -2,7 +2,7 @@
   "lockfileVersion": 1,
   "generator": "@esneiderbravo/speclaw@2.0.6",
   "algorithm": "sha256",
-  "root": "sha256:3ef0ae34cd9492013783debadb0c092fa0fe7fbb1f2b30c4f8bbaec20ea3a0dc",
+  "root": "sha256:0b6ca1a330457f4b9c5dc8b7aeb5bc8f57855ab6e996eede37e60e7d3fa92116",
   "files": {
     ".github/instructions/law-compass-does-not-import-foundation-1.instructions.md": {
       "digest": "sha256:e97bcfe4c51adfb84d9cf9260de14d7fabe6f32ba36a88f7741b380ad162ab85",
@@ -33,11 +33,11 @@
       "ownership": "strict"
     },
     "AGENTS.md": {
-      "digest": "sha256:d88655afbf8dd16f09ccbe80ef04b3d385cee6fe1dd92590e3d1c08088747648",
+      "digest": "sha256:3c8610ca62cc4bc1708b261c966dcc4406ea94d46032162a16b8924d7e7e6437",
       "ownership": "strict"
     },
     "CLAUDE.md": {
-      "digest": "sha256:debaffb6f18ba124f998edddb19162641c894bdbcd91022e38254dd59b60311b",
+      "digest": "sha256:edfca9c6ca7f81183688715325eefadaac403f0e7dd909bf60e38a1ab44881c4",
       "ownership": "strict"
     },
     "LAWS.md": {
@@ -45,7 +45,7 @@
       "ownership": "advisory"
     },
     "docs/compass.md": {
-      "digest": "sha256:8e832366337853143e6038c327f052db504cb4f521a20a91b6e7284b2d21f233",
+      "digest": "sha256:e299d6d7798dcb047aadb7a75bbd4b2bdf8d2bd7ed00e0e86c6789cc9a4522b9",
       "ownership": "advisory"
     },
     "docs/standards/architecture.md": {
@@ -85,14 +85,14 @@
   "accepted": [
     {
       "path": "CLAUDE.md",
-      "digest": "sha256:debaffb6f18ba124f998edddb19162641c894bdbcd91022e38254dd59b60311b",
-      "at": "2026-10-06T19:29:41.635Z",
+      "digest": "sha256:ace580e0fc0e196717ca0f08292b71ce494a81f97f1c5ef767800d3c3ab88839",
+      "at": "2026-10-06T23:33:44.565Z",
       "by": "esneiderbravo"
     },
     {
       "path": "AGENTS.md",
-      "digest": "sha256:d88655afbf8dd16f09ccbe80ef04b3d385cee6fe1dd92590e3d1c08088747648",
-      "at": "2026-10-06T19:29:43.373Z",
+      "digest": "sha256:13f4acddeb0cac4c770e6c5c98ae0ff570377d759ebf220e72abc583fd16936f",
+      "at": "2026-10-06T23:33:45.983Z",
       "by": "esneiderbravo"
     }
   ]
