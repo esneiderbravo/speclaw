@@ -313,6 +313,22 @@ const MIGRATIONS: Migration[] = [
       "project's docs or scripts run `command` blindly, make them handle `null`.\n" +
       "- Preserve all project-specific wording; only apply these speclaw-authored changes.",
   },
+  {
+    version: "2.0.11",
+    describe: "Compass re-indexes each file an agent edits (PostToolUse → speclaw reindex-file)",
+    agentPrompt:
+      "- For hook-capable agents (Claude Code), `init`/`update` now add one more `PostToolUse` " +
+      "command hook (matcher `Write|Edit|MultiEdit|NotebookEdit`, timeout 10) that hands the " +
+      "edited file to `speclaw reindex-file` in a detached background process: silent, always " +
+      "exit 0, skipped when `.speclaw/index.db` is absent, never downloads. This update reports " +
+      "the agent settings file under `refreshedDiverged` once; that is expected.\n" +
+      "- Where the project documents how the Compass index stays fresh (session start, " +
+      "`compass_index`, `speclaw watch`), add: each Write/Edit is re-indexed right after the " +
+      "edit; PageRank and the compact map in `docs/compass.md` catch up on the next full run; " +
+      "files created or renamed by shell commands and edits by agents without hooks are picked " +
+      "up at the next session start or `compass_index`.\n" +
+      "- Preserve all project-specific wording; only apply these speclaw-authored changes.",
+  },
 ];
 
 /**

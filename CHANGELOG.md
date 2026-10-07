@@ -5,6 +5,40 @@ All notable changes to this project are documented here. Speclaw follows
 
 ## [Unreleased]
 
+## [2.0.11] — 2026-10-07
+
+### Added
+
+- Compass re-indexes each file an agent edits. For Claude Code, `init` /
+  `update` add one `PostToolUse` command hook on
+  `Write|Edit|MultiEdit|NotebookEdit` that runs the new `speclaw
+  reindex-file`: it reads the hook payload from stdin, hands the edited path to
+  a detached child and exits 0 at once (about 60 ms), silent, offline, and never
+  logged as a Compass call. New symbols are findable mid-session without a
+  manual `compass_index`. Binary resolution matches the session-start hook; an
+  older speclaw rejects the unknown command and touches nothing. Hooks you added
+  to `PostToolUse` are kept.
+- `speclaw reindex-file <paths…>` re-indexes specific files in the foreground.
+  Per-file runs skip PageRank, cache eviction and the `docs/compass.md` map;
+  they mark the index so the next full `speclaw index` (or session start) does
+  the full pass.
+
+### Fixed
+
+- Editing a file no longer drops or misattributes its cross-file callers in
+  `compass_impact` / `trace`: edges are detached before a file's nodes are
+  replaced, so a reused node id can't point at the wrong symbol.
+- A full `speclaw index` no longer fails or drops a file when a per-file
+  reindex writes concurrently; it takes the write lock before reading stored
+  state, keeps rows the walk would still yield, and always closes its
+  connection on a busy lock. Removed files also drop their file-level coverage
+  links.
+
+### Changed
+
+- Existing installs see `.claude/settings.json` as `refreshedDiverged` once on
+  `speclaw update`, as the reindex hook group is added.
+
 ## [2.0.10] — 2026-10-07
 
 ### Fixed

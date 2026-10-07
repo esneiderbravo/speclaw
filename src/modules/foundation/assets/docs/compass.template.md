@@ -56,8 +56,12 @@ automatically (a debounced incremental re-index on file change).
 Under Claude Code, a `SessionStart` hook refreshes an existing index when each
 session starts (`speclaw session-start`: silent, never fails, skips
 when `.speclaw/index.db` is absent, and leaves this file alone when nothing
-changed). The first build is always an explicit `compass_index` /
-`speclaw index`.
+changed). A `PostToolUse` hook re-indexes each file the agent writes or edits
+right after the edit (`speclaw reindex-file`: detached, silent, never fails);
+PageRank and this file's map catch up on the next full run. Files created or
+renamed by shell commands, and edits by agents without hooks, are picked up at
+the next session start, `compass_index`, or `speclaw watch`. The first build is
+always an explicit `compass_index` / `speclaw index`.
 
 If the graph is missing (no `.speclaw/index.db`), run `compass_index` first —
 a missing graph is not license to skip Compass. The only legitimate fallbacks

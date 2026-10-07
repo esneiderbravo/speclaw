@@ -48,7 +48,8 @@ CLI-only: `speclaw index`, `explore`, `search`/`recall` (hybrid; `--focus` `--ma
 If the graph is missing (no `.speclaw/index.db`), run `compass_index` first —
 a missing graph is not license to skip Compass. Under Claude Code an existing
 index is also refreshed when each session starts (see
-[Session-start refresh](#session-start-refresh-hooks)); the first build is
+[Session-start refresh](#session-start-refresh-hooks)) and after each file an
+agent edits (see [Reindex on edit](#reindex-on-edit-hooks)); the first build is
 always explicit. The only legitimate fallbacks
 to Grep/Read: a Compass call returned nothing useful for your query, or the
 target isn't indexed code (stylesheets, JSON/config, markdown, logs).
@@ -259,6 +260,57 @@ top-level command, so an older speclaw (before 2.0.7) that resolves first —
 for example a stale global install on `PATH` — rejects it as unknown and exits
 before indexing, logging, or touching any file; the refresh simply does not
 happen until that binary is upgraded.
+
+### Reindex on edit (hooks)
+
+For hook-capable agents (Claude Code), `init` / `update` also install a
+separate `PostToolUse` entry, laws or not:
+
+```json
+"PostToolUse": [{ "matcher": "Write|Edit|MultiEdit|NotebookEdit",
+  "hooks": [{ "type": "command", "command": "cd \"${CLAUDE_PROJECT_DIR:-.}\" … speclaw reindex-file …", "timeout": 10 }] }]
+```
+
+It is the session-start command with `reindex-file` as the subcommand (same
+index guard, local → `PATH` → offline `npx --no-install` resolution, discarded
+output, exit 0). The hook payload on stdin reaches speclaw unchanged.
+
+- **What it does.** `speclaw reindex-file` (no argument) reads the payload,
+  takes `tool_input.file_path` (or `notebook_path`), and starts a detached
+  `speclaw reindex-file -- <file>` child, then exits at once, so the edit is
+  not slowed down. The child re-indexes just that file: its nodes, edges,
+  full-text rows, metrics, and embeddings (cache misses only), resolves the
+  edges into and out of it, and updates the directory hashes of its ancestors.
+  A deleted file is removed. A file the full walk would skip (outside the
+  project, under `node_modules`/`dist`/…, of no indexed language, or over the
+  size cap) is ignored. With paths (`speclaw reindex-file src/a.ts`) it does
+  the same in the foreground.
+- **Deferred global work.** A per-file run does not recompute PageRank, touch
+  or evict the embedding cache, rewrite `docs/compass.md`, or change
+  `indexed_at`. Until the next full run, the edited file's symbols rank without
+  a PageRank score. It sets `meta.post_pending`, so the next full run (session
+  start, `speclaw index`, `compass_index`, watch) skips its no-op fast path and
+  does that work, then clears the marker. A scoped run also never re-ranks an
+  edge already bound elsewhere: when an edit adds a better candidate for an
+  ambiguous name, the old binding stays until a full run re-extracts the
+  calling file.
+- **Silent and fail-safe.** It prints nothing, is not written to the call log,
+  and swallows every error, including `SQLITE_BUSY` (the child waits up to the
+  5 s busy timeout, then gives up; the next run catches up). Runs are
+  idempotent, so there is no debounce. The file is read after the write lock is
+  taken, so the last of two overlapping runs stores the last edit.
+- **Not covered.** Files created, renamed, or deleted by shell commands
+  (`git mv`, `sed -i`, a branch switch), edits made outside the agent, and
+  agents without hooks. The session-start refresh, `compass_index`, and
+  `speclaw watch` cover those.
+- **Merge identity.** A `command` hook whose command contains
+  `speclaw reindex-file` is speclaw's: re-running `init` / `update` replaces it
+  instead of adding a second one. It is never folded into the `mcp_tool`
+  feedback group, and any other `PostToolUse` hook is left untouched.
+
+**Upgrading.** The new entry makes `speclaw update` report the settings file
+under `refreshedDiverged` once. A speclaw older than 2.0.11 that resolves first
+rejects `reindex-file` as unknown and exits before touching the index.
 
 ### The Cortex evidence gate
 

@@ -63,6 +63,22 @@ test("scaffold seeds the law manifest and installs Claude hooks", (t) => {
     /npm_config_offline=true npx --no-install @esneiderbravo\/speclaw/,
   );
 
+  // the edit reindex hook is its own PostToolUse group: one command hook, timeout
+  // 10, no key beyond type/command/timeout
+  // Covers: req~edit-reindex-hook~1
+  const reindex = (
+    settings.hooks.PostToolUse as Array<{
+      matcher?: string;
+      hooks: Array<Record<string, unknown>>;
+    }>
+  ).filter((g) => g.hooks.some((h) => String(h.command ?? "").includes("speclaw reindex-file")));
+  assert.equal(reindex.length, 1);
+  assert.equal(reindex[0]!.matcher, "Write|Edit|MultiEdit|NotebookEdit");
+  assert.equal(reindex[0]!.hooks.length, 1);
+  assert.deepEqual(Object.keys(reindex[0]!.hooks[0]!).sort(), ["command", "timeout", "type"]);
+  assert.equal(reindex[0]!.hooks[0]!.type, "command");
+  assert.equal(reindex[0]!.hooks[0]!.timeout, 10);
+
   // a rerun with the same inputs leaves the settings byte-identical (no drift)
   const before = read(root, ".claude/settings.json");
   scaffold(root, sampleProfile(), [], ["claude"]);

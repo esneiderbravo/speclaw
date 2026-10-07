@@ -1,0 +1,23 @@
+{
+  "level": 0,
+  "score": 0,
+  "signals": {
+    "filesTouched": 0,
+    "modulesTouched": 0,
+    "blastRadiusNodes": 0,
+    "affectedTests": 0,
+    "touchesPublicApi": false,
+    "maxHotspotScore": 0,
+    "touchesGlobalFile": false,
+    "onlyDocs": false,
+    "degraded": []
+  },
+  "rationale": "0 file(s), 0 module(s), 0 affected test(s), 0 blast node(s), no public API, no global file, hotspot=0.00 → score 0 → level 0 (cuts 3/8/15)",
+  "degraded": [],
+  "confirmedLevel": 3,
+  "confirmedBy": "human",
+  "confirmedAt": "2026-10-07T01:22:55.479Z",
+  "overrideReason": "Proposal score 18 → level 3 (public hook surface, hotspot indexer/hooks, 3 modules). Human confirmed level 3 and chose: PageRank not recomputed per edit (stale until full/session-start run); fix the dangling dst_node_id bug here in both indexFiles and buildIndex with a red-first regression test.",
+  "promotions": [],
+  "changeType": "feature"
+}

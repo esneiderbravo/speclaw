@@ -25,6 +25,7 @@ Setup
 Compass (code intelligence — the same surface agents use via MCP)
   index                    (Re)build the local code graph (--force / --prune / --json)
   session-start            Silent, fail-safe refresh of an existing index (SessionStart hook)
+  reindex-file [paths...]  Silent re-index of edited files (PostToolUse hook; stdin JSON)
   watch                    Keep the index fresh on file changes
   explore <node>           A node's source + callers/callees
   search <query>           Hybrid find (BM25+vector+name); --focus --max-tokens --explain
@@ -185,6 +186,24 @@ Keep the Compass index fresh: re-index changed files until interrupted (Ctrl-C).
 
 Silent, fail-safe refresh of an existing Compass index. The SessionStart hook
 runs it; it prints nothing and never fails the session.
+`,
+  },
+  {
+    name: "reindex-file",
+    usage: `Usage: speclaw reindex-file [--] <path>...
+       speclaw reindex-file < hook.json
+
+Re-index single files in an existing Compass index, silently and fail-safe.
+
+With paths, re-indexes exactly those files now (a deleted file is removed;
+paths outside the project, in skipped directories, of no indexed language, or
+over the size cap are ignored). With no path, reads a PostToolUse hook payload
+from stdin and re-indexes tool_input.file_path (or notebook_path) in a detached
+background process, returning at once. The PostToolUse hook for
+Write|Edit|MultiEdit|NotebookEdit runs it.
+
+PageRank and docs/compass.md are left to the next full run (session start,
+speclaw index, compass_index, watch). Prints nothing and always exits 0.
 `,
   },
   {

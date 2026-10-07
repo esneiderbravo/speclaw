@@ -686,6 +686,74 @@ export function clearNeedsReindex(db: DatabaseSync): void {
   db.prepare("DELETE FROM meta WHERE key = 'needs_reindex'").run();
 }
 
+/** `meta` key set by a per-file reindex until the next full post-processing pass. */
+const POST_PENDING_KEY = "post_pending";
+
+/**
+ * Whether a per-file reindex left global post-processing (PageRank, the compact
+ * map, cache upkeep) for the next full run. While set, a full run may not take
+ * its no-op fast path.
+ */
+export function postPending(db: DatabaseSync): boolean {
+  const row = db.prepare("SELECT value FROM meta WHERE key = ?").get(POST_PENDING_KEY) as
+    { value: string } | undefined;
+  return row?.value === "1";
+}
+
+/** Record that a per-file reindex wrote rows and deferred the global pass. */
+export function setPostPending(db: DatabaseSync): void {
+  db.prepare(
+    "INSERT INTO meta(key, value) VALUES (?, '1') ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+  ).run(POST_PENDING_KEY);
+}
+
+/** Clear the per-file marker once a full run has done the global pass. */
+export function clearPostPending(db: DatabaseSync): void {
+  db.prepare("DELETE FROM meta WHERE key = ?").run(POST_PENDING_KEY);
+}
+
+/**
+ * Whether an open index is current for a per-file write: this release's schema
+ * version and edge shape, not stale, and no full reindex pending. Callers that
+ * probe before taking the write lock re-check under it.
+ */
+export function isCurrentIndex(db: DatabaseSync): boolean {
+  return (
+    readSchemaVersion(db) === SCHEMA_VERSION && hasEdgeSpec(db) && !isStale(db) && !needsReindex(db)
+  );
+}
+
+/**
+ * Open an existing index for a per-file write only when it is current.
+ *
+ * Unlike {@link openDb}, this never creates the `.speclaw` directory or the
+ * database, and never migrates, wipes, or re-stamps a schema: a missing index,
+ * an old or stale schema, or a pending full reindex returns `null` after a
+ * read-only probe, so the caller writes nothing and leaves the repair to the
+ * next full run.
+ *
+ * @param projectPath - Absolute path to the project root.
+ * @returns A read-write connection (WAL, foreign keys, 5 s busy timeout), or `null`.
+ */
+export function openCurrentDb(projectPath: string): DatabaseSync | null {
+  const file = indexPath(projectPath);
+  if (!fs.existsSync(file)) return null;
+  let current: boolean;
+  const probe = new DatabaseSync(file, { readOnly: true });
+  try {
+    probe.exec("PRAGMA busy_timeout = 5000;");
+    current = isCurrentIndex(probe);
+  } catch {
+    current = false;
+  } finally {
+    probe.close();
+  }
+  if (!current) return null;
+  const db = new DatabaseSync(file);
+  db.exec("PRAGMA foreign_keys = ON; PRAGMA busy_timeout = 5000;");
+  return db;
+}
+
 /** Absolute path to the index database file for a project. */
 export function indexPath(projectPath: string): string {
   return path.join(projectPath, ".speclaw", "index.db");
