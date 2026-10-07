@@ -14,7 +14,7 @@ Install globally so the command is always available:
   npm i -g @esneiderbravo/speclaw     (or run npx @esneiderbravo/speclaw@latest init)
 
 Setup
-  init                     Interactive setup: pick agents, scaffold, index, get the prompt
+  init                     Setup: .agents/ linked into ai-specs/, scaffold, index, get the prompt
                            (--minimal omits setup/lifecycle MCP tools)
   update                   Re-run itself at the latest version via npx, then apply project
                            migrations (--check reports version only; --no-self-update
@@ -137,8 +137,9 @@ you rarely run it by hand.
     name: "init",
     usage: `Usage: speclaw init [options]
 
-Interactive setup: pick agents, scaffold the constitution and lawbook, build the
-Compass index, and print the starting prompt. Prefer
+Setup without an agent picker: create .agents/ linked into ai-specs/ (gitignored),
+scaffold the constitution and lawbook, build the Compass index, and print the
+starting prompt. Prefer
 npx @esneiderbravo/speclaw@latest init so the scaffold matches the latest release.
 
 Options

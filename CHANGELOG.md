@@ -5,6 +5,20 @@ All notable changes to this project are documented here. Speclaw follows
 
 ## [Unreleased]
 
+## [2.0.15] — 2026-10-07
+
+### Fixed
+
+- `speclaw init` no longer asks which agents to use: it always creates only
+  `.agents/` (other folders via `--agents` or `speclaw agent add`).
+- A bare `.claude/` or `.cursor/` (created by Claude Code or Cursor on their
+  own) is no longer taken as a configured agent, so `update` stops filling it
+  with links, `settings.json` and `rules/speclaw`. An agent counts as
+  configured only when its folder holds a speclaw link into `ai-specs/`.
+- When an explicitly chosen agent's folder already existed, the entries
+  speclaw writes in it (links, `rules/speclaw`, a new hooks file) are now
+  gitignored one by one.
+
 ## [2.0.14] — 2026-10-07
 
 ### Changed

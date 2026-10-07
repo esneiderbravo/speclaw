@@ -25,18 +25,17 @@ export function detectProjectName(cwd: string): string {
 }
 
 /**
- * Interactive setup: pick agents (and packs when any exist), scaffold, index,
+ * Setup: create `.agents/` (plus any `--agents`), pick packs when any exist, scaffold, index,
  * and print the handoff prompt.
  *
- * @param flags - Parsed flags; runs interactively on a TTY unless `--agents`, `--yes`, or
- *   `-y` is set. Honors `--project-name`, `--packs`, and `--no-index`.
+ * @param flags - Parsed flags; only the pack picker is interactive (on a TTY unless
+ *   `--agents`, `--yes`, or `-y` is set). Honors `--project-name`, `--packs`, and `--no-index`.
  */
 export async function runInit(flags: Flags): Promise<void> {
   const cwd = process.cwd();
   const projectName = (flags["project-name"] as string) || detectProjectName(cwd);
   const interactive = Boolean(process.stdin.isTTY) && !flags.agents && !flags.yes && !flags.y;
 
-  let agents: string[];
   let packs: string[];
   const availablePacks = loadPacks();
   const packIds = Object.keys(availablePacks);
@@ -57,37 +56,25 @@ export async function runInit(flags: Flags): Promise<void> {
     ui.plain();
   }
 
-  if (interactive) {
-    // Covers: req~remove-agents-pack~1
-    const prompts: Record<string, () => Promise<unknown>> = {
-      agents: () =>
-        clack.multiselect({
-          message: "Which agents do you use? (space to select)",
-          options: AGENTS.map((a) => ({ value: a.id, label: a.label })),
-          initialValues: ["agents"],
-          required: true,
-        }),
-    };
-    if (packIds.length > 0) {
-      prompts.packs = () =>
-        clack.multiselect({
-          message: "Which tool packs to install?",
-          options: packIds.map((id) => ({
-            value: id,
-            label: id,
-            hint: availablePacks[id]!.description.slice(0, 50),
-          })),
-          initialValues: [],
-          required: false,
-        });
-    }
-    const answers = await clack.group(prompts, { onCancel: () => process.exit(1) });
-    agents = answers.agents as string[];
-    packs = (answers.packs as string[] | undefined) ?? [];
-  } else {
-    // Default: one agent-facing folder, `.agents/`, linked into ai-specs/.
-    agents = list(flags.agents).length ? list(flags.agents) : ["agents"];
-    packs = list(flags.packs);
+  // Agents are never prompted for: init creates one agent-facing folder,
+  // `.agents/`, linked into ai-specs/. Other IDE folders only via `--agents`
+  // or `speclaw agent add`.
+  const agents = list(flags.agents).length ? list(flags.agents) : ["agents"];
+  packs = list(flags.packs);
+  // Covers: req~remove-agents-pack~1
+  if (interactive && packIds.length > 0 && !packs.length) {
+    const answer = await clack.multiselect({
+      message: "Which tool packs to install?",
+      options: packIds.map((id) => ({
+        value: id,
+        label: id,
+        hint: availablePacks[id]!.description.slice(0, 50),
+      })),
+      initialValues: [],
+      required: false,
+    });
+    if (clack.isCancel(answer)) process.exit(1);
+    packs = answer as string[];
   }
 
   const unknownAgents = agents.filter((a) => !agentById(a));
