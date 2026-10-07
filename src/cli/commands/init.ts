@@ -64,7 +64,7 @@ export async function runInit(flags: Flags): Promise<void> {
         clack.multiselect({
           message: "Which agents do you use? (space to select)",
           options: AGENTS.map((a) => ({ value: a.id, label: a.label })),
-          initialValues: ["claude"],
+          initialValues: ["agents"],
           required: true,
         }),
     };
@@ -85,7 +85,8 @@ export async function runInit(flags: Flags): Promise<void> {
     agents = answers.agents as string[];
     packs = (answers.packs as string[] | undefined) ?? [];
   } else {
-    agents = list(flags.agents).length ? list(flags.agents) : ["claude"];
+    // Default: one agent-facing folder, `.agents/`, linked into ai-specs/.
+    agents = list(flags.agents).length ? list(flags.agents) : ["agents"];
     packs = list(flags.packs);
   }
 

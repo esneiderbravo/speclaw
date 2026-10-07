@@ -58,7 +58,7 @@ export const AGENTS: AgentDef[] = [
     id: "agents",
     label: "Generic (AGENTS.md)",
     ideDir: ".agents",
-    linkTargets: ["skills", "agents"],
+    linkTargets: ["skills", "commands", "agents", "rules"],
   },
 ];
 

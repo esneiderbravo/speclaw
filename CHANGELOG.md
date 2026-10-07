@@ -7,6 +7,15 @@ All notable changes to this project are documented here. Speclaw follows
 
 ## [2.0.14] — 2026-10-07
 
+### Changed
+
+- `speclaw init` creates a single agent-facing folder by default: `.agents/`,
+  with symlinks to `ai-specs/` (`skills`, `commands`, `agents`, `rules`).
+  `ai-specs/` stays the source of everything. `.claude/`, `.cursor/`,
+  `.codex/`, `.windsurf/` and `.github/instructions/` are created only for an
+  agent chosen explicitly (`--agents claude`, `speclaw agent add cursor`, …).
+  Existing installs keep their folders.
+
 ### Fixed
 
 - `speclaw drift --reseal` re-stamps only the anchors whose sealed state
