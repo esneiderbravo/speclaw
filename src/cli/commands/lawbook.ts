@@ -11,7 +11,7 @@ import { scaffoldFeature } from "../../modules/lawbook/scaffold-change.js";
 import { investigate, formatInvestigateResult } from "../../modules/lawbook/investigate.js";
 import { handleHarness } from "../../modules/cortex/harness.js";
 import { printHarnessWarnings } from "./cortex.js";
-import { Flags, list } from "../lib/args.js";
+import { Flags, list, repeated } from "../lib/args.js";
 import { ui } from "../lib/ui.js";
 
 function today(): string {
@@ -206,7 +206,8 @@ export async function runSpec(flags: Flags): Promise<void> {
           change: changeName,
           harnessOp: op,
           verdict: verdict ?? null,
-          openQuestions: list(flags.question),
+          // Covers: req~harness-state~1
+          openQuestions: repeated(flags.question),
           pauseForQuestions: Boolean(flags["pause-questions"]),
           note: typeof flags.note === "string" ? flags.note : undefined,
         });

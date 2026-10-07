@@ -345,7 +345,7 @@ Options
   --change <name>      The change (or pass it as the second argument)
   --verdict <v>        PASS or FAIL (advance from reviewing/testing)
   --note <text>        A history note
-  --question <text>    An open question (repeatable)
+  --question <text>    One open question, commas included; repeat for more
   --pause-questions    Pause the loop for open questions
   --json               Print the result as JSON
 `,
