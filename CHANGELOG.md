@@ -5,6 +5,16 @@ All notable changes to this project are documented here. Speclaw follows
 
 ## [Unreleased]
 
+## [2.0.14] — 2026-10-07
+
+### Fixed
+
+- `speclaw drift --reseal` re-stamps only the anchors whose sealed state
+  changed. Unchanged anchors keep their `archivedAt` / `commitSha`, so an
+  unchanged capability stays byte-identical and drift age counts from the real
+  seal. On this repo a full reseal went from ~6,000 changed lines in 15 files
+  to 6 lines in 1 file.
+
 ## [2.0.13] — 2026-10-07
 
 ### Changed
