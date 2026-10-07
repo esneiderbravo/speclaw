@@ -1,0 +1,46 @@
+{
+  "version": 1,
+  "change": "init-registers-mcp",
+  "stage": "done",
+  "level": 0,
+  "iteration": 0,
+  "maxRework": 3,
+  "verdicts": {
+    "review": null,
+    "test": "PASS"
+  },
+  "openQuestions": [],
+  "history": [
+    {
+      "at": "2026-10-07T20:37:59.436Z",
+      "from": "exploring",
+      "to": "exploring",
+      "op": "start"
+    },
+    {
+      "at": "2026-10-07T20:37:59.437Z",
+      "from": "exploring",
+      "to": "implementing",
+      "op": "advance"
+    },
+    {
+      "at": "2026-10-07T20:37:59.438Z",
+      "from": "implementing",
+      "to": "testing",
+      "op": "advance"
+    },
+    {
+      "at": "2026-10-07T20:37:59.438Z",
+      "from": "testing",
+      "to": "archiving",
+      "op": "advance"
+    },
+    {
+      "at": "2026-10-07T20:37:59.448Z",
+      "from": "archiving",
+      "to": "done",
+      "op": "advance",
+      "note": "archived by lawbook archive"
+    }
+  ]
+}

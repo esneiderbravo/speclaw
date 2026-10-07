@@ -286,3 +286,39 @@ export function scaffold(
 
   return report;
 }
+
+/**
+ * Wire one agent into an already-initialized project: its links and MCP entry
+ * (via `configureAgent`) plus, for a hook-capable agent, speclaw's hooks.
+ *
+ * @remarks
+ * `configureAgent` alone left a later-added Claude Code without its
+ * SessionStart / PostToolUse / Stop hooks, so Compass never refreshed and the
+ * Stop hook never shipped the change. The hooks' baseline is recorded in the
+ * manifest when the project has one, so a later `update` treats the file as
+ * speclaw's own rather than a user edit.
+ *
+ * @param projectPath - Project root.
+ * @param agentId - Agent id from `AGENTS` (e.g. `"claude"`).
+ * @param report - Install report mutated in place.
+ * @returns Which agents got hooks, were skipped, and any laws rejected for bad globs.
+ * @throws When `agentId` is not a known agent.
+ */
+export function addAgent(
+  projectPath: string,
+  agentId: string,
+  report: InstallReport,
+): HookInstallResult {
+  configureAgent(projectPath, agentId, report);
+  const manifest = readManifest(projectPath);
+  const record: Record<string, string> = {};
+  const lawManifest = readLawManifest(projectPath) ?? { version: 1, laws: [] };
+  const hooks = installHooks(projectPath, [agentId], lawManifest, report, {
+    baselines: manifest?.baselines ?? {},
+    record,
+  });
+  if (manifest && Object.keys(record).length > 0) {
+    writeManifest(projectPath, manifest.version, [], record);
+  }
+  return hooks;
+}

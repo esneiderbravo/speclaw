@@ -1,0 +1,46 @@
+{
+  "version": 1,
+  "change": "host-clean-generated-files",
+  "stage": "done",
+  "level": 0,
+  "iteration": 0,
+  "maxRework": 3,
+  "verdicts": {
+    "review": null,
+    "test": "PASS"
+  },
+  "openQuestions": [],
+  "history": [
+    {
+      "at": "2026-10-07T20:47:32.586Z",
+      "from": "exploring",
+      "to": "exploring",
+      "op": "start"
+    },
+    {
+      "at": "2026-10-07T20:47:32.587Z",
+      "from": "exploring",
+      "to": "implementing",
+      "op": "advance"
+    },
+    {
+      "at": "2026-10-07T20:47:32.587Z",
+      "from": "implementing",
+      "to": "testing",
+      "op": "advance"
+    },
+    {
+      "at": "2026-10-07T20:47:32.587Z",
+      "from": "testing",
+      "to": "archiving",
+      "op": "advance"
+    },
+    {
+      "at": "2026-10-07T20:47:32.598Z",
+      "from": "archiving",
+      "to": "done",
+      "op": "advance",
+      "note": "archived by lawbook archive"
+    }
+  ]
+}

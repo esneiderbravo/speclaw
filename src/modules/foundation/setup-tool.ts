@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { loadPacks } from "../tools/packs.js";
-import { AGENTS, configureAgent } from "../../shared/agents.js";
+import { AGENTS } from "../../shared/agents.js";
+import { addAgent } from "./scaffold.js";
 import { emptyReport } from "../../shared/install.js";
 import { refreshAgents } from "../../shared/agents.js";
 import { installPack } from "../tools/packs.js";
@@ -90,7 +91,7 @@ export function handleSpeclawSetup(args: SetupArgs): unknown {
     case "configure-agent": {
       if (!args.agent) throw new Error(`speclaw_setup: action 'configure-agent' requires 'agent'`);
       const report = emptyReport();
-      configureAgent(args.projectPath, args.agent, report);
+      addAgent(args.projectPath, args.agent, report);
       return report;
     }
     case "list-packs":

@@ -8,6 +8,7 @@ import type { DatabaseSync } from "node:sqlite";
 import { openDb, rehydrateAnchors } from "../compass/db.js";
 import { NORMALIZER_VERSION } from "../compass/hash.js";
 import { headSha } from "../../shared/git-history.js";
+import { formatJson } from "../../shared/json.js";
 
 export type AnchorSource = "covers-link" | "backtick" | "casing" | "path";
 export type AnchorResolution = "unique" | "ambiguous" | "unresolved";
@@ -294,7 +295,7 @@ export function writeAnchorsFile(projectPath: string, doc: AnchorsFile): string 
     ),
   );
   const dest = anchorsPath(projectPath, doc.capability);
-  fs.writeFileSync(dest, JSON.stringify({ ...doc, anchors: sorted }, null, 2) + "\n", "utf8");
+  fs.writeFileSync(dest, formatJson({ ...doc, anchors: sorted }), "utf8");
   return dest;
 }
 

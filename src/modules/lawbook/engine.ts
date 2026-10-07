@@ -25,6 +25,7 @@ import {
 import { inferBugResolution, preventionRequiresDelta, validateBugfixContent } from "./bugfix.js";
 import { isPlaceholderDelta } from "./scaffold-change.js";
 import { completeHarnessOnArchive, harnessArchiveBlockers } from "../cortex/harness.js";
+import { formatJson } from "../../shared/json.js";
 
 export type { CeremonyLevel, CeremonyTargets };
 
@@ -78,7 +79,17 @@ coverage:
 # EARS requirement linter (strict by default for new projects).
 ears:
   severity: strict
-  vagueWords: [appropriately, properly, as needed, efficiently, user-friendly, robust, adecuadamente, correctamente]
+  vagueWords:
+    [
+      appropriately,
+      properly,
+      as needed,
+      efficiently,
+      user-friendly,
+      robust,
+      adecuadamente,
+      correctamente,
+    ]
   silentCodes: []
 `;
 
@@ -582,7 +593,7 @@ export function specArchive(projectPath: string, change: string, date: string): 
         rec.changeType = "bug";
         rec.resolution = inferBugResolution(fs.readFileSync(bugPath, "utf8"));
         const cj = path.join(changeDir, "change.json");
-        fs.writeFileSync(cj, JSON.stringify(rec, null, 2) + "\n");
+        fs.writeFileSync(cj, formatJson(rec));
       }
     }
   }

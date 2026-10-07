@@ -1,0 +1,41 @@
+# speclaw lawbook module configuration
+# The spec-driven workflow: draft -> build -> sync -> archive (explore anytime).
+
+# Mandatory steps every change's tasks.md must include, in order.
+mandatory_task_steps:
+  - "Step 0: Create the feature branch (must be first)."
+  - "Review and update the affected tests."
+  - "Run the quality gates and verify they pass (see docs/standards/testing-standards.md)."
+  - "Perform manual verification of the behavior — the agent executes this itself, never the user."
+  - "Produce the discipline reports under reports/ — one per discipline touched, from an open set (e.g. backend.md, frontend.md, api.md, database.md, infra.md, security.md; api.md is required whenever the change touches an API surface) — with the unit/integration/e2e results for what the feature touched."
+  - "Update the technical documentation touched by the change."
+  - "Archive the change within the same PR (lawbook:archive)."
+
+# A change is required for new behavior, endpoints, schema changes, or UI flows;
+# one-line fixes may use ceremony level 0 (`speclaw quick`) instead of full artifacts.
+
+# Ceremony levels (adaptive). Defaults match speclaw's built-in thresholds.
+ceremony:
+  cuts: [3, 8, 15]
+  hotspotFloor: 0.7
+
+# Requirement → impl → test coverage (`speclaw coverage`).
+coverage:
+  gateArchive: true
+  defaultNeeds: [impl, utest]
+
+# EARS requirement linter (strict by default for new projects).
+ears:
+  severity: strict
+  vagueWords:
+    [
+      appropriately,
+      properly,
+      as needed,
+      efficiently,
+      user-friendly,
+      robust,
+      adecuadamente,
+      correctamente,
+    ]
+  silentCodes: []

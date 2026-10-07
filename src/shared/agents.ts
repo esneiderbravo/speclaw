@@ -62,6 +62,10 @@ export const AGENTS: AgentDef[] = [
     label: "Generic (AGENTS.md)",
     ideDir: ".agents",
     linkTargets: ["skills", "commands", "agents", "rules"],
+    // The default agent must still reach Compass and the lawbook tools: without
+    // a server entry the agent contract (Compass first) cannot be followed.
+    // `.mcp.json` is the project-scoped MCP file Claude Code reads.
+    mcpFile: ".mcp.json",
   },
 ];
 

@@ -1,0 +1,106 @@
+# CLAUDE.md — speclaw Agent Operating Rules
+
+Agent rules for the **speclaw** repository (a self-contained MCP suite + CLI that turns any repo into a spec-driven, agent-ready project — Foundation, Compass, Lawbook, Cortex; 100% local).
+These rules are STRICT. Read this file at the start of every session.
+Cross-agent context: [`AGENTS.md`](AGENTS.md) · The law: [`LAWS.md`](LAWS.md)
+
+---
+
+## Rule 0 — The Law comes first
+
+Read [`LAWS.md`](LAWS.md) before writing or changing any code. It is the
+constitution: it binds the individual standards below. Open the standard that
+governs the area you're touching **before** touching it:
+
+| You're working on… | Read first |
+|--------------------|-----------|
+| Anything | [`docs/standards/base-standards.md`](docs/standards/base-standards.md) |
+| Structure / boundaries | [`docs/standards/architecture.md`](docs/standards/architecture.md) |
+| Backend code | [`docs/standards/backend-standards.md`](docs/standards/backend-standards.md) |
+| Frontend code | [`docs/standards/frontend-standards.md`](docs/standards/frontend-standards.md) |
+| Tests / gates | [`docs/standards/testing-standards.md`](docs/standards/testing-standards.md) |
+| Docstrings / API comments | [`docs/standards/documentation.md`](docs/standards/documentation.md) |
+| Branches / PRs / tickets | [`docs/standards/conventions.md`](docs/standards/conventions.md) |
+| Any non-trivial change | [`docs/standards/lawbook.md`](docs/standards/lawbook.md) |
+
+When any instruction conflicts with a standard, **the standard wins** — and if
+you believe it is wrong, propose an amendment via a spec change; never silently
+ignore it.
+
+## Rule 1 — Compass first, always
+
+This repo is indexed by Compass, speclaw's local code graph (`.speclaw/`). For
+**any** question about code — what a symbol is, what it uses, who calls it,
+where it lives, how a value flows — call Compass **first**: `compass_find` to
+locate, `compass_explore` to read a symbol with its callers and callees (include
+`blast_radius` for what could break, `to` for a call path), and
+`compass_diff_context` for the context of a diff.
+Run `compass_index` first if the graph is missing. Under Claude Code a
+`SessionStart` hook refreshes an existing index when each session starts.
+
+This includes files you already know the name of: to learn what `Foo` imports,
+uses, or depends on, run `compass_explore Foo` — do **not** `cat`/`sed`/`grep`/
+Read the file to work it out by hand. "I know which file it is" is not an
+exemption.
+
+Fall back to Grep / Read / `sed` / `cat` **only after** you can name which of
+these holds: (1) a Compass call actually ran and returned nothing useful for the
+query, (2) the graph is missing and `compass_index` can't be run, or (3) the
+target is not indexed code — stylesheets, JSON/config, markdown, logs,
+generated files, lockfiles. Never skip Compass because grep "feels faster."
+See [`docs/compass.md`](docs/compass.md).
+
+## Rule 2 — Cortex, always — one brain on the critical path
+
+Every change is built with **Cortex** (*One brain. Many agents.*), and Cortex
+costs no more time than working alone: branch `<type>/<slug>`, locate with
+Compass, implement the change and its test yourself, run the tests, finish.
+Then stop: the `Stop` hook (`speclaw ship-on-stop`) records the change, runs
+the gates once, writes the report from their real output, and archives
+level-0 work with no agent turns; a failing gate comes back to you. Do not run
+`speclaw ship` yourself, check the hook, open the archive, edit the generated
+report, read the process docs, or drive the harness by hand. Review happens on the PR, never blocking the
+agent. Add agents only to run three or more large, independent parts in
+parallel. Details: the `cortex` skill and
+[`docs/standards/lawbook.md`](docs/standards/lawbook.md).
+
+## Rule 3 — Quality gates are non-negotiable
+
+- Tests: `npm run build && npm test`
+- Lint / type-check: `npm run check && npm run build`
+
+The **tester** role runs them and reports real output. Never claim success you
+did not observe. Full rules:
+[`docs/standards/testing-standards.md`](docs/standards/testing-standards.md).
+
+## Rule 4 — Conventions
+
+Branches `<type>/<short-slug>`, commits Conventional Commits (`type(scope): imperative summary`, English, lowercase), code that reads like
+its neighbors, comments that carry constraints (never ticket IDs). Full rules:
+[`docs/standards/base-standards.md`](docs/standards/base-standards.md) and
+[`docs/standards/conventions.md`](docs/standards/conventions.md).
+
+## Rule 5 — Skills and role agents are law-adjacent
+
+Skills, commands, rules, and agents live in `ai-specs/`, read through the
+symlinks in `.agents/` (an IDE folder such as `.claude/` exists only for an
+agent added explicitly with `speclaw agent add`). When a skill or role matches
+the task, use it — do not improvise a parallel process.
+
+## Rule 6 — Stop conditions
+
+Stop and ask the user before: destructive operations (deletes, force-push,
+schema drops), writing to a real data store (DB rows or files holding real user
+data — including to set up or tear down test data; verification runs against an
+isolated/throwaway store instead), publishing anything outward-facing (PR
+reviews, tickets, comments), or any action that contradicts a standard.
+Planner clarifying questions always go to the human via the coordinator.
+
+<!-- speclaw:laws:start -->
+## speclaw (generated)
+
+Import shared agent context: `@AGENTS.md`
+
+Path-scoped laws live under `.claude/rules/` (symlink to `ai-specs/rules`).
+Do not rely on Claude Code reading `AGENTS.md` without the import.
+<!-- speclaw:laws:end -->

@@ -12,6 +12,7 @@ import {
   specArchivePreconditions,
   specList,
 } from "../../src/modules/lawbook/engine.js";
+import { loadEarsConfig } from "../../src/modules/lawbook/ears.js";
 
 const VALID_SPEC = `# Cap
 
@@ -332,4 +333,19 @@ test("level-0 change validates and archives without deltas", (t) => {
   const archived = specArchive(root, "tiny", "2026-08-22");
   assert.equal(archived.promoted.length, 0);
   assert.ok(has(root, "lawbook/changes/archive/2026-08-22-tiny/record.md"));
+});
+
+test("specInit keeps config.yaml flow lists within 100 columns, and its EARS list still loads", (t) => {
+  const root = tmpRepo(t);
+  specInit(root);
+  // A host repo running `prettier --check .` (printWidth 100) must stay green after
+  // init: Prettier leaves long YAML strings alone but wraps an over-wide flow list.
+  const long = read(root, "lawbook/config.yaml")
+    .split("\n")
+    .filter((l) => l.length > 100 && l.includes("["));
+  assert.deepEqual(long, []);
+  const cfg = loadEarsConfig(root);
+  assert.ok(cfg.vagueWords.includes("as needed"));
+  assert.ok(cfg.vagueWords.includes("correctamente"));
+  assert.ok(!cfg.vagueWords.includes(""));
 });
