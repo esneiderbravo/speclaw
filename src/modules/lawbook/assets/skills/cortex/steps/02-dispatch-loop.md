@@ -30,7 +30,10 @@ For the current Cortex stage (`cortex` action `brief` or `status`):
    - implementing done → `advance` (reviewing, or testing at level 0)
    - reviewing PASS → `advance` + `verdict: PASS`; FAIL → `rework` + `verdict: FAIL`
    - testing PASS → `advance` + `verdict: PASS`; FAIL → `rework` + `verdict: FAIL`
-   - archiving success → `advance` (to done)
+   - archiving success → no Cortex op: the archive itself moves the harness
+     to `done` (the result reports `harnessCompleted`). Confirm with `cortex`
+     action `status` that the stage is `done`; never `advance` an archived
+     change (the engine rejects it).
 4. Max rework is 3; if the engine rejects further rework, **ask the human**.
 5. Coordinator never edits `src/`, never archives, never pushes, never runs
    `laws accept`.

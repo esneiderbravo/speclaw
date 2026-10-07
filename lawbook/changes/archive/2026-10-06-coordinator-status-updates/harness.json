@@ -1,7 +1,7 @@
 {
   "version": 1,
   "change": "coordinator-status-updates",
-  "stage": "archiving",
+  "stage": "done",
   "level": 3,
   "iteration": 1,
   "maxRework": 3,
@@ -78,6 +78,13 @@
       "to": "archiving",
       "op": "advance",
       "note": "Test PASS: npm test 685/685 (86.11% lines), validate ok, manual CLI/interval/MCP(40 entries, fitted 1421/1500 tokens) verification, reports api/backend/skills/docs."
+    },
+    {
+      "at": "2026-10-07T00:57:37.967Z",
+      "from": "archiving",
+      "to": "done",
+      "op": "advance",
+      "note": "repaired: archive moved the change before the harness reached done (harden-update-lock-and-cli)"
     }
   ]
 }

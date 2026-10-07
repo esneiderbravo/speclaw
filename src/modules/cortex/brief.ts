@@ -67,7 +67,9 @@ export function briefForStage(stage: HarnessStage | null): CortexBrief {
         role: "archiver",
         agentPath: "ai-specs/agents/archiver.md",
         skillHints: ["sync", "archive"],
-        nextOps: ["advance"],
+        // A successful `lawbook_change` archive completes the harness itself;
+        // no Cortex op follows (confirm `done` with `status`).
+        nextOps: [],
       };
     case "done":
     case null:

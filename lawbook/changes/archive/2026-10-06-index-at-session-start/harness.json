@@ -1,7 +1,7 @@
 {
   "version": 1,
   "change": "index-at-session-start",
-  "stage": "archiving",
+  "stage": "done",
   "level": 3,
   "iteration": 2,
   "maxRework": 3,
@@ -99,6 +99,13 @@
       "to": "archiving",
       "op": "advance",
       "note": "Test PASS: npm test 663/663 (85.77% lines), coverage 12/12, real npx trap-server check 0 requests ×3 (control 1), regressions (a)-(d) pass, perf budgets met."
+    },
+    {
+      "at": "2026-10-07T00:54:30.758Z",
+      "from": "archiving",
+      "to": "done",
+      "op": "advance",
+      "note": "repaired: archive moved the change before the harness reached done (harden-update-lock-and-cli)"
     }
   ]
 }
