@@ -120,6 +120,24 @@ export const REINDEX_FILE_MARKER = "speclaw reindex-file";
  */
 export const REINDEX_FILE_COMMAND = speclawCommand("reindex-file");
 
+/**
+ * Substring every ship-on-stop command contains, in each of its resolution
+ * branches. It is the merge identity of the `Stop` ship hook.
+ */
+export const SHIP_ON_STOP_MARKER = "speclaw ship-on-stop";
+
+/**
+ * The POSIX `sh` command the `Stop` hook runs: when the agent finishes a turn
+ * with new changes on a feature branch, speclaw records the change, runs the
+ * gates once, writes the report from their real output, and archives level-0
+ * work — with no agent turn. Guarded on `lawbook/` instead of the index. Its
+ * stderr is kept so a failing gate reaches the agent (exit 2).
+ */
+export const SHIP_ON_STOP_COMMAND = speclawCommand("ship-on-stop");
+
+/** Seconds the Stop hook may run: the project's own gates run inside it. */
+const SHIP_ON_STOP_TIMEOUT = 600;
+
 /** Seconds the edit hook may run; the command returns once it has spawned the work. */
 const REINDEX_TIMEOUT_SECONDS = 10;
 
@@ -131,15 +149,20 @@ const REINDEX_TIMEOUT_SECONDS = 10;
  * @param sub - The top-level speclaw command the hook runs.
  * @returns The POSIX `sh` command string.
  */
-export function speclawCommand(sub: "session-start" | "reindex-file"): string {
+export function speclawCommand(sub: "session-start" | "reindex-file" | "ship-on-stop"): string {
   // Covers: req~edit-reindex-hook~1
-  return (
-    'cd "${CLAUDE_PROJECT_DIR:-.}" 2>/dev/null && [ -f .speclaw/index.db ] && { ' +
+  const ship = sub === "ship-on-stop";
+  const run =
     `if [ -x node_modules/.bin/speclaw ]; then node_modules/.bin/speclaw ${sub}; ` +
     `elif command -v speclaw >/dev/null 2>&1; then speclaw ${sub}; ` +
-    `else npm_config_update_notifier=false npm_config_offline=true npx --no-install @esneiderbravo/speclaw ${sub}; fi; ` +
-    "} >/dev/null 2>&1 || true"
-  );
+    `else npm_config_update_notifier=false npm_config_offline=true npx --no-install @esneiderbravo/speclaw ${sub}; fi; `;
+  // The ship hook keeps its exit code (2 feeds a failing gate back to the
+  // agent) and its stderr; stdout is discarded like the other hooks.
+  return ship
+    ? 'cd "${CLAUDE_PROJECT_DIR:-.}" 2>/dev/null && [ -d lawbook ] && { ' + run + "} >/dev/null"
+    : 'cd "${CLAUDE_PROJECT_DIR:-.}" 2>/dev/null && [ -f .speclaw/index.db ] && { ' +
+        run +
+        "} >/dev/null 2>&1 || true";
 }
 
 /** `SessionStart` matcher covering every session source Claude Code reports. */
@@ -202,6 +225,7 @@ export function isSpeclawHook(h: unknown): boolean {
     o?.type === "command" &&
     typeof o?.command === "string" &&
     (o.command.includes(SESSION_START_MARKER) ||
+      o.command.includes(SHIP_ON_STOP_MARKER) ||
       o.command.includes(REINDEX_FILE_MARKER) ||
       o.command.includes(LEGACY_SESSION_START_MARKER))
   );
@@ -213,8 +237,9 @@ export function isSpeclawHook(h: unknown): boolean {
  * `PostToolUse` carries both (the edit reindex group is a `command` hook).
  */
 export type CompiledByEvent = {
-  [E in Exclude<CheckEvent, "PostToolUse">]?: HookGroup<SpeclawHook>[];
+  [E in Exclude<CheckEvent, "PostToolUse" | "Stop">]?: HookGroup<SpeclawHook>[];
 } & {
+  Stop?: HookGroup<SpeclawHook | SpeclawCommandHook>[];
   PostToolUse?: HookGroup<SpeclawHook | SpeclawCommandHook>[];
   SessionStart?: HookGroup<SpeclawCommandHook>[];
 };
@@ -269,6 +294,10 @@ export function compileHooks(manifest: LawManifest): CompiledHooks {
     hooks: [{ type: "command", command: REINDEX_FILE_COMMAND, timeout: REINDEX_TIMEOUT_SECONDS }],
   });
   if (hasGate) byEvent.Stop = [{ hooks: [{ ...SPECLAW_HOOK }] }];
+  // Covers: req~ship-on-stop-hook~1
+  (byEvent.Stop ??= []).push({
+    hooks: [{ type: "command", command: SHIP_ON_STOP_COMMAND, timeout: SHIP_ON_STOP_TIMEOUT }],
+  });
   if (valid.length > 0) byEvent.InstructionsLoaded = [{ hooks: [{ ...SPECLAW_HOOK }] }];
   // Covers: req~session-start-hook~1
   byEvent.SessionStart = [

@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { specInit, specValidate, specSync, specArchive, specList } from "./engine.js";
 import { handleLevel } from "./quick.js";
+import { shipChange } from "./ship.js";
 import { scaffoldBugfix } from "./bugfix.js";
 import { scaffoldFeature } from "./scaffold-change.js";
 import { buildCoverageReport, loadCoverageConfig, renderCoverageAgent } from "./coverage.js";
@@ -19,6 +20,7 @@ export const lawbookChangeActions = [
   "coverage",
   "drift",
   "harness",
+  "ship",
 ] as const;
 
 export type LawbookChangeAction = (typeof lawbookChangeActions)[number];
@@ -109,6 +111,11 @@ export function handleLawbookChange(args: ChangeArgs): unknown {
         requireField(args, "change"),
         requireField(args, "date"),
       );
+    case "ship":
+      return shipChange(args.projectPath, requireField(args, "change"), {
+        summary: args.note,
+        date: args.date,
+      });
     case "level":
       if (!args.mode) throw new Error(`lawbook_change: action 'level' requires 'mode'`);
       return handleLevel({

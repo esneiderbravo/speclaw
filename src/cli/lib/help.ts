@@ -25,6 +25,7 @@ Setup
 Compass (code intelligence — the same surface agents use via MCP)
   index                    (Re)build the local code graph (--force / --prune / --json)
   session-start            Silent, fail-safe refresh of an existing index (SessionStart hook)
+  ship-on-stop             Ship the branch's change when work changed (Stop hook)
   reindex-file [paths...]  Silent re-index of edited files (PostToolUse hook; stdin JSON)
   watch                    Keep the index fresh on file changes
   explore <node>           A node's source + callers/callees
@@ -42,6 +43,7 @@ Cortex (One brain. Many agents. — multi-agent loop)
   cortex <op>              status|start|advance|rework|brief — drive harness.json (--change)
 
 Lawbook (spec-driven workflow)
+  ship <name>              Fast path: gates once → report → archive (level 0)
   quick <name>             Scaffold a level-0 change (record.md + reports)
   lawbook init             Create the lawbook/ workspace
   lawbook list             Active/archived changes and capabilities
@@ -178,6 +180,15 @@ Options
     usage: `Usage: speclaw watch
 
 Keep the Compass index fresh: re-index changed files until interrupted (Ctrl-C).
+`,
+  },
+  {
+    name: "ship-on-stop",
+    usage: `Usage: speclaw ship-on-stop
+
+The Claude Code Stop hook. On a feature branch whose work changed since the
+last ship, runs \`speclaw ship\` for the change named after the branch. Prints
+nothing on stdout; a failing gate goes to stderr with exit 2 once.
 `,
   },
   {
@@ -323,6 +334,23 @@ Options
   --depth <n>          Neighborhood depth around <node>
   --limit <n>          Maximum nodes
   --no-open            Do not open the browser
+`,
+  },
+  {
+    name: "ship",
+    usage: `Usage: speclaw ship <name> [options]
+
+Fast path for finished work: scaffold a level-0 record if the change is new,
+run the project's gates once, write reports/<discipline>.md from their real
+output, and archive at level 0. Level 1+ stops after the evidence: review
+happens on the PR. Ship never records a review verdict.
+
+Options
+  --summary <text>     What changed (default: the changed-file list)
+  --gate <cmd>         Gate command (repeatable; default ship.gates or package.json)
+  --discipline <name>  Report name (default ship.discipline or "change")
+  --no-archive         Stop after the report
+  --json               Print the result as JSON
 `,
   },
   {

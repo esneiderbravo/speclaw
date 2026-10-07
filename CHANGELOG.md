@@ -7,6 +7,22 @@ All notable changes to this project are documented here. Speclaw follows
 
 ## [2.0.13] — 2026-10-07
 
+### Changed
+
+- Cortex is as fast as one agent: one brain does the critical path and the
+  installed `Stop` hook (`speclaw ship-on-stop`) records the change, runs the
+  gates once, writes the report from their real output, and archives level-0
+  work with no agent turns. Measured: 18.1 s median vs 15.8 s for an agent
+  alone on the same bug, down from 74–154 s (`docs/benchmarks/cortex-speed.md`).
+  Extra agents run only in parallel for large independent parts; review
+  happens on the PR. Cortex status updates are off by default.
+
+### Added
+
+- `speclaw ship <change>` / `lawbook_change` action `ship`: one call for
+  finished work. It never records a review verdict.
+- `scripts/bench-workflow.sh`: reproducible agent benchmark.
+
 ### Fixed
 
 - `compass_find` (and the `compass_search` / `compass_recall` aliases) returns

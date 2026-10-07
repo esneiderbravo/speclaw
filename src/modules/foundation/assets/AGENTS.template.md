@@ -23,17 +23,18 @@ Claude-specific notes: [`CLAUDE.md`](CLAUDE.md). The law: [`LAWS.md`](LAWS.md).
    first; Claude Code sessions refresh an existing index at start), or the
    target isn't indexed code (stylesheets, config, logs). Cheat
    sheet: [`docs/compass.md`](docs/compass.md).
-3. **Follow Cortex** (*One brain. Many agents.*) for every non-trivial change;
-   archive within the same PR. The primary agent is the **coordinator**
-   (`cortex` skill / `/lawbook/cortex`) — it MUST NOT implement
-   product code itself. It dispatches explorer → planner → implementer →
-   reviewer → tester → archiver (or adopts each role while obeying that
-   role's permission profile). Drive state with the `cortex` MCP tool or
-   `speclaw cortex`. Rules:
+3. **Cortex, always — one brain on the critical path** (*One brain. Many
+   agents.*). Branch `<type>/<slug>`, locate with Compass, implement the
+   change and its test yourself, run the tests, finish. The `Stop` hook
+   (`speclaw ship-on-stop`) — or `speclaw ship <change> --summary "<what and
+   why>"` as your last step on agents without hooks — records the change, runs
+   the gates once, writes the report from their real output, and archives
+   level-0 work. Review happens on the PR and never blocks the agent. Add
+   agents only to run three or more large, independent parts in parallel.
+   Details: the `cortex` skill and
    [`docs/standards/lawbook.md`](docs/standards/lawbook.md).
 4. **Run the quality gates yourself** before declaring anything done — see
-   [`docs/standards/testing-standards.md`](docs/standards/testing-standards.md)
-   (owned by the **tester** role under Cortex):
+   [`docs/standards/testing-standards.md`](docs/standards/testing-standards.md):
    - Tests: `{{test_commands}}`
    - Lint / type-check: `{{lint_commands}}`
 5. **Respect the conventions** — branches `{{branch_pattern}}`, commits

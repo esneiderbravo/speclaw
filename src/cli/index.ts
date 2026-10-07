@@ -29,6 +29,7 @@ const HEADER_COMMANDS = new Set<string | undefined>([
   "lawbook",
   "cortex",
   "quick",
+  "ship",
 ]);
 
 /**
@@ -118,6 +119,10 @@ async function dispatch(
       return (await import("./commands/visualize.js")).runVisualize(flags);
     case "quick":
       return (await import("./commands/quick.js")).runQuick(flags);
+    case "ship":
+      return (await import("./commands/ship.js")).runShip(flags);
+    case "ship-on-stop":
+      return (await import("./commands/ship-on-stop.js")).runShipOnStop();
     case "cortex":
       return (await import("./commands/cortex.js")).runCortex(flags);
     case "lawbook":
@@ -165,7 +170,7 @@ async function main(): Promise<void> {
   maybeHeader(cmd, flags);
   await dispatch(cmd, flags);
   // The SessionStart and edit hooks must stay silent: no update notice either.
-  if (cmd === "session-start" || cmd === "reindex-file") return;
+  if (cmd === "session-start" || cmd === "reindex-file" || cmd === "ship-on-stop") return;
   await maybeNotifyUpdate(cmd);
 }
 

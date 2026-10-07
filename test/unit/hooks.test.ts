@@ -18,6 +18,7 @@ import {
   type HookGroup,
 } from "../../src/modules/foundation/hooks.js";
 import type { Law, LawManifest } from "../../src/modules/foundation/laws.js";
+import type { SpeclawHook } from "../../src/modules/foundation/hooks.js";
 
 const lawOf = (over: Partial<Law> = {}): Law => ({
   id: "law~x~1",
@@ -51,10 +52,8 @@ test("compileHooks maps each enforcement type to its event", () => {
   assert.equal(byEvent.PreToolUse![0]!.hooks[0]!.server, "speclaw");
   assert.equal(byEvent.PreToolUse![0]!.hooks[0]!.input.projectPath, "${cwd}");
   assert.equal(byEvent.PreToolUse![0]!.hooks[0]!.input.event, "${hook_event_name}");
-  assert.equal(
-    byEvent.Stop![0]!.hooks[0]!.input.payload.tool_input.file_path,
-    "${tool_input.file_path}",
-  );
+  const gate = byEvent.Stop![0]!.hooks[0]! as SpeclawHook;
+  assert.equal(gate.input.payload.tool_input.file_path, "${tool_input.file_path}");
 });
 
 test("compileHooks excludes a law with a malformed glob and reports it", () => {
@@ -182,7 +181,11 @@ test("installHooks never clobbers an unparseable settings file", (t) => {
 // Covers: req~compass-nudge~1
 test("compileHooks always emits the Read|Grep|Glob PostToolUse nudge entry, even with zero laws", () => {
   const { byEvent } = compileHooks(manifest([]));
-  assert.deepEqual(Object.keys(byEvent), ["PostToolUse", "SessionStart"]);
+  assert.deepEqual(Object.keys(byEvent), ["PostToolUse", "Stop", "SessionStart"]);
+  const ship = byEvent.Stop![0]!.hooks[0]!;
+  assert.equal(ship.type, "command");
+  assert.match((ship as { command: string }).command, /speclaw ship-on-stop/);
+  assert.ok(isSpeclawHook(ship));
   const group = byEvent.PostToolUse![0]!;
   assert.equal(group.matcher, "Read|Grep|Glob");
   const hook = group.hooks[0]!;
