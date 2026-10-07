@@ -1,0 +1,83 @@
+{
+  "version": 1,
+  "change": "coordinator-status-updates",
+  "stage": "archiving",
+  "level": 3,
+  "iteration": 1,
+  "maxRework": 3,
+  "verdicts": {
+    "review": "PASS",
+    "test": "PASS"
+  },
+  "openQuestions": [],
+  "history": [
+    {
+      "at": "2026-10-06T23:23:57.810Z",
+      "from": "exploring",
+      "to": "exploring",
+      "op": "start"
+    },
+    {
+      "at": "2026-10-06T23:25:17.953Z",
+      "from": "exploring",
+      "to": "planning",
+      "op": "advance",
+      "note": "Explorer: canonical skill at src/modules/lawbook/assets/skills/cortex (ai-specs is a managed copy); status data from HarnessState + stageStartedAt; no host scheduler capability; spec lawbook-workflow req~cortex-skill~1; tests explorer-brief/skill-steps. Compass calls: 9."
+    },
+    {
+      "at": "2026-10-06T23:25:21.451Z",
+      "from": "planning",
+      "to": "questions",
+      "op": "advance"
+    },
+    {
+      "at": "2026-10-06T23:26:06.364Z",
+      "from": "questions",
+      "to": "planning",
+      "op": "advance",
+      "note": "Human: skill + status summary; configurable interval default 5 (0 disables); full content; level 2."
+    },
+    {
+      "at": "2026-10-07T00:20:07.654Z",
+      "from": "planning",
+      "to": "implementing",
+      "op": "advance",
+      "note": "Draft valid (level 2). Moved to branch feat/coordinator-status-updates after 2.0.7 shipped; targets 2.0.8."
+    },
+    {
+      "at": "2026-10-07T00:26:39.289Z",
+      "from": "implementing",
+      "to": "reviewing",
+      "op": "advance",
+      "note": "Implemented: status summary (status.ts), harness status {state,summary}, CLI stderr line, skill steps 01/02/03 + command, docs, config key; brief.ts cycle fix. build/check pass; npm test 678/678."
+    },
+    {
+      "at": "2026-10-07T00:29:42.194Z",
+      "from": "reviewing",
+      "to": "implementing",
+      "op": "rework",
+      "note": "Review FAIL F1: MCP text budget truncates status output from the end, losing summary on long histories. Rework: summary first / budget-safe + test; m1, m2, m3, m4, m5 skill/spec fixes."
+    },
+    {
+      "at": "2026-10-07T00:34:46.604Z",
+      "from": "implementing",
+      "to": "reviewing",
+      "op": "advance",
+      "note": "Rework 1: summary-first + fitStatusResult budget fitting on MCP paths (D12) with 30-entry test; skill m1–m4 (D13 cap 60, D14 prompt); m5 approved; m6/m7 docs. npm test 685/685."
+    },
+    {
+      "at": "2026-10-07T00:36:38.588Z",
+      "from": "reviewing",
+      "to": "testing",
+      "op": "advance",
+      "note": "Re-review PASS: F1 fixed (budget math verified), m1–m5/m7 fixed; nits n1–n3 non-blocking."
+    },
+    {
+      "at": "2026-10-07T00:42:19.307Z",
+      "from": "testing",
+      "to": "archiving",
+      "op": "advance",
+      "note": "Test PASS: npm test 685/685 (86.11% lines), validate ok, manual CLI/interval/MCP(40 entries, fitted 1421/1500 tokens) verification, reports api/backend/skills/docs."
+    }
+  ]
+}
