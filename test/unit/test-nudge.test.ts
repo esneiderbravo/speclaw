@@ -1,4 +1,5 @@
 import { test } from "node:test";
+import { readGreenRuns } from "../../src/shared/test-runs.js";
 import assert from "node:assert/strict";
 import { performance } from "node:perf_hooks";
 import { tmpRepo } from "../helpers/env.js";
@@ -148,10 +149,26 @@ test("a piped run whose exit code hid the failure still gets the investigate hin
   assert.equal(r.hookSpecificOutput?.hookEventName, "PostToolUse");
 });
 
-test("a passing test run gets no hint", (t) => {
+test("a passing test run gets no hint and is recorded; so is a compile step", (t) => {
   const root = indexed(t);
   assert.equal(ran(root, "npx vitest run", "Tests: 12 passed").nudge, undefined);
   assert.equal(ran(root, "pytest").nudge, undefined);
+  assert.equal(ran(root, "npm run pretest", "").nudge, undefined);
+  const runs = readGreenRuns(root);
+  assert.deepEqual(
+    runs.map((r) => [r.command, r.kind ?? "test"]),
+    [
+      ["npx vitest run", "test"],
+      ["pytest", "test"],
+      ["npm run pretest", "setup"],
+    ],
+  );
+});
+
+test("a piped run that hides its summary is not recorded as green", (t) => {
+  const root = indexed(t);
+  ran(root, "npm test 2>&1 | grep -c ok", "12");
+  assert.deepEqual(readGreenRuns(root), []);
 });
 
 test("the test nudges stay silent off-target", (t) => {

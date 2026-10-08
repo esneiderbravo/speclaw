@@ -21,6 +21,8 @@ export interface GreenRun {
   command: string;
   /** Last lines of its output. */
   tail: string;
+  /** `setup`: a passing compile/build step, not a test run. */
+  kind?: "setup";
 }
 
 /**
@@ -32,13 +34,15 @@ export function recordGreenRun(
   command: string,
   output: string,
   at: Date = new Date(),
+  kind?: "setup",
 ): void {
   try {
     const dir = path.join(projectPath, ".speclaw");
     fs.mkdirSync(dir, { recursive: true });
     const file = path.join(dir, TEST_RUN_LOG);
     const tail = output.trimEnd().split("\n").slice(-TAIL_LINES).join("\n");
-    const line = JSON.stringify({ at: at.toISOString(), command, tail } satisfies GreenRun);
+    const run: GreenRun = { at: at.toISOString(), command, tail, ...(kind ? { kind } : {}) };
+    const line = JSON.stringify(run);
     const kept = readLines(file).slice(-(KEEP_RUNS - 1));
     fs.writeFileSync(file, [...kept, line].join("\n") + "\n", "utf8");
   } catch {
@@ -53,7 +57,12 @@ export function readGreenRuns(projectPath: string): GreenRun[] {
     try {
       const r = JSON.parse(line) as Partial<GreenRun>;
       if (typeof r.at === "string" && typeof r.command === "string") {
-        out.push({ at: r.at, command: r.command, tail: typeof r.tail === "string" ? r.tail : "" });
+        out.push({
+          at: r.at,
+          command: r.command,
+          tail: typeof r.tail === "string" ? r.tail : "",
+          ...(r.kind === "setup" ? { kind: "setup" as const } : {}),
+        });
       }
     } catch {
       /* skip a torn line */
@@ -96,7 +105,8 @@ export interface TestReuse {
  * Which files of a planned `setup && runner file…` command a green run already
  * ran on the current code. A run counts only when it finished after the last
  * edit to any changed file, ran every setup step the plan runs (a compile
- * before `node --test` — without it the run tested stale output), and used no
+ * before `node --test` — without it the run tested stale output) in the same
+ * command or in a passing step between the last edit and the run, and used no
  * filter that runs part of a file. A plain whole-suite run (`npm test`) covers
  * everything.
  *
@@ -117,15 +127,20 @@ export function reuseGreenRuns(
   const setup = amp === -1 ? "" : planned.slice(0, amp).trim();
   const covered = new Set<string>();
   let last: GreenRun | null = null;
+  const setups = runs.filter((r) => r.kind === "setup" && Date.parse(r.at) > lastEditMs);
   for (const run of runs) {
-    if (Date.parse(run.at) <= lastEditMs) continue;
+    if (run.kind === "setup" || Date.parse(run.at) <= lastEditMs) continue;
     if (wholeSuite(run.command.trim())) {
       testFiles.forEach((f) => covered.add(f));
       last = run;
       continue;
     }
     if (FILTER_FLAG.test(run.command)) continue;
-    if (setup && !run.command.includes(setup)) continue;
+    const compiled =
+      !setup ||
+      run.command.includes(setup) ||
+      setups.some((s) => s.command.includes(setup) && Date.parse(s.at) <= Date.parse(run.at));
+    if (!compiled) continue;
     const ran = new Set(tokens(run.command));
     const hit = testFiles.filter((f) => ran.has(f));
     if (!hit.length) continue;

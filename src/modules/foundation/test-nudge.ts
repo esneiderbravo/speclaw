@@ -199,6 +199,9 @@ function testFailure(event: string, payload: Record<string, unknown>): string | 
   return Number.isFinite(code) && code !== 0 ? out || `exit code ${code}` : null;
 }
 
+/** A compile or build step a test command may need first (`npm run pretest`, `tsc`). */
+const SETUP_STEP = /\b(pretest|build|tsc|compile|prepare)\b/;
+
 /** A summary line that reports zero failures (`ℹ fail 0`, `0 failed`, `Tests: 12 passed`). */
 const ZERO_FAIL =
   /(^|\n)\s*(ℹ|#)\s*fail 0\b|\b0 (failed|failing|failures)\b|\bTests:\s+\d+ passed(?![^\n]*fail)|\b\d+ passed(?![^\n]*fail)|test result: ok\b|(^|\n)ok\s+\S+/;
@@ -245,7 +248,14 @@ export function testNudge(args: TestNudgeInput, now: number = Date.now()): strin
     if ((usable(args.toolName) ?? usable(payload.tool_name)) !== "Bash") return null;
     const input = (payload.tool_input ?? payload.toolInput ?? {}) as Record<string, unknown>;
     const command = usable(input.command);
-    if (!command || !isTestCommand(command)) return null;
+    if (!command) return null;
+    if (!isTestCommand(command)) {
+      // A passing compile step lets a later test run count as run on current code.
+      if (args.event === "PostToolUse" && SETUP_STEP.test(command)) {
+        recordGreenRun(args.projectPath, command, "", new Date(now), "setup");
+      }
+      return null;
+    }
     const failure = testFailure(args.event, payload);
     if (!failure) {
       recordPassingRun(args.projectPath, command, payload);

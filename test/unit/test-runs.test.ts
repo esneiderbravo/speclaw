@@ -33,6 +33,28 @@ test("covering every file leaves nothing to run; a whole-suite run covers all", 
   assert.equal(reuseGreenRuns([after("npm test")], PLAN, FILES, EDIT, whole)?.command, null);
 });
 
+test("a setup step run on its own between the edit and the tests counts", () => {
+  const setup = {
+    at: "2026-10-08T12:04:00.000Z",
+    command: "npm run pretest 2>&1 | tail -3",
+    tail: "",
+    kind: "setup" as const,
+  };
+  const r = reuseGreenRuns(
+    [setup, after("node --test dist/a.test.js dist/b.test.js")],
+    PLAN,
+    FILES,
+    EDIT,
+    whole,
+  );
+  assert.equal(r?.command, null);
+  const late = { ...setup, at: "2026-10-08T12:06:00.000Z" };
+  assert.equal(
+    reuseGreenRuns([after("node --test dist/a.test.js"), late], PLAN, FILES, EDIT, whole),
+    null,
+  );
+});
+
 test("runs before the edit, without the setup step, or filtered do not count", () => {
   const stale = { at: "2026-10-08T11:00:00.000Z", command: "npm test", tail: "" };
   assert.equal(reuseGreenRuns([stale], PLAN, FILES, EDIT, whole), null);
