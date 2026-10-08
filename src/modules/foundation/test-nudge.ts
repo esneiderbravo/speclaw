@@ -1,23 +1,21 @@
 import path from "node:path";
 import { readCompassCalls, recordCompassCall } from "../../shared/compass-calls.js";
 import { readIndexStats } from "../../shared/index-stats.js";
+import { recordGreenRun } from "../../shared/test-runs.js";
 import { NUDGE_MIN_INDEXED_FILES } from "./compass-nudge.js";
 
-// The test-run nudges: after a Bash call that ran a test command, point a
+// The test-run hook: after a Bash call that ran a test command, point a
 // failing run at `lawbook_investigate` (it ranks the code the failing test
-// reaches) and an unscoped run at `compass_diff_context` (what the diff touches
-// and which tests cover it). Advisory context only — never a verdict. Pure
-// string parsing plus the bounded call-log tail and the index-stats file the
+// reaches) and record a passing one, so the stop does not re-run the same
+// tests on the same code. Advisory context only — never a verdict. Pure string
+// parsing plus the bounded call-log tail and the index-stats file the
 // Compass-first nudge already reads: no index DB, no git, no spawn.
 
-/** A per-failure-signature investigate hint, and the diff hint, repeat at most once per this window. */
+/** A per-failure-signature investigate hint repeats at most once per this window. */
 export const TEST_NUDGE_WINDOW_MS = 60 * 60 * 1000;
 
 /** Call-log entry prefix for an investigate hint; the failure signature follows. */
 export const INVESTIGATE_NUDGE_PREFIX = "nudge:investigate:";
-
-/** Call-log entry for the diff-context hint. */
-export const DIFF_NUDGE_ENTRY = "nudge:diff-context";
 
 /** Leading words that run the next word as the command (`npx vitest`, `time go test`). */
 const WRAPPERS = new Set(["npx", "bunx", "pnpx", "time", "env", "sudo", "exec", "command", "nice"]);
@@ -201,6 +199,30 @@ function testFailure(event: string, payload: Record<string, unknown>): string | 
   return Number.isFinite(code) && code !== 0 ? out || `exit code ${code}` : null;
 }
 
+/** A summary line that reports zero failures (`ℹ fail 0`, `0 failed`, `Tests: 12 passed`). */
+const ZERO_FAIL =
+  /(^|\n)\s*(ℹ|#)\s*fail 0\b|\b0 (failed|failing|failures)\b|\bTests:\s+\d+ passed(?![^\n]*fail)|\b\d+ passed(?![^\n]*fail)|test result: ok\b|(^|\n)ok\s+\S+/;
+
+/**
+ * Record a passing test run for the stop to reuse. Only a `PostToolUse` call
+ * counts (the command exited 0). A piped command may have hidden a failing
+ * exit, so it counts only when its output still shows a zero-failure summary.
+ */
+function recordPassingRun(
+  projectPath: string,
+  command: string,
+  payload: Record<string, unknown>,
+): void {
+  const response = (payload.tool_response ?? payload.toolResponse) as
+    Record<string, unknown> | undefined;
+  const out =
+    response && typeof response === "object"
+      ? [usable(response.stdout), usable(response.stderr)].filter(Boolean).join("\n")
+      : "";
+  if (/\|/.test(command.replace(/\|\|/g, "")) && !ZERO_FAIL.test(out)) return;
+  recordGreenRun(projectPath, command, out);
+}
+
 /**
  * Evaluate the test-run nudges for one check call.
  *
@@ -208,10 +230,10 @@ function testFailure(event: string, payload: Record<string, unknown>): string | 
  * whose index holds at least {@link NUDGE_MIN_INDEXED_FILES} files. A failing
  * run returns the `lawbook_investigate` hint, once per failure signature (the
  * command plus its first failing line, digits dropped) per
- * {@link TEST_NUDGE_WINDOW_MS}; any other test run returns the
- * `compass_diff_context` hint, once per window and only when that tool was not
- * called in it. Each hint is recorded in the call log for its rate limit.
- * Returns null otherwise. Never throws.
+ * {@link TEST_NUDGE_WINDOW_MS}, recorded in the call log for its rate limit.
+ * A passing run is recorded for the stop to reuse and gets no hint: in real runs a "run only the covering tests"
+ * hint made agents widen a one-test run to whole files (~60 s more on a
+ * one-line fix) and none called the tool. Returns null otherwise. Never throws.
  *
  * @param args - The check call's project, event, tool, and raw payload.
  * @param now - Current epoch ms (injectable for tests).
@@ -224,29 +246,23 @@ export function testNudge(args: TestNudgeInput, now: number = Date.now()): strin
     const input = (payload.tool_input ?? payload.toolInput ?? {}) as Record<string, unknown>;
     const command = usable(input.command);
     if (!command || !isTestCommand(command)) return null;
+    const failure = testFailure(args.event, payload);
+    if (!failure) {
+      recordPassingRun(args.projectPath, command, payload);
+      return null;
+    }
     const indexed = readIndexStats(args.projectPath);
     if (!indexed || indexed.files < NUDGE_MIN_INDEXED_FILES) return null;
 
     const recent = readCompassCalls(args.projectPath, { sinceMs: now - TEST_NUDGE_WINDOW_MS });
-    const failure = testFailure(args.event, payload);
-    if (failure) {
-      const first = failureLine(failure) ?? failure.split("\n").find((l) => l.trim()) ?? "";
-      const sig = hash(`${command.replace(/\s+/g, " ")}\n${first.replace(/\d+/g, "#")}`);
-      const entry = `${INVESTIGATE_NUDGE_PREFIX}${sig}`;
-      if (recent.some((c) => c.tool === entry)) return null;
-      recordCompassCall(args.projectPath, entry, new Date(now));
-      return (
-        "Tests failed: call `lawbook_investigate` with the failing output as `stackTrace` " +
-        "— it ranks the code the failing test reaches — before opening files."
-      );
-    }
-    if (recent.some((c) => c.tool === DIFF_NUDGE_ENTRY || c.tool === "compass_diff_context")) {
-      return null;
-    }
-    recordCompassCall(args.projectPath, DIFF_NUDGE_ENTRY, new Date(now));
+    const first = failureLine(failure) ?? failure.split("\n").find((l) => l.trim()) ?? "";
+    const sig = hash(`${command.replace(/\s+/g, " ")}\n${first.replace(/\d+/g, "#")}`);
+    const entry = `${INVESTIGATE_NUDGE_PREFIX}${sig}`;
+    if (recent.some((c) => c.tool === entry)) return null;
+    recordCompassCall(args.projectPath, entry, new Date(now));
     return (
-      "Before the next test run: `compass_diff_context` names what the diff touches and " +
-      "the tests that cover it — run only those."
+      "Tests failed: call `lawbook_investigate` with the failing output as `stackTrace` " +
+      "— it ranks the code the failing test reaches — before opening files."
     );
   } catch {
     return null;

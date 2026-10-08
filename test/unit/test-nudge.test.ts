@@ -5,7 +5,6 @@ import { tmpRepo } from "../helpers/env.js";
 import { runCli, cliBuilt } from "../helpers/cli.js";
 import { checkAction, clearLawCache } from "../../src/modules/foundation/check.js";
 import {
-  DIFF_NUDGE_ENTRY,
   INVESTIGATE_NUDGE_PREFIX,
   failureLine,
   isTestCommand,
@@ -149,18 +148,9 @@ test("a piped run whose exit code hid the failure still gets the investigate hin
   assert.equal(r.hookSpecificOutput?.hookEventName, "PostToolUse");
 });
 
-test("a passing test run suggests compass_diff_context once per window", (t) => {
+test("a passing test run gets no hint", (t) => {
   const root = indexed(t);
-  const first = ran(root, "npx vitest run", "Tests: 12 passed");
-  assert.match(first.nudge ?? "", /`compass_diff_context`/);
-  assert.doesNotMatch(first.nudge ?? "", /lawbook_investigate/);
-  assert.ok(readCompassCalls(root).some((c) => c.tool === DIFF_NUDGE_ENTRY));
   assert.equal(ran(root, "npx vitest run", "Tests: 12 passed").nudge, undefined);
-});
-
-test("a recent compass_diff_context call suppresses the diff hint", (t) => {
-  const root = indexed(t);
-  recordCompassCall(root, "compass_diff_context", new Date(Date.now() - 5 * MIN));
   assert.equal(ran(root, "pytest").nudge, undefined);
 });
 
