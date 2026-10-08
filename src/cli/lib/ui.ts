@@ -21,6 +21,115 @@ export const PALETTE = Object.freeze({
   red: [255, 92, 71] as RGB, // #FF5C47 — deny: errors
 } satisfies Record<string, RGB>);
 
+// The same slots tuned for a light terminal: the ink palette is near-invisible
+// on white (cream is ~1.1:1, signal cyan ~1.6:1), so each slot here holds at
+// least 4.5:1 against white paper #FFFFFF instead.
+// Covers: req~brand-terminal-palette~1
+export const LIGHT_PALETTE = Object.freeze({
+  cyan: [0, 122, 140] as RGB, // #007A8C — deep signal
+  cyanDim: [0, 122, 140] as RGB, // #007A8C
+  cream: [31, 35, 40] as RGB, // #1F2328 — primary text on light paper
+  muted: [95, 102, 112] as RGB, // #5F6670 — secondary text
+  green: [26, 127, 55] as RGB, // #1A7F37 — success
+  amber: [154, 103, 0] as RGB, // #9A6700 — warning
+  red: [207, 34, 46] as RGB, // #CF222E — errors
+} satisfies Record<keyof typeof PALETTE, RGB>);
+
+export type Theme = "dark" | "light";
+
+/**
+ * The theme an explicit signal asks for: `SPECLAW_THEME=light|dark` wins, then
+ * `COLORFGBG` (`fg;bg`, set by rxvt, Konsole, and others), whose background
+ * index 7 or 15 means a light terminal. Returns `undefined` when neither says.
+ */
+export function themeFromEnv(env: NodeJS.ProcessEnv = process.env): Theme | undefined {
+  const forced = env.SPECLAW_THEME?.toLowerCase();
+  if (forced === "light" || forced === "dark") return forced;
+  const bg = env.COLORFGBG?.split(";").pop();
+  if (bg === undefined || bg === "") return undefined;
+  return bg === "7" || bg === "15" ? "light" : "dark";
+}
+
+let active: Record<keyof typeof PALETTE, RGB> =
+  themeFromEnv() === "light" ? LIGHT_PALETTE : PALETTE;
+
+/** Switch every brand color to the given theme's palette. */
+export function setTheme(theme: Theme): void {
+  active = theme === "light" ? LIGHT_PALETTE : PALETTE;
+}
+
+/**
+ * The theme an OSC 11 background-color reply implies
+ * (`ESC ] 11 ; rgb:RRRR/GGGG/BBBB` with 1–4 hex digits per channel): light when
+ * the background's relative luminance is above one half.
+ */
+export function themeFromOsc11(reply: string): Theme | undefined {
+  const m = /rgb:([0-9a-f]{1,4})\/([0-9a-f]{1,4})\/([0-9a-f]{1,4})/i.exec(reply);
+  if (!m) return undefined;
+  const [r, g, b] = [m[1]!, m[2]!, m[3]!].map((h) => parseInt(h, 16) / (16 ** h.length - 1));
+  return 0.2126 * r! + 0.7152 * g! + 0.0722 * b! > 0.5 ? "light" : "dark";
+}
+
+// Ask the terminal for its background color. Terminals that don't support the
+// query never answer, so the wait is capped; a reply arriving after the cap
+// would land in the next prompt's input, hence a generous-but-short window.
+function queryBackground(timeoutMs = 200): Promise<string> {
+  const stdin = process.stdin;
+  if (!stdin.isTTY || !process.stdout.isTTY || typeof stdin.setRawMode !== "function") {
+    return Promise.resolve("");
+  }
+  return new Promise((resolve) => {
+    let buf = "";
+    const wasRaw = stdin.isRaw;
+    const done = (): void => {
+      clearTimeout(timer);
+      stdin.off("data", onData);
+      stdin.setRawMode(wasRaw);
+      stdin.pause();
+      resolve(buf);
+    };
+    const onData = (d: Buffer): void => {
+      buf += d.toString("latin1");
+      if (buf.includes("\x07") || buf.includes("\x1b\\")) done();
+    };
+    const timer = setTimeout(done, timeoutMs);
+    stdin.setRawMode(true);
+    stdin.on("data", onData);
+    stdin.resume();
+    process.stdout.write("\x1b]11;?\x07");
+  });
+}
+
+// macOS appearance as a last resort: most terminals there follow the system
+// theme by default. `AppleInterfaceStyle` exists only in dark mode.
+async function macAppearance(): Promise<Theme | undefined> {
+  if (process.platform !== "darwin") return undefined;
+  const { execFile } = await import("node:child_process");
+  return new Promise((resolve) => {
+    execFile("defaults", ["read", "-g", "AppleInterfaceStyle"], { timeout: 500 }, (err, out) => {
+      if (err && typeof err.code !== "number") return resolve(undefined);
+      resolve(/dark/i.test(String(out)) ? "dark" : "light");
+    });
+  });
+}
+
+/**
+ * Detect the terminal's background and switch to the matching palette. An
+ * explicit env signal ({@link themeFromEnv}) wins; otherwise the terminal is
+ * asked directly (OSC 11), then the macOS appearance is consulted. Meant for
+ * interactive commands before their first styled line; does nothing when
+ * color is off.
+ */
+export async function detectTheme(): Promise<Theme> {
+  const fromEnv = themeFromEnv();
+  let theme: Theme = fromEnv ?? "dark";
+  if (colorOn && !fromEnv) {
+    theme = themeFromOsc11(await queryBackground()) ?? (await macAppearance()) ?? "dark";
+  }
+  setTheme(theme);
+  return theme;
+}
+
 const colorOn =
   (Boolean(process.stdout.isTTY) || process.env.FORCE_COLOR === "1") && !process.env.NO_COLOR;
 
@@ -91,13 +200,13 @@ export function link(label: string, url: string): string {
 
 /** Brand color helpers for composing styled strings. */
 export const c = {
-  cyan: (s: string) => paint(PALETTE.cyan, s),
-  cyanDim: (s: string) => paint(PALETTE.cyanDim, s),
-  cream: (s: string) => paint(PALETTE.cream, s),
-  muted: (s: string) => paint(PALETTE.muted, s),
-  green: (s: string) => paint(PALETTE.green, s),
-  amber: (s: string) => paint(PALETTE.amber, s),
-  red: (s: string) => paint(PALETTE.red, s),
+  cyan: (s: string) => paint(active.cyan, s),
+  cyanDim: (s: string) => paint(active.cyanDim, s),
+  cream: (s: string) => paint(active.cream, s),
+  muted: (s: string) => paint(active.muted, s),
+  green: (s: string) => paint(active.green, s),
+  amber: (s: string) => paint(active.amber, s),
+  red: (s: string) => paint(active.red, s),
   bold,
 };
 

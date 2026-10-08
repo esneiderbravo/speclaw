@@ -5,6 +5,16 @@ All notable changes to this project are documented here. Speclaw follows
 
 ## [Unreleased]
 
+## [2.0.18] — 2026-10-08
+
+### Fixed
+
+- The CLI is legible on light terminals. `speclaw init` detects the terminal
+  background (an OSC 11 query, then the macOS appearance) and switches to a
+  light palette whose every color holds at least 4.5:1 on white; before, the
+  ink palette's text and cyan were near-invisible there. `SPECLAW_THEME=light`
+  or `dark` forces a theme, and `COLORFGBG` is honored by every command.
+
 ## [2.0.17] — 2026-10-07
 
 ### Fixed

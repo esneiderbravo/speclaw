@@ -7,7 +7,7 @@ import { buildIndex } from "../../modules/compass/indexer.js";
 import { AGENTS, agentById } from "../../shared/agents.js";
 import { loadPacks } from "../../modules/tools/packs.js";
 import { Flags, list } from "../lib/args.js";
-import { ui, c, banner, renderProgress, clearProgress } from "../lib/ui.js";
+import { ui, c, banner, detectTheme, renderProgress, clearProgress } from "../lib/ui.js";
 import { checkForUpdates } from "../lib/update-check.js";
 import { reportTrackedLocalContent } from "../lib/untrack.js";
 
@@ -40,6 +40,9 @@ export async function runInit(flags: Flags): Promise<void> {
   const availablePacks = loadPacks();
   const packIds = Object.keys(availablePacks);
 
+  // Init is read once, top to bottom, on whatever background the user has —
+  // match the palette to it before the first styled line.
+  await detectTheme();
   banner();
 
   // Scaffolding with a stale version writes yesterday's foundation, so recommend

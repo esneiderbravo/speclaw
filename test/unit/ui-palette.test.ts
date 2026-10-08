@@ -2,7 +2,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { PALETTE } from "../../src/cli/lib/ui.js";
+import { LIGHT_PALETTE, PALETTE, themeFromEnv, themeFromOsc11 } from "../../src/cli/lib/ui.js";
 import { contrast } from "../helpers/brand.js";
 
 const UI_MODULE = new URL("../../src/cli/lib/ui.js", import.meta.url).href;
@@ -50,7 +50,10 @@ test("every palette color holds at least 4.5:1 on the ink paper", () => {
 });
 
 test("forced color paints the accent as signal truecolor", () => {
-  const out = paintInChild("cyan", { ...envWithout("NO_COLOR"), FORCE_COLOR: "1" });
+  const out = paintInChild("cyan", {
+    ...envWithout("NO_COLOR", "SPECLAW_THEME", "COLORFGBG"),
+    FORCE_COLOR: "1",
+  });
   assert.equal(out, "\x1b[38;2;0;227;253mx\x1b[0m");
 });
 
@@ -61,4 +64,36 @@ test("NO_COLOR keeps every slot plain", () => {
     const out = paintInChild(slot, { ...process.env, FORCE_COLOR: "1", NO_COLOR: "1" });
     assert.equal(out, "x", `${slot} emits no escape under NO_COLOR`);
   }
+});
+
+test("every light palette color holds at least 4.5:1 on white paper", () => {
+  assert.deepEqual(Object.keys(LIGHT_PALETTE).sort(), Object.keys(PALETTE).sort());
+  for (const [slot, rgb] of Object.entries(LIGHT_PALETTE)) {
+    const ratio = contrast(hex(rgb), "#ffffff");
+    assert.ok(ratio >= 4.5, `${slot} ${hex(rgb)} is ${ratio.toFixed(2)}:1 on #ffffff`);
+  }
+});
+
+test("SPECLAW_THEME wins, then COLORFGBG's background decides", () => {
+  assert.equal(themeFromEnv({ SPECLAW_THEME: "Light", COLORFGBG: "15;0" }), "light");
+  assert.equal(themeFromEnv({ SPECLAW_THEME: "dark", COLORFGBG: "0;15" }), "dark");
+  assert.equal(themeFromEnv({ COLORFGBG: "0;15" }), "light");
+  assert.equal(themeFromEnv({ COLORFGBG: "0;default;7" }), "light");
+  assert.equal(themeFromEnv({ COLORFGBG: "15;0" }), "dark");
+  assert.equal(themeFromEnv({}), undefined);
+});
+
+test("an OSC 11 reply maps the background luminance to a theme", () => {
+  assert.equal(themeFromOsc11("\x1b]11;rgb:ffff/ffff/ffff\x07"), "light");
+  assert.equal(themeFromOsc11("\x1b]11;rgb:13/13/13\x1b\\"), "dark");
+  assert.equal(themeFromOsc11(""), undefined);
+});
+
+test("SPECLAW_THEME=light paints the accent with the light palette", () => {
+  const out = paintInChild("cyan", {
+    ...envWithout("NO_COLOR", "COLORFGBG"),
+    FORCE_COLOR: "1",
+    SPECLAW_THEME: "light",
+  });
+  assert.equal(out, "\x1b[38;2;0;122;140mx\x1b[0m");
 });
