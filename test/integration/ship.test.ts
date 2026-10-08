@@ -8,6 +8,7 @@ import { specInit } from "../../src/modules/lawbook/engine.js";
 import { readHarness } from "../../src/modules/cortex/harness.js";
 import { handleLevel, scaffoldQuick } from "../../src/modules/lawbook/quick.js";
 import { confirmedLevel } from "../../src/modules/lawbook/levels.js";
+import { buildIndex } from "../../src/modules/compass/indexer.js";
 import {
   changeNameForBranch,
   docHint,
@@ -525,4 +526,101 @@ test("a regenerated Compass map is not work: the hook archives nothing on a fres
     map("new map").replace("Intro.", "Intro, edited."),
   );
   assert.equal(shipOnStop(root).skipped, null);
+});
+
+/** A branch off a repo whose `slug` is called from twelve modules and four tests. */
+async function centralFixture(
+  t: Parameters<typeof tmpRepo>[0],
+  branch: string,
+  pkg?: object,
+  shipConfig = "",
+): Promise<string> {
+  const root = gitFixture(t);
+  if (pkg) fs.writeFileSync(path.join(root, "package.json"), JSON.stringify(pkg));
+  if (shipConfig) fs.appendFileSync(path.join(root, "lawbook", "config.yaml"), shipConfig);
+  const core = Array.from({ length: 20 }, (_, i) => `export const k${i} = ${i};`).join("\n");
+  fs.mkdirSync(path.join(root, "src", "core"), { recursive: true });
+  fs.writeFileSync(
+    path.join(root, "src", "core", "slug.js"),
+    `export function slug(s) {\n  return s.toLowerCase().replace(/[^a-z-]+/g, "-");\n}\n${core}\n`,
+  );
+  for (let m = 0; m < 12; m++) {
+    fs.mkdirSync(path.join(root, "src", `m${m}`), { recursive: true });
+    fs.writeFileSync(
+      path.join(root, "src", `m${m}`, "use.js"),
+      `import { slug } from "../core/slug.js";\nexport function use${m}(s) {\n  return slug(s);\n}\n`,
+    );
+  }
+  fs.mkdirSync(path.join(root, "test"), { recursive: true });
+  for (let i = 0; i < 4; i++) {
+    fs.writeFileSync(
+      path.join(root, "test", `slug${i}.test.js`),
+      `import { slug } from "../src/core/slug.js";\nslug("x${i}");\n`,
+    );
+  }
+  git(root, "add", "-A");
+  git(root, "commit", "-qm", "central slug");
+  await buildIndex(root);
+  git(root, "checkout", "-qb", branch);
+  return root;
+}
+
+test("a small fix stays level 0 however central the code it touches", async (t) => {
+  const root = await centralFixture(t, "fix/slug-digits");
+  const file = path.join(root, "src", "core", "slug.js");
+  fs.writeFileSync(file, fs.readFileSync(file, "utf8").replace("[^a-z-]", "[^a-z0-9-]"));
+  fs.writeFileSync(
+    path.join(root, "test", "slug-digits.test.js"),
+    `import { slug } from "../src/core/slug.js";\nif (slug("FAR-1") !== "far-1") throw new Error("digits");\n`,
+  );
+  const r = shipChange(root, "slug-digits", {
+    gates: [PASS],
+    summary: "keep digits",
+    date: "2026-10-08",
+  });
+  assert.ok(r.archivedTo, `archived at level 0: ${r.next.join(" | ")}`);
+  const rec = JSON.parse(fs.readFileSync(path.join(root, r.archivedTo, "change.json"), "utf8")) as {
+    confirmedLevel: number;
+    rationale: string;
+    score: number;
+  };
+  assert.equal(rec.confirmedLevel, 0);
+  assert.ok(rec.score >= 5, `the signals alone measure level 1+ (score ${rec.score})`);
+  assert.match(rec.rationale, /small fix \(1 source line\(s\)|small fix \(2 source line\(s\)/);
+});
+
+test("the same central file changed past the small-fix size owes its level", async (t) => {
+  const root = await centralFixture(t, "feat/slug-rework");
+  const file = path.join(root, "src", "core", "slug.js");
+  const extra = Array.from({ length: 15 }, (_, i) => `export const extra${i} = ${i};`).join("\n");
+  fs.writeFileSync(file, `${fs.readFileSync(file, "utf8")}${extra}\n`);
+  const r = shipChange(root, "slug-rework", { gates: [PASS] });
+  assert.equal(r.archivedTo, null);
+  assert.ok(confirmedLevel(root, "slug-rework") >= 1);
+});
+
+const RUNNER = { type: "module", scripts: { test: "node --test test/" } };
+
+function fixSlug(root: string): void {
+  const file = path.join(root, "src", "core", "slug.js");
+  fs.writeFileSync(file, fs.readFileSync(file, "utf8").replace("[^a-z-]", "[^a-z0-9-]"));
+}
+
+test("the stop runs only the tests the diff reaches", async (t) => {
+  const root = await centralFixture(t, "fix/slug-scope", RUNNER);
+  fixSlug(root);
+  const r = shipChange(root, "slug-scope", { gates: ["npm test"], summary: "digits" });
+  const gate = r.gates[0]!;
+  assert.equal(gate.exitCode, 0, gate.tail);
+  assert.match(gate.scope ?? "", /affected test file\(s\).*full suite runs in CI/);
+  assert.notEqual(gate.command, "npm test");
+  assert.match(gate.command, /slug0\.test\.js/);
+});
+
+test("a project that asks for the full suite gets it at the stop", async (t) => {
+  const root = await centralFixture(t, "fix/slug-full", RUNNER, "  tests: full\n");
+  fixSlug(root);
+  const r = shipChange(root, "slug-full", { gates: ["npm test"], summary: "digits" });
+  assert.equal(r.gates[0]!.command, "npm test", JSON.stringify(r.next));
+  assert.equal(r.gates[0]!.scope, undefined);
 });

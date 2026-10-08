@@ -25,7 +25,7 @@ Claude-specific notes: [`CLAUDE.md`](CLAUDE.md). The law: [`LAWS.md`](LAWS.md).
    sheet: [`docs/compass.md`](docs/compass.md).
 3. **Cortex, always — one brain on the critical path** (*One brain. Many
    agents.*). Branch `<type>/<slug>`, locate with Compass, implement the
-   change and its test yourself, run the tests, finish. The `Stop` hook
+   change and its test yourself, run the tests that cover it, finish. The `Stop` hook
    (`speclaw ship-on-stop`) — or `speclaw ship <change> --summary "<what and
    why>"` as your last step on agents without hooks — sizes the change from
    its diff, names the artifacts that level owes while you edit (the why,
@@ -36,7 +36,10 @@ Claude-specific notes: [`CLAUDE.md`](CLAUDE.md). The law: [`LAWS.md`](LAWS.md).
    agents only to run three or more large, independent parts in parallel.
    Details: the `cortex` skill and
    [`docs/standards/lawbook.md`](docs/standards/lawbook.md).
-4. **Run the quality gates yourself** before declaring anything done — see
+4. **The quality gates run once** before anything is declared done — by the
+   `Stop` hook where there is one, scoped to the tests the diff reaches (run only
+   those yourself: `speclaw affected-tests --file <path>`; the full suite runs
+   in CI), else by you or `speclaw ship` — see
    [`docs/standards/testing-standards.md`](docs/standards/testing-standards.md):
    - Tests: `npm run build && npm test`
    - Lint / type-check: `npm run check && npm run build`

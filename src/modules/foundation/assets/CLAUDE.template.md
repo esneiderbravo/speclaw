@@ -54,9 +54,11 @@ See [`docs/compass.md`](docs/compass.md).
 
 Every change is built with **Cortex** (*One brain. Many agents.*), and Cortex
 costs no more time than working alone: branch `<type>/<slug>`, locate with
-Compass, implement the change and its test yourself, run the tests, finish.
+Compass, implement the change and its test yourself, run only the tests that
+cover it (`speclaw affected-tests --file <path>` prints the command), finish.
 Then stop: the `Stop` hook (`speclaw ship-on-stop`) sizes the change from its
-diff, runs the gates once, writes the report from their real output, and
+diff, runs the gates once — lint, build and the tests the diff reaches (the
+full suite runs in CI) — writes the report from their real output, and
 archives level-0 work with no agent turns. What the level owes (the why — a
 commit body counts — tasks, delta specs, proposal/design) is named while you
 edit: write it in the same turn. A missing piece or a failing gate comes back
@@ -72,8 +74,10 @@ parallel. Details: the `cortex` skill and
 - Tests: `{{test_commands}}`
 - Lint / type-check: `{{lint_commands}}`
 
-The **tester** role runs them and reports real output. Never claim success you
-did not observe. Full rules:
+With the `Stop` hook they run once, at the stop, scoped to the tests the diff
+reaches — never run the full suite yourself; a failure comes back to you. Without the hook, run them
+yourself (or `speclaw ship`) before declaring anything done. Never claim
+success you did not observe. Full rules:
 [`docs/standards/testing-standards.md`](docs/standards/testing-standards.md).
 
 ## Rule 4 — Conventions
