@@ -1,0 +1,46 @@
+{
+  "version": 1,
+  "change": "release-2-0-19",
+  "stage": "done",
+  "level": 0,
+  "iteration": 0,
+  "maxRework": 3,
+  "verdicts": {
+    "review": null,
+    "test": "PASS"
+  },
+  "openQuestions": [],
+  "history": [
+    {
+      "at": "2026-10-08T01:41:47.696Z",
+      "from": "exploring",
+      "to": "exploring",
+      "op": "start"
+    },
+    {
+      "at": "2026-10-08T01:41:47.698Z",
+      "from": "exploring",
+      "to": "implementing",
+      "op": "advance"
+    },
+    {
+      "at": "2026-10-08T01:41:47.698Z",
+      "from": "implementing",
+      "to": "testing",
+      "op": "advance"
+    },
+    {
+      "at": "2026-10-08T01:41:47.698Z",
+      "from": "testing",
+      "to": "archiving",
+      "op": "advance"
+    },
+    {
+      "at": "2026-10-08T01:41:47.708Z",
+      "from": "archiving",
+      "to": "done",
+      "op": "advance",
+      "note": "archived by lawbook archive"
+    }
+  ]
+}
