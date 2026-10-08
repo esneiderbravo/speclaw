@@ -22,6 +22,7 @@ import {
 } from "./levels.js";
 import { scaffoldQuick } from "./quick.js";
 import { CHANGE_NAME_RE, isPlaceholderDelta, scaffoldFeature } from "./scaffold-change.js";
+import { apiSurfaceChanges } from "./api-surface.js";
 
 /** One quality gate run by {@link shipChange}. */
 export interface ShipGate {
@@ -32,6 +33,8 @@ export interface ShipGate {
   tail: string;
   /** What a scoped test gate ran instead of the full suite, and why. */
   scope?: string;
+  /** The discipline a per-package test gate reports under; absent for repo-wide gates. */
+  discipline?: string;
 }
 
 /** Wall-clock of each ship phase, in milliseconds. */
@@ -53,6 +56,8 @@ export interface ShipResult {
   files: string[];
   /** Report path; null when ship stopped on `pending` artifacts before the gates. */
   report: string | null;
+  /** Every report written: one per discipline at level 2+, else just {@link report}. */
+  reports: string[];
   /**
    * Artifacts the change's level requires that are missing or still a stub.
    * When non-empty, no gate ran: the agent writes them and ships again.
@@ -156,7 +161,12 @@ function scopedTestGate(
   projectPath: string,
   fullCommand: string,
   files: string[],
-): { command: string | null; scope: string } {
+): {
+  command: string | null;
+  scope: string;
+  /** One command per package the selection spans, to run as separate gates. */
+  parts?: Array<{ cwd: string; command: string; tests: number }>;
+} {
   const full = (why: string) => ({ command: fullCommand, scope: `full suite: ${why}` });
   try {
     const at = affectedTests(projectPath, { files });
@@ -170,6 +180,7 @@ function scopedTestGate(
     return {
       command: at.command,
       scope: `${at.tests.length} affected test file(s), ${at.skipped.files} skipped; the full suite runs in CI`,
+      parts: at.commands.map((c) => ({ cwd: c.cwd, command: c.command, tests: c.files.length })),
     };
   } catch (e) {
     return full(e instanceof Error ? e.message : String(e));
@@ -261,6 +272,7 @@ function renderReport(
   gates: ShipGate[],
   passed: boolean,
   date: string,
+  others: string[] = [],
 ): string {
   const rows = gates
     .map(
@@ -283,7 +295,14 @@ ${rows || "| (no gates configured) | — | — |"}
 
 ## Files changed
 
-${files.length ? files.map((f) => `- \`${f}\``).join("\n") : "- (none detected)"}
+${files.length ? files.map((f) => `- \`${f}\``).join("\n") : "- (none detected)"}${
+    others.length
+      ? `\n\nPlus ${others.length} file(s) outside this discipline's package: ${others
+          .slice(0, 8)
+          .map((f) => `\`${f}\``)
+          .join(", ")}${others.length > 8 ? ", …" : ""}`
+      : ""
+  }
 
 ## Gate output (tail)
 
@@ -301,6 +320,85 @@ None.
 
 ${passed ? "**Gates PASS** — every gate exited 0. Review is not decided here: it happens on the PR." : "**Gates FAIL** — at least one gate failed; nothing was archived."}
 `;
+}
+
+/**
+ * The discipline a package's tests report under, named for the package
+ * directory: `apps/backend` → `backend`, `apps/web` → `frontend`. A generated
+ * report is never `api.md`: that one documents the contract and the agent writes it.
+ *
+ * @param cwd - Package directory relative to the root (`.` for the root).
+ * @param fallback - The discipline for the root package.
+ */
+function disciplineOf(cwd: string, fallback: string): string {
+  if (cwd === ".") return fallback;
+  const leaf = cwd.split("/").pop()!.toLowerCase();
+  if (/^(backend|api|server|service|services)$/.test(leaf)) return "backend";
+  if (/^(web|frontend|client|ui|app|site|webapp)$/.test(leaf)) return "frontend";
+  if (/^(e2e|playwright|cypress|acceptance)$/.test(leaf)) return "e2e";
+  if (/^(mobile|ios|android)$/.test(leaf)) return "mobile";
+  return leaf.replace(/[^a-z0-9-]+/g, "-").replace(/^-+|-+$/g, "") || fallback;
+}
+
+/** A path as one shell word. */
+function shellArg(s: string): string {
+  return /^[\w./-]+$/.test(s) ? s : `'${s.replace(/'/g, "'\\''")}'`;
+}
+
+/** One report to write: its discipline, the gates it carries, and its files. */
+interface ReportGroup {
+  discipline: string;
+  gates: ShipGate[];
+  files: string[];
+  /** Changed files no discipline's package holds. */
+  others: string[];
+}
+
+/**
+ * Group the gates into reports. Without per-package gates there is one report
+ * with every gate and file. Otherwise each discipline gets its own test gates
+ * plus the repo-wide ones (lint, build), and the files under its packages.
+ */
+function reportGroups(
+  gates: ShipGate[],
+  files: string[],
+  fallback: string,
+  cwds: Map<string, string[]>,
+): ReportGroup[] {
+  if (cwds.size === 0) return [{ discipline: fallback, gates, files, others: [] }];
+  const shared = gates.filter((g) => !g.discipline);
+  const under = (f: string, cwd: string) => cwd !== "." && f.startsWith(`${cwd}/`);
+  const claimed = new Set(files.filter((f) => [...cwds.values()].flat().some((c) => under(f, c))));
+  return [...cwds.entries()].map(([d, dirs]) => {
+    const own = dirs.includes(".")
+      ? files.filter((f) => !claimed.has(f) || dirs.some((c) => under(f, c)))
+      : files.filter((f) => dirs.some((c) => under(f, c)));
+    return {
+      discipline: d,
+      gates: [...shared, ...gates.filter((g) => g.discipline === d)],
+      files: own,
+      others: files.filter((f) => !own.includes(f) && !claimed.has(f)),
+    };
+  });
+}
+
+/** Marks a report ship wrote, so a later ship may replace or remove it. */
+const GENERATED_MARK = "**Generated by:** `speclaw ship`";
+
+/** Remove reports an earlier ship generated that this ship no longer writes. */
+function dropStaleReports(projectPath: string, reportsRel: string, kept: string[]): void {
+  const dir = path.join(projectPath, reportsRel);
+  for (const f of fs.readdirSync(dir)) {
+    const rel = path.join(reportsRel, f);
+    if (!f.endsWith(".md") || kept.includes(rel)) continue;
+    try {
+      if (fs.readFileSync(path.join(dir, f), "utf8").includes(GENERATED_MARK)) {
+        fs.rmSync(path.join(dir, f));
+      }
+    } catch {
+      // A report that cannot be read is left as it is.
+    }
+  }
 }
 
 /**
@@ -375,8 +473,12 @@ const SMALL_FIX_LINES = 10;
  * small fix stays at level 0 however central the code it touches: its blast
  * radius is guarded by the gates and its test, which ceremony would not add to.
  */
-function measureDiff(projectPath: string, files: string[]): CeremonyProposal {
-  const proposal = measureDiffSignals(projectPath, files);
+function measureDiff(
+  projectPath: string,
+  files: string[],
+  measured?: CeremonyProposal,
+): CeremonyProposal {
+  const proposal = measured ?? measureDiffSignals(projectPath, files);
   if (!proposal.level || proposal.signals.touchesPublicApi || proposal.signals.touchesGlobalFile) {
     return proposal;
   }
@@ -434,7 +536,7 @@ function measureDiffSignals(projectPath: string, files: string[]): CeremonyPropo
   try {
     const file = path.join(projectPath, LEVEL_CACHE);
     fs.mkdirSync(path.dirname(file), { recursive: true });
-    fs.writeFileSync(file, JSON.stringify({ key: fileSetKey(files), proposal }) + "\n");
+    fs.writeFileSync(file, JSON.stringify({ key: fileSetKey(files), files, proposal }) + "\n");
   } catch {
     // The cache only saves time; the measurement stands without it.
   }
@@ -460,6 +562,26 @@ function cachedMeasure(projectPath: string, files: string[]): CeremonyProposal |
       proposal?: CeremonyProposal;
     };
     return c.key === fileSetKey(files) && c.proposal ? c.proposal : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * The last measurement when the diff has only grown since it was taken: its
+ * level is a floor for the current one, since a measured level only rises. A
+ * large diff takes seconds to measure and an agent at work outdates every
+ * measurement before it lands, so waiting for an exact one never tells it.
+ */
+function grownFromCache(projectPath: string, files: string[]): CeremonyProposal | null {
+  try {
+    const c = JSON.parse(fs.readFileSync(path.join(projectPath, LEVEL_CACHE), "utf8")) as {
+      files?: string[];
+      proposal?: CeremonyProposal;
+    };
+    if (!c.proposal || !Array.isArray(c.files) || c.files.length === 0) return null;
+    const now = new Set(files);
+    return c.files.every((f) => now.has(f)) ? c.proposal : null;
   } catch {
     return null;
   }
@@ -517,10 +639,15 @@ function scaffoldMeasured(
 }
 
 /** Raise a measured level when the branch diff has grown past it; a human-set level stands. */
-function remeasure(projectPath: string, name: string, files: string[]): void {
+function remeasure(
+  projectPath: string,
+  name: string,
+  files: string[],
+  measured?: CeremonyProposal,
+): void {
   const rec = readCeremonyRecord(projectPath, name);
   if (rec?.confirmedBy !== "measured") return;
-  const proposal = measureDiff(projectPath, files);
+  const proposal = measured ?? measureDiff(projectPath, files);
   if (proposal.level !== null && proposal.level > rec.confirmedLevel) {
     promoteCeremonyLevel(projectPath, name, proposal.level, "the branch diff grew", proposal);
   }
@@ -539,6 +666,7 @@ function reopenIfGrown(
   name: string,
   archivedRel: string,
   files: string[],
+  measured?: CeremonyProposal,
 ): boolean {
   const archivedDir = path.join(projectPath, archivedRel);
   let rec: { confirmedBy?: string; confirmedLevel?: number } = {};
@@ -556,7 +684,7 @@ function reopenIfGrown(
     cwd: projectPath,
   });
   if (atBase.status === 0) return false;
-  const proposal = measureDiff(projectPath, files);
+  const proposal = measured ?? measureDiff(projectPath, files);
   if (proposal.level === null || proposal.level <= rec.confirmedLevel) return false;
   const changeDir = path.join(projectPath, "lawbook", "changes", name);
   fs.renameSync(archivedDir, changeDir);
@@ -591,11 +719,16 @@ const STUBS: Record<string, RegExp[]> = {
  * its record falls back to the commits or the file list, so it costs no turn. Bug-shaped changes keep
  * their own checks (`bugfix.md`) and are not judged here.
  *
+ * A change whose diff touches an API surface (a route, a DTO, a contract file)
+ * also owes `reports/api.md`: the contract is evidence no gate output carries.
+ *
  * @param projectPath - Project root with `lawbook/`.
  * @param name - Change name.
+ * @param files - The branch's changed files; when given, the API surface is
+ *   read from their diff, else from the change's recorded signals.
  * @returns One instruction per missing artifact; empty when the change is documented.
  */
-export function pendingArtifacts(projectPath: string, name: string): string[] {
+export function pendingArtifacts(projectPath: string, name: string, files?: string[]): string[] {
   const dir = path.join(projectPath, "lawbook", "changes", name);
   if (!fs.existsSync(dir) || readChangeType(projectPath, name) === "bug") return [];
   const level = confirmedLevel(projectPath, name);
@@ -637,6 +770,20 @@ export function pendingArtifacts(projectPath: string, name: string): string[] {
           `${path.relative(projectPath, f)}: replace the placeholder with the capability's full intended spec (or move it to the capability it changes)`,
         );
       }
+    }
+  }
+  if (level > 0 && state(path.join("reports", "api.md")) === "missing") {
+    const api = files
+      ? apiSurfaceChanges(projectPath, files).map((h) => h.file)
+      : (readCeremonyRecord(projectPath, name)?.signals.apiSurface ?? []);
+    if (api.length) {
+      out.push(
+        `${rel("reports/api.md")}: document the API contract this change touches (${api
+          .slice(0, 4)
+          .join(
+            ", ",
+          )}${api.length > 4 ? ", …" : ""}) — method and path, auth, response shape, every status code, and how it was exercised (test client or request against an isolated store)`,
+      );
     }
   }
   return out;
@@ -705,7 +852,7 @@ export function shipChange(projectPath: string, name: string, opts: ShipOptions 
     path.join(changeDir, "record.md"),
     opts.summary ?? (commits || (confirmedLevel(projectPath, name) === 0 ? fileList : "")),
   );
-  const pending = pendingArtifacts(projectPath, name);
+  const pending = pendingArtifacts(projectPath, name, files);
   const t1 = Date.now();
   if (pending.length) {
     const level = confirmedLevel(projectPath, name);
@@ -716,6 +863,7 @@ export function shipChange(projectPath: string, name: string, opts: ShipOptions 
       gates: [],
       files,
       report: null,
+      reports: [],
       pending,
       archivedTo: null,
       next: [
@@ -734,6 +882,10 @@ export function shipChange(projectPath: string, name: string, opts: ShipOptions 
   }
 
   const commands = opts.gates ?? cfg.gates ?? detectGates(projectPath);
+  // Level 2+ is the spec lane: its evidence is one report per discipline, so
+  // tests that span several packages run (and report) package by package.
+  const split = (confirmedLevel(projectPath, name) ?? 0) >= 2;
+  const cwds = new Map<string, string[]>();
   const gates: ShipGate[] = [];
   for (const command of commands) {
     const scoped =
@@ -744,6 +896,24 @@ export function shipChange(projectPath: string, name: string, opts: ShipOptions 
       gates.push({ command, exitCode: 0, durationMs: 0, tail: "", scope: scoped.scope });
       continue;
     }
+    if (split && scoped?.parts && scoped.parts.length > 1) {
+      for (const part of scoped.parts) {
+        const d = disciplineOf(part.cwd, discipline);
+        cwds.set(d, [...(cwds.get(d) ?? []), part.cwd]);
+        const g = runGate(
+          projectPath,
+          part.cwd === "." ? part.command : `cd ${shellArg(part.cwd)} && ${part.command}`,
+        );
+        gates.push({
+          ...g,
+          scope: `${part.tests} affected test file(s) in ${part.cwd}; the full suite runs in CI`,
+          discipline: d,
+        });
+        if (g.exitCode !== 0) break;
+      }
+      if (gates[gates.length - 1].exitCode !== 0) break;
+      continue;
+    }
     const g = runGate(projectPath, scoped?.command ?? command);
     gates.push(scoped ? { ...g, scope: scoped.scope } : g);
     if (g.exitCode !== 0) break;
@@ -751,16 +921,22 @@ export function shipChange(projectPath: string, name: string, opts: ShipOptions 
   const gatesPassed = gates.every((g) => g.exitCode === 0);
   const t2 = Date.now();
 
-  const reportRel = path.join(
+  const reportsRel = path.join(
     archived && !fs.existsSync(changeDir) ? archived : path.join("lawbook", "changes", name),
     "reports",
-    `${discipline}.md`,
   );
-  fs.mkdirSync(path.dirname(path.join(projectPath, reportRel)), { recursive: true });
-  fs.writeFileSync(
-    path.join(projectPath, reportRel),
-    renderReport(name, discipline, files, gates, gatesPassed, date),
-  );
+  fs.mkdirSync(path.join(projectPath, reportsRel), { recursive: true });
+  const reports: string[] = [];
+  for (const r of reportGroups(gates, files, discipline, cwds)) {
+    const rel = path.join(reportsRel, `${r.discipline}.md`);
+    fs.writeFileSync(
+      path.join(projectPath, rel),
+      renderReport(name, r.discipline, r.files, r.gates, gatesPassed, date, r.others),
+    );
+    reports.push(rel);
+  }
+  dropStaleReports(projectPath, reportsRel, reports);
+  const reportRel = reports[0];
   const t3 = Date.now();
 
   let archivedTo: string | null = null;
@@ -791,6 +967,7 @@ export function shipChange(projectPath: string, name: string, opts: ShipOptions 
     gates,
     files,
     report: reportRel,
+    reports,
     pending,
     archivedTo,
     next,
@@ -803,6 +980,43 @@ export function shipChange(projectPath: string, name: string, opts: ShipOptions 
       total: t4 - t0,
     },
   };
+}
+
+/** A gate's short name for a one-line summary: `lint`, `build`, `tests backend`. */
+function gateLabel(g: ShipGate): string {
+  if (g.scope) return g.discipline ? `tests ${g.discipline}` : "tests";
+  const short = g.command.replace(/^(npm|pnpm|yarn)( run)? /, "");
+  return short.length > 40 ? `${short.slice(0, 39)}…` : short;
+}
+
+/**
+ * The one line the `Stop` hook shows the user after a ship: what ran, how it
+ * went, and what is left — so a stop that blocks nothing is never silent.
+ *
+ * @param r - The ship result.
+ * @param blocked - Whether this stop was sent back to the agent.
+ * @returns The summary, prefixed `speclaw:`.
+ */
+export function stopSummary(r: ShipResult, blocked: boolean): string {
+  if (r.pending.length) {
+    const owed = [...new Set(r.pending.map((p) => path.basename(p.split(":")[0])))].join(", ");
+    return blocked
+      ? `speclaw: ${/^level \d/.exec(r.next[0] ?? "")?.[0] ?? "the change"} owes ${owed} — sent back to the agent; the gates run once they are written`
+      : `speclaw: still owed after a second stop: ${owed} — the gates did not run`;
+  }
+  const ran = r.gates.map((g) => `${gateLabel(g)} ${secs(g.durationMs)}`).join(" · ");
+  if (!r.gatesPassed) {
+    const failed = r.gates[r.gates.length - 1];
+    return `speclaw: gate FAILED — ${gateLabel(failed)} (exit ${failed.exitCode})${
+      blocked ? " — sent back to the agent" : "; fix it, then stop again"
+    }`;
+  }
+  const where = r.archivedTo
+    ? `archived to ${r.archivedTo}`
+    : r.next.length
+      ? r.next.join("; ")
+      : `report ${r.report}`;
+  return `speclaw: gates PASS${ran ? ` (${ran})` : ""} · ${where}`;
 }
 
 /** Where {@link docHint} remembers what it last measured and told. */
@@ -851,8 +1065,8 @@ export function docHint(projectPath: string): string | null {
       key?: string;
       /** A background measurement started for this file set, at this time. */
       pending?: { key: string; at: number };
-      /** The last change and level a hint was returned for. */
-      told?: { change: string; level: number };
+      /** The last change, level and owed artifacts a hint was returned for. */
+      told?: { change: string; level: number; owed?: string };
     } = {};
     try {
       prev = JSON.parse(fs.readFileSync(statePath, "utf8")) as typeof prev;
@@ -876,33 +1090,49 @@ export function docHint(projectPath: string): string | null {
       return null;
     }
     // Measuring a large diff takes seconds — longer than the hook may run —
-    // so it happens in the background and the hint follows on a later call.
-    if (!cachedMeasure(projectPath, files)) {
-      const fresh = prev.pending?.key === key && Date.now() - prev.pending.at < MEASURE_GRACE_MS;
-      if (!fresh) measureInBackground(projectPath);
-      save({ ...prev, quick, pending: fresh ? prev.pending : { key, at: Date.now() } });
-      return null;
+    // so it happens in the background, one job at a time; meanwhile a diff
+    // that only grew is told from its last measurement, a floor for its level.
+    let measured = cachedMeasure(projectPath, files);
+    let inFlight: { key: string; at: number } | undefined;
+    if (!measured) {
+      const running =
+        prev.pending !== undefined &&
+        Date.now() - prev.pending.at < MEASURE_GRACE_MS &&
+        !measuredSince(projectPath, prev.pending.at);
+      if (!running) measureInBackground(projectPath);
+      inFlight = running ? prev.pending : { key, at: Date.now() };
+      measured = grownFromCache(projectPath, files);
+      if (!measured) {
+        save({ ...prev, quick, pending: inFlight });
+        return null;
+      }
     }
+    const proposal = measureDiff(projectPath, files, measured);
 
     const change = branchChange(projectPath, branch);
     const changeDir = path.join(projectPath, "lawbook", "changes", change);
     const archived = findArchived(projectPath, change);
-    if (fs.existsSync(changeDir)) remeasure(projectPath, change, files);
-    else if (archived) reopenIfGrown(projectPath, change, archived, files);
-    else {
-      const proposal = measureDiff(projectPath, files);
-      if ((proposal.level ?? 0) > 0) scaffoldMeasured(projectPath, change, files, proposal);
-    }
+    if (fs.existsSync(changeDir)) remeasure(projectPath, change, files, proposal);
+    else if (archived) reopenIfGrown(projectPath, change, archived, files, proposal);
+    else if ((proposal.level ?? 0) > 0) scaffoldMeasured(projectPath, change, files, proposal);
     const level = fs.existsSync(changeDir) ? confirmedLevel(projectPath, change) : 0;
-    const pending = level > 0 ? pendingArtifacts(projectPath, change) : [];
-    const told = prev.told?.change === change && prev.told.level === level;
+    const pending = level > 0 ? pendingArtifacts(projectPath, change, files) : [];
+    // Re-told when the change, its level, or the kind of artifact owed changes
+    // (an API report owed later at the same level still has to be said).
+    const owed = [...new Set(pending.map((p) => p.split(":")[0]))].sort().join(",");
+    const told =
+      prev.told?.change === change &&
+      prev.told.level === level &&
+      (prev.told.owed === undefined ||
+        owed.split(",").every((o) => prev.told!.owed!.split(",").includes(o)));
+    const keep = { quick, key, ...(inFlight ? { pending: inFlight } : {}) };
     if (pending.length === 0 || told) {
-      save({ quick, key, ...(prev.told ? { told: prev.told } : {}) });
+      save({ ...keep, ...(prev.told ? { told: prev.told } : {}) });
       return null;
     }
     // "Told" is recorded only with the hint actually returned, so a level is
     // never marked as told by a call that said nothing.
-    save({ quick, key, told: { change, level } });
+    save({ ...keep, told: { change, level, owed } });
     const why = readCeremonyRecord(projectPath, change)?.rationale ?? "";
     return (
       `speclaw: this change measures level ${level}${why ? ` (${why})` : ""}. ` +

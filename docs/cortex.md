@@ -29,6 +29,13 @@ ship:
 
 A diff of at most one source file and ten lines (tests and docs aside), with no
 public API or global file, measures level 0 however central the code it touches.
+A public API is an entry point the root `package.json` declares (`main`, `bin`)
+or a changed HTTP route, DTO or contract file (OpenAPI, proto, GraphQL); at
+level 1+ such a change also owes `reports/api.md`, the contract no gate output
+carries. At level 2+, tests spanning several packages run and report per
+discipline (`backend.md`, `frontend.md`, `e2e.md`…). Every stop that ships ends
+with a one-line summary for the user: the gates and their times, then the
+archive or what is left.
 
 **Many agents** run only in parallel: the fan-out lane launches one implementer
 per large, independent part (three or more), and the spec lane (planner →

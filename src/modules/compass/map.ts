@@ -3,6 +3,7 @@ import path from "node:path";
 import { openDb, FILE_NODE_KIND } from "./db.js";
 import { estimateTokens } from "../../shared/tokens.js";
 import { loadDeclaredBudget } from "../../shared/exposure.js";
+import { packageEntries } from "../../shared/package-entries.js";
 
 export const MAP_START = "<!-- speclaw:map:start -->";
 export const MAP_END = "<!-- speclaw:map:end -->";
@@ -60,12 +61,16 @@ export function generateCompactMap(projectPath: string): string | null {
 
     const dirLine = topDirs.map((d) => `${d.top}/ (${d.c})`).join("  ");
 
-    let body = [
-      `speclaw · ${fileCount} files · ${nodeCount} nodes`,
-      dirLine,
-      hubLine,
-      "entry: src/server.ts (mcp) · src/cli/index.ts (bin)",
-    ].join("\n");
+    // Only what this project's package.json declares; a workspace root or an
+    // app declares no entry, and the map then names none.
+    const entries = packageEntries(projectPath);
+    const entryLine = entries.length
+      ? `entry: ${entries.map((e) => `${e.file} (${e.kind})`).join(" · ")}`
+      : "";
+
+    let body = [`speclaw · ${fileCount} files · ${nodeCount} nodes`, dirLine, hubLine, entryLine]
+      .filter(Boolean)
+      .join("\n");
 
     const cap = loadDeclaredBudget().map;
     let omitted = false;
@@ -80,7 +85,7 @@ export function generateCompactMap(projectPath: string): string | null {
         `speclaw · ${fileCount} files · ${nodeCount} nodes`,
         dirLine,
         shorter,
-        "entry: src/server.ts (mcp) · src/cli/index.ts (bin)",
+        entryLine,
         omitted ? "(entries omitted to fit map budget)" : "",
       ]
         .filter(Boolean)
@@ -89,9 +94,11 @@ export function generateCompactMap(projectPath: string): string | null {
     if (estimateTokens(body) > cap) {
       body = [
         `speclaw · ${fileCount} files · ${nodeCount} nodes`,
-        "entry: src/server.ts (mcp) · src/cli/index.ts (bin)",
+        entryLine,
         "(entries omitted to fit map budget)",
-      ].join("\n");
+      ]
+        .filter(Boolean)
+        .join("\n");
     }
     return body;
   } finally {

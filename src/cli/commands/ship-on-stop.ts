@@ -1,12 +1,14 @@
-import { measureBranchDiff, shipOnStop } from "../../modules/lawbook/ship.js";
+import { measureBranchDiff, shipOnStop, stopSummary } from "../../modules/lawbook/ship.js";
 
 /**
  * `speclaw ship-on-stop`: the Claude Code `Stop` hook. Ships the branch's
- * change when the work changed since the last ship; prints nothing on stdout.
- * Artifacts the change's level still owes, or a failing gate, go to stderr with
- * exit 2 so the agent sees them and writes or fixes them
- * — once: when the hook already blocked this stop (`stop_hook_active`), it
- * exits 0 so the agent can never loop. Any other failure exits 0.
+ * change when the work changed since the last ship. Artifacts the change's
+ * level still owes, or a failing gate, go to stderr with exit 2 so the agent
+ * sees them and writes or fixes them — once: when the hook already blocked
+ * this stop (`stop_hook_active`), it exits 0 so the agent can never loop.
+ * Whatever happened, a ship prints one JSON line on stdout whose
+ * `systemMessage` tells the user; a skipped stop prints nothing. Any other
+ * failure exits 0.
  *
  * @param cwd - Project root (defaults to the process working directory).
  */
@@ -15,12 +17,16 @@ export async function runShipOnStop(cwd: string = process.cwd()): Promise<void> 
   const active = await stopHookActive();
   try {
     const out = shipOnStop(cwd);
-    if (out.skipped === null && out.result.pending.length && !active) {
-      process.stderr.write(`speclaw: ${out.result.next.join("\n- ")}\n`);
+    if (out.skipped !== null) return;
+    const r = out.result;
+    const block = !active && (r.pending.length > 0 || !r.gatesPassed);
+    process.stdout.write(JSON.stringify({ systemMessage: stopSummary(r, block) }) + "\n");
+    if (block && r.pending.length) {
+      process.stderr.write(`speclaw: ${r.next.join("\n- ")}\n`);
       process.exit(2);
     }
-    if (out.skipped === null && !out.result.gatesPassed && !active) {
-      const failed = out.result.gates[out.result.gates.length - 1];
+    if (block) {
+      const failed = r.gates[r.gates.length - 1];
       process.stderr.write(
         `speclaw: gate failed — ${failed.command} (exit ${failed.exitCode}). Fix it before finishing.\n${failed.tail}\n`,
       );
