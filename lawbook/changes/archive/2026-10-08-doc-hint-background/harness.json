@@ -1,0 +1,63 @@
+{
+  "version": 1,
+  "change": "doc-hint-background",
+  "stage": "done",
+  "level": 3,
+  "iteration": 0,
+  "maxRework": 3,
+  "verdicts": {
+    "review": "PASS",
+    "test": "PASS"
+  },
+  "openQuestions": [],
+  "history": [
+    {
+      "at": "2026-10-08T15:41:07.047Z",
+      "from": "exploring",
+      "to": "exploring",
+      "op": "start"
+    },
+    {
+      "at": "2026-10-08T15:41:12.415Z",
+      "from": "exploring",
+      "to": "planning",
+      "op": "advance",
+      "note": "explored: live ftd session transcript + /tmp clone timings"
+    },
+    {
+      "at": "2026-10-08T15:41:12.519Z",
+      "from": "planning",
+      "to": "implementing",
+      "op": "advance",
+      "note": "artifacts: proposal, design, tasks, 2 delta specs"
+    },
+    {
+      "at": "2026-10-08T15:41:12.590Z",
+      "from": "implementing",
+      "to": "reviewing",
+      "op": "advance",
+      "note": "implemented; gates green via ship (check, build, 1044 tests)"
+    },
+    {
+      "at": "2026-10-08T15:42:18.567Z",
+      "from": "reviewing",
+      "to": "testing",
+      "op": "advance",
+      "note": "Review PASS: told-only-on-delivery, no shared-file races, detached spawn safe, cache reused by ship; 4 non-blocking notes in reports/review.md."
+    },
+    {
+      "at": "2026-10-08T15:44:42.725Z",
+      "from": "testing",
+      "to": "archiving",
+      "op": "advance",
+      "note": "gates observed via ship after review notes #3/#4: check, build, npm test pass"
+    },
+    {
+      "at": "2026-10-08T15:44:43.135Z",
+      "from": "archiving",
+      "to": "done",
+      "op": "advance",
+      "note": "archived by lawbook archive"
+    }
+  ]
+}
