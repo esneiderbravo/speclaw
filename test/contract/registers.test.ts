@@ -34,8 +34,10 @@ test("canonical MCP tools match the consolidated surface", () => {
 test("tool input schemas validate required fields", () => {
   const compass = captureCanonical(registerCompass);
   const explore = schemaOf(compass.get("compass_explore")!);
-  assert.throws(() => explore.parse({ projectPath: "/x" }), /node/);
+  assert.throws(() => explore.parse({ node: "alpha" }), /projectPath/);
   assert.doesNotThrow(() => explore.parse({ projectPath: "/x", node: "alpha" }));
+  // A phrase without a node is answered as a find; the handler rejects neither.
+  assert.doesNotThrow(() => explore.parse({ projectPath: "/x", query: "alpha rule" }));
 
   const spec = captureCanonical(registerSpec);
   const change = schemaOf(spec.get("lawbook_change")!);

@@ -479,9 +479,15 @@ export interface ArchiveResult {
  *
  * @param projectPath - Absolute path to the project root.
  * @param change - Change name (folder under lawbook/changes/).
+ * @param opts.syncing - The caller promotes the delta specs itself (archive
+ *   does), so an unsynced delta is not a blocker.
  * @returns Human-readable blockers; empty when the change is ready to archive.
  */
-export function specArchivePreconditions(projectPath: string, change: string): string[] {
+export function specArchivePreconditions(
+  projectPath: string,
+  change: string,
+  opts: { syncing?: boolean } = {},
+): string[] {
   const root = specRoot(projectPath);
   const changeDir = path.join(root, "changes", change);
   if (!fs.existsSync(changeDir)) return [`change "${change}" not found under lawbook/changes/`];
@@ -535,7 +541,7 @@ export function specArchivePreconditions(projectPath: string, change: string): s
     needs.bugfix &&
     fs.existsSync(bugPath) &&
     preventionRequiresDelta(fs.readFileSync(bugPath, "utf8"));
-  if (needs.deltaSpecs || bugNeedsDelta) {
+  if ((needs.deltaSpecs || bugNeedsDelta) && !opts.syncing) {
     for (const file of deltaSpecFiles(changeDir)) {
       const rel = path.relative(path.join(changeDir, "specs"), file);
       const canonical = path.join(root, "specs", rel);
@@ -574,7 +580,9 @@ export function specArchive(projectPath: string, change: string, date: string): 
   const root = specRoot(projectPath);
   const changeDir = path.join(root, "changes", change);
   if (!fs.existsSync(changeDir)) throw new Error(`change "${change}" not found`);
-  const blockers = specArchivePreconditions(projectPath, change);
+  // Archive promotes the delta specs below; demanding a manual sync first only
+  // cost agents a failed call and a retry.
+  const blockers = specArchivePreconditions(projectPath, change, { syncing: true });
   if (blockers.length > 0) {
     throw new Error(
       `cannot archive "${change}" — resolve first:\n${blockers.map((b) => `  - ${b}`).join("\n")}`,

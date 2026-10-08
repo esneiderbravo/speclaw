@@ -83,7 +83,19 @@ function nowIso(): string {
 function requireChangeDir(projectPath: string, change: string): ResolvedChangeDir {
   const resolved = resolveChangeDir(projectPath, change);
   if (!resolved) {
-    throw new Error(`change "${change}" not found under lawbook/changes/`);
+    const changesDir = path.join(specRoot(projectPath), "changes");
+    const active = fs.existsSync(changesDir)
+      ? fs
+          .readdirSync(changesDir, { withFileTypes: true })
+          .filter((e) => e.isDirectory() && e.name !== "archive")
+          .map((e) => e.name)
+      : [];
+    // Name the next step: most misses are a start before the change was drafted.
+    throw new Error(
+      `change "${change}" not found under lawbook/changes/ — draft it first ` +
+        `(lawbook_change action 'draft')` +
+        (active.length ? `; active: ${active.join(", ")}` : ""),
+    );
   }
   return resolved;
 }

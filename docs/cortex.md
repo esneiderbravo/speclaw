@@ -14,6 +14,22 @@ test verdict from the exit codes, and archives level-0 work. Agents without hook
 <change>` (MCP `lawbook_change` action `ship`) once, last. Ship never records a
 review verdict: review happens on the PR.
 
+The agent runs only the tests covering its change (`speclaw affected-tests
+--file <path>`), never the full suite: the stop runs it. There, the test gate
+(`npm test`, `npm run test`, or the pnpm/yarn equivalent) runs the tests the
+diff reaches and the full suite runs in CI; it falls back to the full suite with
+no Compass index, a global file, or changed code no test reaches. A project
+without CI keeps the full suite at the stop:
+
+```yaml
+# lawbook/config.yaml
+ship:
+  tests: full # affected (default) | full
+```
+
+A diff of at most one source file and ten lines (tests and docs aside), with no
+public API or global file, measures level 0 however central the code it touches.
+
 **Many agents** run only in parallel: the fan-out lane launches one implementer
 per large, independent part (three or more), and the spec lane (planner →
 parallel implementers → reviewer, below) is for multi-day, cross-module

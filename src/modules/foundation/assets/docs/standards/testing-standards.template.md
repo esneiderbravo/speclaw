@@ -1,8 +1,10 @@
 # Testing & Quality Gates — {{project_name}}
 
 The quality law of the project — see [`../../LAWS.md`](../../LAWS.md). These
-gates are non-negotiable: an agent runs them itself and reports real output
-before declaring anything done.
+gates are non-negotiable: they run once, with real output, before anything is
+declared done — by the `Stop` hook where installed (the agent then runs only
+the tests its change touches, never the full suite twice), else by the agent
+itself or `speclaw ship`.
 
 ## Gates
 

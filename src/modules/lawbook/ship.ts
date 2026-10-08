@@ -4,9 +4,11 @@ import { spawn, spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { createHash } from "node:crypto";
 import { changedFiles, isGitRepo, mergeBase, worktreeChangedFiles } from "../../shared/git.js";
+import { isTestPath, loadAffectedConfig, matchesAny } from "../compass/affected-config.js";
+import { affectedTests } from "../compass/affected.js";
 import { COMPASS_DOC, stripCompassMapBlock } from "../../shared/compass-map.js";
 import { handleHarness, readHarness } from "../cortex/harness.js";
-import { deltaSpecFiles, specArchive, specArchivePreconditions } from "./engine.js";
+import { deltaSpecFiles, specArchive, specArchivePreconditions, specList } from "./engine.js";
 import {
   artifactNeeds,
   confirmedLevel,
@@ -28,6 +30,8 @@ export interface ShipGate {
   durationMs: number;
   /** Last lines of combined stdout/stderr, for the report. */
   tail: string;
+  /** What a scoped test gate ran instead of the full suite, and why. */
+  scope?: string;
 }
 
 /** Wall-clock of each ship phase, in milliseconds. */
@@ -86,10 +90,14 @@ const GATE_TAIL_LINES = 12;
  * @param projectPath - Project root.
  * @returns The configured gates and discipline, each undefined when absent.
  */
-export function readShipConfig(projectPath: string): { gates?: string[]; discipline?: string } {
+export function readShipConfig(projectPath: string): {
+  gates?: string[];
+  discipline?: string;
+  tests?: "affected" | "full";
+} {
   const cfg = path.join(projectPath, "lawbook", "config.yaml");
   if (!fs.existsSync(cfg)) return {};
-  const out: { gates?: string[]; discipline?: string } = {};
+  const out: { gates?: string[]; discipline?: string; tests?: "affected" | "full" } = {};
   let inShip = false;
   for (const line of fs.readFileSync(cfg, "utf8").split("\n")) {
     if (/^ship:\s*$/.test(line)) {
@@ -107,6 +115,8 @@ export function readShipConfig(projectPath: string): { gates?: string[]; discipl
     }
     const d = /^\s+discipline:\s*["']?([\w-]+)["']?\s*$/.exec(line);
     if (d) out.discipline = d[1];
+    const t = /^\s+tests:\s*["']?(affected|full)["']?\s*$/.exec(line);
+    if (t) out.tests = t[1] as "affected" | "full";
   }
   return out;
 }
@@ -128,6 +138,42 @@ export function detectGates(projectPath: string): string[] {
   // `check` usually already runs lint; avoid running it twice.
   const deduped = picked.includes("check") ? picked.filter((s) => s !== "lint") : picked;
   return deduped.map((s) => (s === "test" ? "npm test" : `npm run ${s}`));
+}
+
+/** The project's whole test suite, as `detectGates` and people write it. */
+const TEST_GATE_RE = /^(npm|pnpm|yarn)( run)? test\s*$/;
+
+/**
+ * The tests a branch diff reaches, to run at the stop instead of the whole
+ * suite: a one-line fix should not wait on every test in the repo, and the
+ * full suite still runs in CI before merge. Falls back to the full suite when
+ * the selection cannot be trusted — no index, a global file, or source changes
+ * no test reaches.
+ *
+ * @returns The command to run (null: nothing to run) and what it covers.
+ */
+function scopedTestGate(
+  projectPath: string,
+  fullCommand: string,
+  files: string[],
+): { command: string | null; scope: string } {
+  const full = (why: string) => ({ command: fullCommand, scope: `full suite: ${why}` });
+  try {
+    const at = affectedTests(projectPath, { files });
+    if (at.mode === "all") return full(at.reason);
+    if (at.tests.length === 0 || !at.command) {
+      const { thresholds } = loadCeremonyConfig(projectPath);
+      const code = files.filter((f) => !matchesAny(f, thresholds.docGlobs));
+      if (code.length) return full("no test reaches the changed code");
+      return { command: null, scope: "docs only: no test reaches the change" };
+    }
+    return {
+      command: at.command,
+      scope: `${at.tests.length} affected test file(s), ${at.skipped.files} skipped; the full suite runs in CI`,
+    };
+  } catch (e) {
+    return full(e instanceof Error ? e.message : String(e));
+  }
 }
 
 function runGate(projectPath: string, command: string): ShipGate {
@@ -204,7 +250,7 @@ function renderReport(
   const rows = gates
     .map(
       (g) =>
-        `| \`${g.command}\` | ${g.exitCode === 0 ? "pass" : `FAIL (exit ${g.exitCode})`} | ${secs(g.durationMs)} |`,
+        `| \`${g.command}\`${g.scope ? ` (${g.scope})` : ""} | ${g.exitCode === 0 ? "pass" : `FAIL (exit ${g.exitCode})`} | ${secs(g.durationMs)} |`,
     )
     .join("\n");
   const outputs = gates
@@ -306,11 +352,62 @@ function isVersionBump(projectPath: string, base: string | null, file: string): 
   return lines.length > 0 && lines.every((l) => /^[+-]\s*"version"\s*:/.test(l));
 }
 
+/** Source lines a diff may change, in one source file, and still be a level-0 fix. */
+const SMALL_FIX_LINES = 10;
+
 /**
  * Propose a ceremony level from the branch diff itself. A release bump of the
- * manifests is not a global change, so it does not raise the level.
+ * manifests is not a global change, so it does not raise the level, and a
+ * small fix stays at level 0 however central the code it touches: its blast
+ * radius is guarded by the gates and its test, which ceremony would not add to.
  */
 function measureDiff(projectPath: string, files: string[]): CeremonyProposal {
+  const proposal = measureDiffSignals(projectPath, files);
+  if (!proposal.level || proposal.signals.touchesPublicApi || proposal.signals.touchesGlobalFile) {
+    return proposal;
+  }
+  const fix = smallFix(projectPath, files);
+  if (!fix) return proposal;
+  return {
+    ...proposal,
+    level: 0,
+    rationale: `${proposal.rationale}; small fix (${fix.lines} source line(s) in ${fix.files} file) → level 0`,
+  };
+}
+
+/**
+ * The size of a diff that changes at most one source file (tests and docs
+ * aside) by at most {@link SMALL_FIX_LINES} lines, or null when it is larger.
+ */
+function smallFix(projectPath: string, files: string[]): { files: number; lines: number } | null {
+  const { testGlobs } = loadAffectedConfig(projectPath);
+  const { thresholds } = loadCeremonyConfig(projectPath);
+  const source = files.filter(
+    (f) => !isTestPath(f, testGlobs) && !matchesAny(f, thresholds.docGlobs),
+  );
+  if (source.length > 1) return null;
+  if (source.length === 0) return { files: 0, lines: 0 };
+  const base = mergeBase(projectPath, "main") ?? mergeBase(projectPath, "master");
+  const numstat = base ? git(projectPath, ["diff", "--numstat", base, "--", source[0]]) : "";
+  let lines = numstat
+    .split("\n")
+    .filter(Boolean)
+    .reduce((n, l) => {
+      const [add, del] = l.split("\t");
+      return n + (Number(add) || 0) + (Number(del) || 0);
+    }, 0);
+  if (!numstat.trim()) {
+    // Untracked: every line is new.
+    try {
+      lines = fs.readFileSync(path.join(projectPath, source[0]), "utf8").split("\n").length;
+    } catch {
+      return null;
+    }
+  }
+  return lines <= SMALL_FIX_LINES ? { files: 1, lines } : null;
+}
+
+function measureDiffSignals(projectPath: string, files: string[]): CeremonyProposal {
   const cached = cachedMeasure(projectPath, files);
   if (cached) return cached;
   const base = mergeBase(projectPath, "main") ?? mergeBase(projectPath, "master");
@@ -625,8 +722,16 @@ export function shipChange(projectPath: string, name: string, opts: ShipOptions 
   const commands = opts.gates ?? cfg.gates ?? detectGates(projectPath);
   const gates: ShipGate[] = [];
   for (const command of commands) {
-    const g = runGate(projectPath, command);
-    gates.push(g);
+    const scoped =
+      cfg.tests !== "full" && TEST_GATE_RE.test(command.trim())
+        ? scopedTestGate(projectPath, command, files)
+        : null;
+    if (scoped && scoped.command === null) {
+      gates.push({ command, exitCode: 0, durationMs: 0, tail: "", scope: scoped.scope });
+      continue;
+    }
+    const g = runGate(projectPath, scoped?.command ?? command);
+    gates.push(scoped ? { ...g, scope: scoped.scope } : g);
     if (g.exitCode !== 0) break;
   }
   const gatesPassed = gates.every((g) => g.exitCode === 0);
@@ -658,7 +763,7 @@ export function shipChange(projectPath: string, name: string, opts: ShipOptions 
     );
   } else if (!opts.noArchive) {
     recordGateVerdict(projectPath, name);
-    const pre = specArchivePreconditions(projectPath, name);
+    const pre = specArchivePreconditions(projectPath, name, { syncing: true });
     if (pre.length) next.push(...pre);
     else archivedTo = specArchive(projectPath, name, date).archivedTo;
   }
@@ -828,6 +933,26 @@ export function changeNameForBranch(branch: string): string {
       .replace(/[^a-z0-9-]+/g, "-")
       .replace(/^-+|-+$/g, "") || "change"
   );
+}
+
+/**
+ * The change an action means when the agent left `change` out: the only
+ * active change, else the one this branch ships (same rule as the stop hook).
+ *
+ * @param projectPath - Project root.
+ * @returns The change name, or null when no single change fits.
+ */
+export function resolveActiveChange(projectPath: string): string | null {
+  const active = specList(projectPath).activeChanges;
+  if (active.length === 1) return active[0];
+  if (active.length === 0 || !isGitRepo(projectPath)) return null;
+  const branch = currentBranch(projectPath);
+  const named = branchChange(projectPath, branch);
+  if (active.includes(named)) return named;
+  // `feat/FAR-1360-default-cost-center` ships `default-cost-center` too.
+  const slug = changeNameForBranch(branch);
+  const fits = active.filter((c) => slug.endsWith(`-${c}`) || c.endsWith(`-${slug}`));
+  return fits.length === 1 ? fits[0] : null;
 }
 
 function git(projectPath: string, args: string[]): string {

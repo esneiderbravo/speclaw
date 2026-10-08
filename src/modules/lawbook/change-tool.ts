@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { specInit, specValidate, specSync, specArchive, specList } from "./engine.js";
 import { handleLevel } from "./quick.js";
-import { shipChange } from "./ship.js";
+import { resolveActiveChange, shipChange } from "./ship.js";
 import { scaffoldBugfix } from "./bugfix.js";
 import { scaffoldFeature } from "./scaffold-change.js";
 import { buildCoverageReport, loadCoverageConfig, renderCoverageAgent } from "./coverage.js";
@@ -25,17 +25,36 @@ export const lawbookChangeActions = [
 
 export type LawbookChangeAction = (typeof lawbookChangeActions)[number];
 
+// Words agents reach for that name a real action; each one used to cost a failed call.
+const ACTION_SYNONYMS: Record<string, LawbookChangeAction> = { create: "draft", new: "draft" };
+
+/** A list arg sent as one comma- or newline-separated string still means the list. */
+const looseList = z.preprocess(
+  (v) =>
+    typeof v === "string"
+      ? v
+          .split(/[,\n]/)
+          .map((s) => s.trim())
+          .filter(Boolean)
+      : v,
+  z.array(z.string()),
+);
+
 export const lawbookChangeSchema = {
   projectPath: z.string(),
-  action: z.enum(lawbookChangeActions),
+  action: z.preprocess(
+    (v) => (typeof v === "string" ? (ACTION_SYNONYMS[v] ?? v) : v),
+    z.enum(lawbookChangeActions),
+  ),
   change: z.string().optional(),
+  name: z.string().optional(),
   date: z
     .string()
     .regex(/^\d{4}-\d{2}-\d{2}$/)
     .optional(),
   mode: z.enum(["propose", "set", "promote", "explain"]).optional(),
-  paths: z.array(z.string()).optional(),
-  symbols: z.array(z.string()).optional(),
+  paths: looseList.optional(),
+  symbols: looseList.optional(),
   level: z.union([z.literal(0), z.literal(1), z.literal(2), z.literal(3)]).optional(),
   reason: z.string().optional(),
   onlyDefects: z.boolean().optional(),
@@ -55,6 +74,7 @@ type ChangeArgs = {
   projectPath: string;
   action: LawbookChangeAction;
   change?: string;
+  name?: string;
   date?: string;
   mode?: "propose" | "set" | "promote" | "explain";
   paths?: string[];
@@ -80,6 +100,23 @@ function requireField(args: ChangeArgs, field: keyof ChangeArgs): string {
   throw new Error(`lawbook_change: action '${args.action}' requires '${String(field)}'`);
 }
 
+/** The change named by `change` or `name`, else the one the project and branch point at. */
+function targetChange(args: ChangeArgs): string {
+  const named = args.change || args.name;
+  if (named) return named;
+  const inferred = resolveActiveChange(args.projectPath);
+  if (inferred) return inferred;
+  const active = specList(args.projectPath).activeChanges;
+  throw new Error(
+    `lawbook_change: action '${args.action}' requires 'change'` +
+      (active.length ? ` — active: ${active.join(", ")}` : " — no active change; draft one first"),
+  );
+}
+
+function today(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
 /**
  * Dispatch `lawbook_change` by action.
  *
@@ -93,7 +130,7 @@ export function handleLawbookChange(args: ChangeArgs): unknown {
       return specList(args.projectPath);
     case "draft": {
       // Covers: req~feature-draft~1
-      const name = requireField(args, "change");
+      const name = args.change || args.name || requireField(args, "change");
       if (args.bug) return scaffoldBugfix(args.projectPath, name, { level: args.level });
       return scaffoldFeature(args.projectPath, name, {
         level: args.level,
@@ -102,17 +139,13 @@ export function handleLawbookChange(args: ChangeArgs): unknown {
       });
     }
     case "validate":
-      return specValidate(args.projectPath, requireField(args, "change"));
+      return specValidate(args.projectPath, targetChange(args));
     case "sync":
-      return specSync(args.projectPath, requireField(args, "change"));
+      return specSync(args.projectPath, targetChange(args));
     case "archive":
-      return specArchive(
-        args.projectPath,
-        requireField(args, "change"),
-        requireField(args, "date"),
-      );
+      return specArchive(args.projectPath, targetChange(args), args.date ?? today());
     case "ship":
-      return shipChange(args.projectPath, requireField(args, "change"), {
+      return shipChange(args.projectPath, targetChange(args), {
         summary: args.note,
         date: args.date,
       });
@@ -121,7 +154,11 @@ export function handleLawbookChange(args: ChangeArgs): unknown {
       return handleLevel({
         projectPath: args.projectPath,
         mode: args.mode,
-        change: args.change,
+        // `propose` and `explain` only measure; `set` and `promote` act on a change.
+        change:
+          args.mode === "propose" || args.mode === "explain"
+            ? args.change || args.name
+            : targetChange(args),
         paths: args.paths,
         symbols: args.symbols,
         level: args.level,
@@ -149,7 +186,7 @@ export function handleLawbookChange(args: ChangeArgs): unknown {
       }
       const result = handleHarness({
         projectPath: args.projectPath,
-        change: requireField(args, "change"),
+        change: targetChange(args),
         harnessOp: args.harnessOp,
         verdict: args.verdict ?? null,
         openQuestions: args.openQuestions,

@@ -105,14 +105,14 @@ export function registerSpec(server: McpServer, opts: RegisterOpts = {}): void {
   defineAliasTool(server, {
     name: "lawbook_validate",
     description: "Deprecated alias for lawbook_change action validate.",
-    inputSchema: { projectPath: z.string(), change: z.string() },
+    inputSchema: { projectPath: z.string(), change: z.string().optional() },
     handler: aliasHandler("lawbook_validate", "validate"),
   });
 
   defineAliasTool(server, {
     name: "lawbook_sync",
     description: "Deprecated alias for lawbook_change action sync.",
-    inputSchema: { projectPath: z.string(), change: z.string() },
+    inputSchema: { projectPath: z.string(), change: z.string().optional() },
     handler: aliasHandler("lawbook_sync", "sync"),
   });
 
@@ -121,8 +121,11 @@ export function registerSpec(server: McpServer, opts: RegisterOpts = {}): void {
     description: "Deprecated alias for lawbook_change action archive.",
     inputSchema: {
       projectPath: z.string(),
-      change: z.string(),
-      date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+      change: z.string().optional(),
+      date: z
+        .string()
+        .regex(/^\d{4}-\d{2}-\d{2}$/)
+        .optional(),
     },
     handler: aliasHandler("lawbook_archive", "archive"),
   });
