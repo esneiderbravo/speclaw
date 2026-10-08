@@ -490,3 +490,39 @@ test("ship reuses the cached measurement of the same file set", (t) => {
   shipChange(root, "cached", { gates: [PASS] });
   assert.equal(confirmedLevel(root, "cached"), 3);
 });
+
+test("a regenerated Compass map is not work: the hook archives nothing on a fresh branch", (t) => {
+  const root = gitFixture(t);
+  const map = (body: string) =>
+    `# Compass\n\nIntro.\n\n<!-- speclaw:map:start -->\n${body}\n<!-- speclaw:map:end -->\n`;
+  fs.mkdirSync(path.join(root, "docs"), { recursive: true });
+  fs.writeFileSync(path.join(root, "docs", "compass.md"), map("old map"));
+  git(root, "add", "-A");
+  git(root, "commit", "-qm", "map");
+  git(root, "checkout", "-qb", "feat/fresh");
+
+  // A session start re-indexes and rewrites only the generated block.
+  fs.writeFileSync(path.join(root, "docs", "compass.md"), map("new map\nmore"));
+  assert.deepEqual(shipOnStop(root), { skipped: "no-changes" });
+  assert.ok(!fs.existsSync(path.join(root, "lawbook", "changes", "fresh")));
+
+  // CRLF on disk (core.autocrlf) is still only the map.
+  fs.writeFileSync(path.join(root, "docs", "compass.md"), map("crlf map").replace(/\n/g, "\r\n"));
+  assert.deepEqual(shipOnStop(root), { skipped: "no-changes" });
+
+  // On a branch with real work, a re-index of the map is not new work either.
+  fs.writeFileSync(path.join(root, "a.js"), "export const a = 99;\n");
+  assert.equal(
+    shipChange(root, "fresh", { gates: [PASS], summary: "real work" }).gatesPassed,
+    true,
+  );
+  fs.writeFileSync(path.join(root, "docs", "compass.md"), map("re-indexed again"));
+  assert.deepEqual(shipOnStop(root), { skipped: "unchanged-since-last-ship" });
+
+  // An edit outside the block is real work.
+  fs.writeFileSync(
+    path.join(root, "docs", "compass.md"),
+    map("new map").replace("Intro.", "Intro, edited."),
+  );
+  assert.equal(shipOnStop(root).skipped, null);
+});

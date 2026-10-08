@@ -8,6 +8,11 @@ import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { pkgName, pkgVersion } from "../../shared/version.js";
+import {
+  COMPASS_MAP_END,
+  COMPASS_MAP_START,
+  stripCompassMapBlock,
+} from "../../shared/compass-map.js";
 
 export const LOCKFILE_NAME = "speclaw.lock";
 export const LOCKFILE_VERSION = 1;
@@ -345,23 +350,9 @@ function walkFiles(
   }
 }
 
-/** Markers for the regenerable map block inside `docs/compass.md` (see compass/map.ts). */
-export const COMPASS_MAP_START = "<!-- speclaw:map:start -->";
-export const COMPASS_MAP_END = "<!-- speclaw:map:end -->";
-
-/**
- * Strip the regenerable map body between markers so integrity digests stay stable
- * across `speclaw index` (which rewrites the map in CI before verify).
- *
- * @param text - Full docs/compass.md contents.
- * @returns The same text with an empty map body, or `text` if markers are missing.
- */
-export function stripCompassMapBlock(text: string): string {
-  const start = text.indexOf(COMPASS_MAP_START);
-  const end = text.indexOf(COMPASS_MAP_END);
-  if (start < 0 || end < 0 || end < start) return text;
-  return text.slice(0, start + COMPASS_MAP_START.length) + "\n" + text.slice(end);
-}
+// The map block helpers moved to shared/ so the lawbook can ignore the
+// regenerated map too; re-exported here for existing importers.
+export { COMPASS_MAP_END, COMPASS_MAP_START, stripCompassMapBlock };
 
 /**
  * Path-specific bytes that feed {@link digestText}: speclaw-owned coderabbit
