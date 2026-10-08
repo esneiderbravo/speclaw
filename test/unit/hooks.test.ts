@@ -181,7 +181,12 @@ test("installHooks never clobbers an unparseable settings file", (t) => {
 // Covers: req~compass-nudge~1
 test("compileHooks always emits the Read|Grep|Glob|Bash PostToolUse nudge entry, even with zero laws", () => {
   const { byEvent } = compileHooks(manifest([]));
-  assert.deepEqual(Object.keys(byEvent), ["PostToolUse", "Stop", "SessionStart"]);
+  assert.deepEqual(Object.keys(byEvent), [
+    "PostToolUse",
+    "PostToolUseFailure",
+    "Stop",
+    "SessionStart",
+  ]);
   const ship = byEvent.Stop![0]!.hooks[0]!;
   assert.equal(ship.type, "command");
   assert.match((ship as { command: string }).command, /speclaw ship-on-stop/);
@@ -200,6 +205,25 @@ test("compileHooks always emits the Read|Grep|Glob|Bash PostToolUse nudge entry,
     type: "${tool_input.type}",
     command: "${tool_input.command}",
   });
+  // the Bash output rides along for the test-run nudge's failure check
+  assert.deepEqual(hook.input.payload.tool_response, {
+    stdout: "${tool_response.stdout}",
+    stderr: "${tool_response.stderr}",
+  });
+});
+
+test("compileHooks always emits a Bash PostToolUseFailure group carrying the error", () => {
+  const { byEvent } = compileHooks(manifest([]));
+  const groups = byEvent.PostToolUseFailure!;
+  assert.equal(groups.length, 1);
+  assert.equal(groups[0]!.matcher, "Bash");
+  const hook = groups[0]!.hooks[0]!;
+  assert.equal(hook.type, "mcp_tool");
+  assert.equal(hook.tool, "speclaw_check");
+  assert.equal(hook.input.event, "${hook_event_name}");
+  assert.equal(hook.input.payload.error, "${error}");
+  assert.equal(hook.input.payload.tool_input.command, "${tool_input.command}");
+  assert.ok(isSpeclawHook(hook));
 });
 
 test("compileHooks never puts the nudge matcher on PreToolUse", () => {

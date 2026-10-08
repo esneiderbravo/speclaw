@@ -13,6 +13,7 @@ import {
   readLawManifest,
 } from "./laws.js";
 import { compassNudge, isNudgeEvent } from "./compass-nudge.js";
+import { testNudge } from "./test-nudge.js";
 
 // The evaluator behind the `speclaw_check` tool and the `speclaw check` CLI. It
 // answers one question — "does this pending or completed action break a law?" —
@@ -20,7 +21,13 @@ import { compassNudge, isNudgeEvent } from "./compass-nudge.js";
 // must fail open: a crashed evaluator returns `allow`, never a block.
 
 /** The hook events speclaw wires; the payload shape differs per event. */
-export type CheckEvent = "PreToolUse" | "PostToolUse" | "Stop" | "InstructionsLoaded";
+export type CheckEvent =
+  "PreToolUse" | "PostToolUse" | "PostToolUseFailure" | "Stop" | "InstructionsLoaded";
+
+/** Events whose result reaches the agent as `additionalContext` (never a permission decision). */
+export function isContextEvent(event: string): boolean {
+  return event === "PostToolUse" || event === "PostToolUseFailure";
+}
 
 /** ACS-aligned verdict. Claude Code's PreToolUse has no `warn`; it maps to `allow` + message. */
 export type Verdict = "allow" | "warn" | "deny" | "escalate";
@@ -46,11 +53,12 @@ export interface CheckResult {
   diagnostic?: string;
   /**
    * Compass-first nudge on `PostToolUse` Read/Grep/Glob of indexed code with no
-   * recent Compass call. Also appended to `reason`; never changes `verdict`.
+   * recent Compass call, and the test-run nudge after a Bash test command (see
+   * `testNudge`). Also appended to `reason`; never changes `verdict`.
    */
   nudge?: string;
   /**
-   * Claude Code hook output for `PostToolUse` only, present when there is a
+   * Claude Code hook output for `PostToolUse` / `PostToolUseFailure` only, present when there is a
    * `reason`: the `additionalContext` is what reaches the agent's
    * context from an `mcp_tool` hook. Never carries a `permissionDecision`.
    */
@@ -189,7 +197,8 @@ export function checkAction(args: CheckArgs): CheckResult {
   const start = performance.now();
   // Runs before the manifest load so the nudge works with no laws at all; it
   // swallows its own errors and returns null.
-  const nudge = compassNudge(args);
+  const nudges = [compassNudge(args), testNudge(args)].filter((n): n is string => !!n);
+  const nudge = nudges.length ? nudges.join("\n") : null;
   // The documentation-hint group never evaluates a law (see wantsDocHint).
   const docGroup = (args.payload as Record<string, unknown> | null)?.speclaw_hint === "doc";
   const done = (r: Omit<CheckResult, "elapsedMs">): CheckResult => {
@@ -197,8 +206,8 @@ export function checkAction(args: CheckArgs): CheckResult {
     return {
       ...r,
       ...(nudge ? { nudge, reason } : {}),
-      // Only PostToolUse: Stop / InstructionsLoaded keep their pre-change shape.
-      ...(reason && args.event === "PostToolUse"
+      // Only PostToolUse(Failure): Stop / InstructionsLoaded keep their pre-change shape.
+      ...(reason && isContextEvent(args.event)
         ? { hookSpecificOutput: { hookEventName: args.event, additionalContext: reason } }
         : {}),
       elapsedMs: performance.now() - start,
@@ -207,7 +216,10 @@ export function checkAction(args: CheckArgs): CheckResult {
   try {
     // Laws govern mutations: a PostToolUse Read/Grep/Glob carries only the
     // nudge and never evaluates a law, so reads stay as silent as on main.
-    if (isNudgeEvent(args) || docGroup) return done({ verdict: "allow", evaluated: [] });
+    // A failed tool call mutated nothing: it carries only the test-run nudge.
+    if (isNudgeEvent(args) || docGroup || args.event === "PostToolUseFailure") {
+      return done({ verdict: "allow", evaluated: [] });
+    }
 
     const laws = loadLaws(args.projectPath);
     if (!laws) {

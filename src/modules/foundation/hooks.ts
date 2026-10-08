@@ -35,6 +35,10 @@ export interface SpeclawHookInput {
     };
     /** `doc`: the documentation-hint group, never a law evaluation. */
     speclaw_hint?: "doc";
+    /** Nudge group only: a Bash run's output, for the test-run nudge's failure check. */
+    tool_response?: { stdout: string; stderr: string };
+    /** `PostToolUseFailure` only: the failed call's error (a Bash run's exit code and output). */
+    error?: string;
   };
 }
 
@@ -215,6 +219,33 @@ const DOC_HINT_HOOK: SpeclawHook = {
   input: { ...SPECLAW_HOOK_INPUT, payload: { ...SPECLAW_HOOK_INPUT.payload, speclaw_hint: "doc" } },
 };
 
+/**
+ * The Compass-first nudge group's hook: it also passes a Bash run's output, so
+ * the test-run nudge sees a failure an exit code hid (`npm test | tail`).
+ */
+const NUDGE_HOOK: SpeclawHook = {
+  ...SPECLAW_HOOK,
+  input: {
+    ...SPECLAW_HOOK_INPUT,
+    payload: {
+      ...SPECLAW_HOOK_INPUT.payload,
+      tool_response: { stdout: "${tool_response.stdout}", stderr: "${tool_response.stderr}" },
+    },
+  },
+};
+
+/**
+ * The failed-Bash hook (`PostToolUseFailure`): a non-zero test run points the
+ * agent at `lawbook_investigate`; `error` carries the failing output.
+ */
+const FAILURE_HOOK: SpeclawHook = {
+  ...SPECLAW_HOOK,
+  input: { ...SPECLAW_HOOK_INPUT, payload: { ...SPECLAW_HOOK_INPUT.payload, error: "${error}" } },
+};
+
+/** Tool-name matcher for the failed calls the test-run nudge watches. */
+export const FAILURE_MATCHER = "Bash";
+
 /** Tool-name matcher for the file-mutating tools the `path` backend can evaluate. */
 const MUTATION_MATCHER = "Write|Edit|MultiEdit|NotebookEdit";
 
@@ -274,7 +305,8 @@ export interface CompiledHooks {
  * `feedback`, `Stop` for `gate`, and `InstructionsLoaded` whenever any law exists
  * (the context-coverage audit). Groups always emitted, even with no laws: one
  * `PostToolUse` group matching `Read|Grep|Glob|Bash` for the Compass-first
- * nudge (Bash also carries the documentation hint), one matching the mutating
+ * nudge (Bash also carries the documentation hint and the test-run nudge), one
+ * `PostToolUseFailure` group matching `Bash` for the failing-test nudge, one matching the mutating
  * tools for the documentation hint, a separate `PostToolUse` group matching the mutating tools whose
  * `command` hook re-indexes the edited file in the background, and one
  * `SessionStart` group whose `command` hook refreshes the index silently when a
@@ -301,7 +333,7 @@ export function compileHooks(manifest: LawManifest): CompiledHooks {
   if (hasBloqueo)
     byEvent.PreToolUse = [{ matcher: MUTATION_MATCHER, hooks: [{ ...SPECLAW_HOOK }] }];
   // The Compass-first nudge entry is always present, laws or not.
-  byEvent.PostToolUse = [{ matcher: NUDGE_MATCHER, hooks: [{ ...SPECLAW_HOOK }] }];
+  byEvent.PostToolUse = [{ matcher: NUDGE_MATCHER, hooks: [{ ...NUDGE_HOOK }] }];
   if (hasFeedback)
     byEvent.PostToolUse.unshift({ matcher: MUTATION_MATCHER, hooks: [{ ...SPECLAW_HOOK }] });
   // Always present: edits learn what their change's level owes in the same turn.
@@ -313,6 +345,8 @@ export function compileHooks(manifest: LawManifest): CompiledHooks {
     matcher: MUTATION_MATCHER,
     hooks: [{ type: "command", command: REINDEX_FILE_COMMAND, timeout: REINDEX_TIMEOUT_SECONDS }],
   });
+  // A failed Bash test run learns where to start investigating.
+  byEvent.PostToolUseFailure = [{ matcher: FAILURE_MATCHER, hooks: [{ ...FAILURE_HOOK }] }];
   if (hasGate) byEvent.Stop = [{ hooks: [{ ...SPECLAW_HOOK }] }];
   // Covers: req~ship-on-stop-hook~1
   (byEvent.Stop ??= []).push({

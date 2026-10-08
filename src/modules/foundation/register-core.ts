@@ -41,7 +41,13 @@ export function registerFoundationCore(server: McpServer, opts: RegisterOpts = {
     "Invoked by speclaw's hooks to enforce laws — do not call directly.",
     {
       projectPath: z.string(),
-      event: z.enum(["PreToolUse", "PostToolUse", "Stop", "InstructionsLoaded"]),
+      event: z.enum([
+        "PreToolUse",
+        "PostToolUse",
+        "PostToolUseFailure",
+        "Stop",
+        "InstructionsLoaded",
+      ]),
       toolName: z.string().optional(),
       payload: z.record(z.unknown()),
     },
