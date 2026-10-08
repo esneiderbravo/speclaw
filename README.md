@@ -254,7 +254,11 @@ contacts the registry, and always exits 0), and one separate `PostToolUse`
 command hook for `Write|Edit|MultiEdit|NotebookEdit` that hands each edited
 file to `speclaw reindex-file`, which re-indexes it in a detached background
 process (silent, always exit 0; PageRank and the compact map catch up on the
-next full run). The compiled law manifest lives in `.speclaw/laws-manifest.json`
+next full run). The `PostToolUse` and `PostToolUseFailure` hooks on `Bash` watch test runs: a
+failing `npm test` / `pytest` / `go test` / … points the agent at
+`lawbook_investigate` with the failing output as `stackTrace` (once per failure
+signature), and a test run with no recent `compass_diff_context` call suggests
+it once an hour. The compiled law manifest lives in `.speclaw/laws-manifest.json`
 (gitignored) and is **adapted to the target tree** on `init`/`update` — speclaw's
 own architecture laws are seeded only when those paths exist, and the cycle law
 follows `apps/*/src`, `packages/*/src`, or `src/` rather than copying
