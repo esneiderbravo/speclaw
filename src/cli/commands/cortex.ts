@@ -1,5 +1,6 @@
 import { handleHarness, readHarness, type HarnessOp } from "../../modules/cortex/harness.js";
 import { briefForStage } from "../../modules/cortex/brief.js";
+import { buildReviewHandoff } from "../../modules/cortex/review.js";
 import { Flags, repeated } from "../lib/args.js";
 import { ui } from "../lib/ui.js";
 
@@ -31,7 +32,9 @@ export async function runCortex(flags: Flags): Promise<void> {
     if (op === "brief") {
       const state = readHarness(cwd, changeName);
       const brief = briefForStage(state?.stage ?? null);
-      const result = { state, ...brief };
+      const review =
+        state?.stage === "reviewing" ? { review: buildReviewHandoff(cwd, changeName) } : {};
+      const result = { state, ...brief, ...review };
       console.log(JSON.stringify(result, null, 2));
       return;
     }

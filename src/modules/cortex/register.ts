@@ -16,6 +16,7 @@ import {
   type HarnessVerdict,
 } from "./harness.js";
 import { briefForStage } from "./brief.js";
+import { buildReviewHandoff } from "./review.js";
 import { fitStatusResult } from "./status.js";
 
 export const cortexActions = [...harnessOps, "brief"] as const;
@@ -55,7 +56,10 @@ export function registerCortex(server: McpServer, opts: RegisterOpts = {}): void
       if (action === "brief") {
         const state = readHarness(projectPath, change);
         const brief = briefForStage(state?.stage ?? null);
-        return text(JSON.stringify({ state, ...brief }, null, 2));
+        // The reviewer gets the diff on disk and a scoped prompt, not the repo.
+        const review =
+          state?.stage === "reviewing" ? { review: buildReviewHandoff(projectPath, change) } : {};
+        return text(JSON.stringify({ state, ...brief, ...review }, null, 2));
       }
       const result = handleHarness({
         projectPath,

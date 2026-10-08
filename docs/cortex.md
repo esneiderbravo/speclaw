@@ -68,7 +68,7 @@ Lawbook owns **specs, ceremony, coverage, and drift**. Cortex owns the
 | exploring | explorer | Compass-first investigation; a complete brief for the planner; writes nothing under `lawbook/` / `src/` |
 | planning / questions | planner | Ceremony level + change artifacts from that brief; Compass only for a gap the brief names; questions always go to the human |
 | implementing | implementer | Code + tests + task checkboxes; stops before final gates |
-| reviewing | reviewer | `reports/review.md` PASS/FAIL; no code patches (skipped at level 0) |
+| reviewing | reviewer | Diff-scoped review (`brief` exports the diff and a ready prompt; `compass_diff_context` first; defect checklist) → `reports/review.md` ≤ 40 lines, PASS/FAIL; no code patches (skipped at level 0) |
 | testing | tester | Quality gates, manual verification, discipline reports |
 | archiving | archiver | Sync + `lawbook_change` action `archive` in the same PR |
 
@@ -180,7 +180,7 @@ is always answered.
 | `start` | Create harness at `exploring` for a change |
 | `advance` | Legal one-step transition (PASS verdict required leaving review/test) |
 | `rework` | FAIL from reviewing/testing → implementing (counts toward max rework) |
-| `brief` | Stage + role + skill hints + suggested next ops (handoff for Task spawn) |
+| `brief` | Stage + role + skill hints + suggested next ops (handoff for Task spawn); at `reviewing` also `review` — the diff exported to `.speclaw/review/<change>.diff`, its files, and the reviewer prompt |
 
 Same surface on the CLI: `speclaw cortex <action> --change <name> […]`.
 `speclaw cortex status` also writes `summary.line` to stderr (stdout stays the
