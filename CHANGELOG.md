@@ -5,6 +5,15 @@ All notable changes to this project are documented here. Speclaw follows
 
 ## [Unreleased]
 
+## [2.0.22] — 2026-10-08
+
+### Fixed
+
+- A re-index no longer reads as the agent's work: the Stop hook ignores
+  `docs/compass.md` when it differs from the merge base only inside its
+  generated map block (line endings normalized), so a fresh branch no longer
+  archives an empty change and a branch with work does not reship.
+
 ## [2.0.21] — 2026-10-08
 
 ### Fixed

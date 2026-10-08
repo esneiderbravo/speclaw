@@ -4,6 +4,7 @@ import { spawn, spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { createHash } from "node:crypto";
 import { changedFiles, isGitRepo, mergeBase, worktreeChangedFiles } from "../../shared/git.js";
+import { COMPASS_DOC, stripCompassMapBlock } from "../../shared/compass-map.js";
 import { handleHarness, readHarness } from "../cortex/harness.js";
 import { deltaSpecFiles, specArchive, specArchivePreconditions } from "./engine.js";
 import {
@@ -153,7 +154,26 @@ function branchFiles(projectPath: string): string[] {
     ]),
   ]
     .filter((f) => !f.startsWith("lawbook/changes/"))
+    .filter((f) => f !== COMPASS_DOC || !onlyMapChanged(projectPath, base))
     .sort();
+}
+
+/**
+ * Whether `docs/compass.md` differs from `base` only inside its generated map
+ * block: every full index rewrites that block, so on a fresh branch it would
+ * otherwise read as the agent's work and ship an empty change.
+ */
+function onlyMapChanged(projectPath: string, base: string | null): boolean {
+  if (!base) return false;
+  try {
+    const now = fs.readFileSync(path.join(projectPath, COMPASS_DOC), "utf8");
+    const then = git(projectPath, ["show", `${base}:${COMPASS_DOC}`]);
+    // Line endings are the platform's (core.autocrlf), not the agent's work.
+    const lf = (t: string) => stripCompassMapBlock(t.replace(/\r\n/g, "\n"));
+    return then !== "" && lf(now) === lf(then);
+  } catch {
+    return false;
+  }
 }
 
 /** New files not yet added, outside ship's own output (`lawbook/changes/`, `.speclaw/`). */
@@ -878,11 +898,17 @@ function workFingerprint(projectPath: string): string {
     ":(exclude).speclaw",
   ]).split("\n");
   const hash = createHash("sha256");
-  for (const f of [...new Set([...tracked, ...untrackedFiles(projectPath)])].sort()) {
+  const files = [...new Set([...tracked, ...untrackedFiles(projectPath)])]
+    // A map-only docs/compass.md is no work: neither its bytes nor its name count.
+    .filter((f) => f !== COMPASS_DOC || !onlyMapChanged(projectPath, base))
+    .sort();
+  for (const f of files) {
     if (!f) continue;
     hash.update(`${f}\n`);
     try {
-      hash.update(fs.readFileSync(path.join(projectPath, f)));
+      const bytes = fs.readFileSync(path.join(projectPath, f));
+      // A re-index rewrites the map block; only the rest of the file is work.
+      hash.update(f === COMPASS_DOC ? stripCompassMapBlock(bytes.toString("utf8")) : bytes);
     } catch {
       // Deleted, vanished or unreadable: its name stands in.
       hash.update("\0");
