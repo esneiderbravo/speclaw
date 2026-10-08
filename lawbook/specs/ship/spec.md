@@ -136,3 +136,40 @@ WHEN `docs/compass.md` differs from the merge base only inside its generated map
 - Given an edit to `docs/compass.md` outside the map block
 - When the Stop hook runs
 - Then it ships the change
+
+### Requirement: A small fix stays level 0
+
+WHEN the branch diff changes at most one source file by at most ten lines (test and doc files aside) and touches no public API or global file, the system SHALL measure it at level 0 whatever its blast radius.
+
+#### Scenario: A one-line fix in a central function
+- Given a function called from twelve modules and four tests
+- When a branch changes one line of it and adds a regression test
+- Then ship confirms level 0 and archives the change after passing gates
+
+#### Scenario: The same file past the small-fix size
+- Given the same central file
+- When a branch changes fifteen lines of it
+- Then ship measures level 1 or more
+
+### Requirement: The stop runs the tests the diff reaches
+
+WHEN ship runs the project's whole-suite test gate (`npm test`, `npm run test`, or the pnpm/yarn equivalent), the system SHALL run only the test files the diff reaches and record that scope in the report, unless `ship.tests` is `full`.
+
+#### Scenario: A central fix runs its affected tests
+- Given an indexed project whose test gate is `npm test`
+- When ship runs for a one-line fix
+- Then the test gate runs a command naming the affected test files and the report says the full suite runs in CI
+
+#### Scenario: The project asks for the full suite
+- Given `ship.tests: full` in `lawbook/config.yaml`
+- When ship runs
+- Then the test gate runs `npm test`
+
+### Requirement: The full suite when the selection cannot be trusted
+
+WHEN there is no Compass index, a global file changed, or no test reaches changed code, the system SHALL run the whole-suite test gate.
+
+#### Scenario: No index
+- Given a project without a Compass index
+- When ship runs its `npm test` gate
+- Then the gate runs `npm test` and the report names why

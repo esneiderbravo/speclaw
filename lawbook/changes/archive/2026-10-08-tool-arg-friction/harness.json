@@ -1,0 +1,64 @@
+{
+  "version": 1,
+  "change": "tool-arg-friction",
+  "stage": "done",
+  "level": 2,
+  "iteration": 0,
+  "maxRework": 3,
+  "verdicts": {
+    "review": "PASS",
+    "test": "PASS"
+  },
+  "openQuestions": [],
+  "history": [
+    {
+      "at": "2026-10-08T19:33:16.023Z",
+      "from": "exploring",
+      "to": "exploring",
+      "op": "start",
+      "note": "level 2: tool-arg fixes + gate scope + small-fix level"
+    },
+    {
+      "at": "2026-10-08T19:33:16.066Z",
+      "from": "exploring",
+      "to": "planning",
+      "op": "advance",
+      "note": "implemented and gated (1057/1057)"
+    },
+    {
+      "at": "2026-10-08T19:33:16.108Z",
+      "from": "planning",
+      "to": "implementing",
+      "op": "advance",
+      "note": "implemented and gated (1057/1057)"
+    },
+    {
+      "at": "2026-10-08T19:33:16.151Z",
+      "from": "implementing",
+      "to": "reviewing",
+      "op": "advance",
+      "note": "implemented and gated (1057/1057)"
+    },
+    {
+      "at": "2026-10-08T19:33:16.193Z",
+      "from": "reviewing",
+      "to": "testing",
+      "op": "advance",
+      "note": "Review PASS: reports/review.md, no blocking findings"
+    },
+    {
+      "at": "2026-10-08T19:33:16.234Z",
+      "from": "testing",
+      "to": "archiving",
+      "op": "advance",
+      "note": "gates via ship: check, build, test 1057/1057; performance.md, agent-runs.md"
+    },
+    {
+      "at": "2026-10-08T19:33:19.188Z",
+      "from": "archiving",
+      "to": "done",
+      "op": "advance",
+      "note": "archived by lawbook archive"
+    }
+  ]
+}
