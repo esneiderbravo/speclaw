@@ -14,7 +14,8 @@ test("publish.yml requests OIDC and has no long-lived npm token", () => {
 test("publish.yml runs check and test before publish", () => {
   const yml = fs.readFileSync(path.join(process.cwd(), ".github/workflows/publish.yml"), "utf8");
   const checkAt = yml.indexOf("npm run check");
-  const testAt = yml.indexOf("npm test");
+  // The coverage-gated suite, not the fast local `npm test`.
+  const testAt = yml.indexOf("npm run test:ci");
   const publishAt = yml.indexOf("npm publish");
   assert.ok(checkAt > 0 && testAt > 0 && publishAt > 0);
   assert.ok(checkAt < publishAt, "check must precede publish");

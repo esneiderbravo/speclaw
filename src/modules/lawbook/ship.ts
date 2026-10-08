@@ -188,6 +188,21 @@ function runGate(projectPath: string, command: string): ShipGate {
   };
 }
 
+/**
+ * What the lawbook writes itself: change folders and reports, the canonical
+ * specs an archive promotes, the anchors it seals, and the local index. None
+ * of it is the agent's work, so none of it may trigger, size or re-run a ship
+ * — archiving used to read as new work and re-run every gate.
+ */
+const OWN_OUTPUT = ["lawbook/changes/", "lawbook/specs/", "lawbook/anchors/", ".speclaw/"] as const;
+
+function isOwnOutput(file: string): boolean {
+  return OWN_OUTPUT.some((dir) => file.startsWith(dir));
+}
+
+/** The same paths as git pathspecs, for commands that list or log the work. */
+const OWN_OUTPUT_EXCLUDES = OWN_OUTPUT.map((dir) => `:(exclude)${dir.replace(/\/$/, "")}`);
+
 function branchFiles(projectPath: string): string[] {
   if (!isGitRepo(projectPath)) return [];
   const base = mergeBase(projectPath, "main") ?? mergeBase(projectPath, "master");
@@ -199,7 +214,7 @@ function branchFiles(projectPath: string): string[] {
       ...untrackedFiles(projectPath),
     ]),
   ]
-    .filter((f) => !f.startsWith("lawbook/changes/"))
+    .filter((f) => !isOwnOutput(f))
     .filter((f) => f !== COMPASS_DOC || !onlyMapChanged(projectPath, base))
     .sort();
 }
@@ -222,7 +237,7 @@ function onlyMapChanged(projectPath: string, base: string | null): boolean {
   }
 }
 
-/** New files not yet added, outside ship's own output (`lawbook/changes/`, `.speclaw/`). */
+/** New files not yet added, outside the lawbook's own output ({@link OWN_OUTPUT}). */
 function untrackedFiles(projectPath: string): string[] {
   return git(projectPath, [
     "-c",
@@ -232,7 +247,7 @@ function untrackedFiles(projectPath: string): string[] {
     "--exclude-standard",
   ])
     .split("\n")
-    .filter((f) => f && !f.startsWith("lawbook/changes/") && !f.startsWith(".speclaw/"));
+    .filter((f) => f && !isOwnOutput(f));
 }
 
 function secs(ms: number): string {
@@ -327,8 +342,7 @@ function commitSummary(projectPath: string): string {
     `${base}..HEAD`,
     "--",
     ".",
-    ":(exclude)lawbook/changes",
-    ":(exclude).speclaw",
+    ...OWN_OUTPUT_EXCLUDES,
   ])
     .split("\n")
     .filter((l) => !/^[\w-]+-by:/i.test(l))
@@ -829,7 +843,7 @@ export function docHint(projectPath: string): string | null {
     if (!branch || ["main", "master", "(detached)"].includes(branch)) return null;
     const quick = status
       .split("\n")
-      .filter((l) => !l.includes(" lawbook/changes/") && !l.includes(" .speclaw/"))
+      .filter((l) => !OWN_OUTPUT.some((dir) => l.includes(` ${dir}`)))
       .join("\n");
     const statePath = path.join(projectPath, DOC_HINT_STATE);
     let prev: {
@@ -1002,11 +1016,11 @@ function readMarker(projectPath: string): ShipMarker | null {
 }
 
 /**
- * Fingerprint of the branch's work outside `lawbook/changes/` and `.speclaw/`: every path that
+ * Fingerprint of the branch's work outside the lawbook's own output: every path that
  * differs from the merge base with `main`/`master` or is untracked, with its
  * working-tree contents. A file hashes the same whether it is untracked, staged
  * or committed, so committing work — new files included — is not new work; ship
- * writes under `lawbook/changes/`, so its own output never changes it either.
+ * and archive write only {@link OWN_OUTPUT}, so their output never changes it either.
  * Without a merge base it falls back to the paths changed against HEAD plus HEAD itself.
  */
 function workFingerprint(projectPath: string): string {
@@ -1019,8 +1033,7 @@ function workFingerprint(projectPath: string): string {
     base ?? "HEAD",
     "--",
     ".",
-    ":(exclude)lawbook/changes",
-    ":(exclude).speclaw",
+    ...OWN_OUTPUT_EXCLUDES,
   ]).split("\n");
   const hash = createHash("sha256");
   const files = [...new Set([...tracked, ...untrackedFiles(projectPath)])]

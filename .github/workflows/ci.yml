@@ -58,6 +58,6 @@ jobs:
       - name: 🔨 Build
         run: npm run build
 
-      # `npm test` enforces the coverage floor and fails the check below it.
+      # `npm run test:ci` enforces the coverage floor and fails the check below it.
       - name: ✅ Run tests
-        run: npm test
+        run: npm run test:ci

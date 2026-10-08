@@ -1,6 +1,6 @@
 {
   "name": "@esneiderbravo/speclaw",
-  "version": "2.0.23",
+  "version": "2.0.24",
   "publishConfig": {
     "access": "public"
   },
@@ -43,8 +43,10 @@
     "check": "prettier --check . && eslint .",
     "budget:calibrate": "node scripts/budget-calibrate.mjs",
     "pretest": "tsc -p tsconfig.test.json && node scripts/prep-test-assets.mjs",
-    "test": "node --test --test-concurrency=1 --experimental-test-coverage --test-coverage-lines=80 --test-coverage-functions=80 --test-coverage-branches=80 --test-coverage-exclude='dist-test/test/**' --test-coverage-exclude='dist/**' 'dist-test/test/**/*.test.js'",
-    "prepublishOnly": "npm run build"
+    "test": "node --test 'dist-test/test/**/*.test.js'",
+    "prepublishOnly": "npm run build",
+    "test:ci": "node --test --test-concurrency=1 --experimental-test-coverage --test-coverage-lines=80 --test-coverage-functions=80 --test-coverage-branches=80 --test-coverage-exclude='dist-test/test/**' --test-coverage-exclude='dist/**' 'dist-test/test/**/*.test.js'",
+    "pretest:ci": "tsc -p tsconfig.test.json && node scripts/prep-test-assets.mjs"
   },
   "engines": {
     "node": ">=22.16"

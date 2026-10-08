@@ -5,6 +5,23 @@ All notable changes to this project are documented here. Speclaw follows
 
 ## [Unreleased]
 
+## [2.0.24] — 2026-10-08
+
+### Fixed
+
+- Archiving no longer reads as new work: the `Stop` hook ignores the canonical
+  specs an archive promotes (`lawbook/specs/`) and the anchors it seals
+  (`lawbook/anchors/`), as it already ignored `lawbook/changes/`. Before, the
+  stop after an archive re-ran every gate (~100 s) and rewrote the archived
+  report.
+
+### Changed
+
+- `npm test` runs the suite in parallel without coverage (~43 s, was ~90 s), so
+  the agent's targeted runs and the `Stop` hook's gate stay fast; the
+  coverage-gated serial suite moved to `npm run test:ci`, which CI and publish
+  run.
+
 ## [2.0.23] — 2026-10-08
 
 ### Changed
