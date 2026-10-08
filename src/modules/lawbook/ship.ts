@@ -124,9 +124,28 @@ function branchFiles(projectPath: string): string[] {
   if (!isGitRepo(projectPath)) return [];
   const base = mergeBase(projectPath, "main") ?? mergeBase(projectPath, "master");
   const committed = base ? changedFiles(projectPath, base) : [];
-  return [...new Set([...committed, ...worktreeChangedFiles(projectPath)])]
+  return [
+    ...new Set([
+      ...committed,
+      ...worktreeChangedFiles(projectPath),
+      ...untrackedFiles(projectPath),
+    ]),
+  ]
     .filter((f) => !f.startsWith("lawbook/changes/"))
     .sort();
+}
+
+/** New files not yet added, outside ship's own output (`lawbook/changes/`, `.speclaw/`). */
+function untrackedFiles(projectPath: string): string[] {
+  return git(projectPath, [
+    "-c",
+    "core.quotePath=false",
+    "ls-files",
+    "--others",
+    "--exclude-standard",
+  ])
+    .split("\n")
+    .filter((f) => f && !f.startsWith("lawbook/changes/") && !f.startsWith(".speclaw/"));
 }
 
 function secs(ms: number): string {
@@ -399,28 +418,39 @@ function readMarker(projectPath: string): ShipMarker | null {
 }
 
 /**
- * Fingerprint of the branch's work outside `lawbook/changes/`: the working tree
- * diffed against the merge base with `main`/`master`, plus untracked files
- * (names and contents). Committing that work leaves it unchanged — a commit is not new work —
- * and ship writes under `lawbook/changes/`, so its own output never changes it.
- * Without a merge base it falls back to the diff against HEAD plus HEAD itself.
+ * Fingerprint of the branch's work outside `lawbook/changes/` and `.speclaw/`: every path that
+ * differs from the merge base with `main`/`master` or is untracked, with its
+ * working-tree contents. A file hashes the same whether it is untracked, staged
+ * or committed, so committing work — new files included — is not new work; ship
+ * writes under `lawbook/changes/`, so its own output never changes it either.
+ * Without a merge base it falls back to the paths changed against HEAD plus HEAD itself.
  */
 function workFingerprint(projectPath: string): string {
   const base = mergeBase(projectPath, "main") ?? mergeBase(projectPath, "master");
-  const diff = git(projectPath, ["diff", base ?? "HEAD", "--", ".", ":(exclude)lawbook/changes"]);
+  const tracked = git(projectPath, [
+    "-c",
+    "core.quotePath=false",
+    "diff",
+    "--name-only",
+    base ?? "HEAD",
+    "--",
+    ".",
+    ":(exclude)lawbook/changes",
+    ":(exclude).speclaw",
+  ]).split("\n");
   const hash = createHash("sha256");
-  for (const f of git(projectPath, ["ls-files", "--others", "--exclude-standard"]).split("\n")) {
-    if (!f || f.startsWith("lawbook/changes/") || f.startsWith(".speclaw/")) continue;
-    // Contents, not just names: editing a new, not-yet-added file is new work.
+  for (const f of [...new Set([...tracked, ...untrackedFiles(projectPath)])].sort()) {
+    if (!f) continue;
     hash.update(`${f}\n`);
     try {
       hash.update(fs.readFileSync(path.join(projectPath, f)));
     } catch {
-      // Vanished or unreadable since listing: its name stands in.
+      // Deleted, vanished or unreadable: its name stands in.
+      hash.update("\0");
     }
   }
   const anchor = base ?? git(projectPath, ["rev-parse", "HEAD"]).trim();
-  return hash.update(`\n${anchor}\n${diff}`).digest("hex");
+  return hash.update(`\n${anchor}\n`).digest("hex");
 }
 
 /**

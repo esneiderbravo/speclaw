@@ -162,6 +162,23 @@ test("committing shipped work is not new work for the Stop hook", (t) => {
   assert.deepEqual(shipOnStop(root), { skipped: "unchanged-since-last-ship" });
 });
 
+test("committing a new file is not new work for the Stop hook", (t) => {
+  const root = gitFixture(t);
+  git(root, "checkout", "-qb", "fix/new-file");
+  fs.writeFileSync(path.join(root, "b.js"), "export const b = 1;\n");
+  const first = shipOnStop(root);
+  assert.equal(first.skipped, null);
+  if (first.skipped !== null) return;
+  assert.ok(first.result.archivedTo, JSON.stringify(first.result.next));
+  const report = path.join(root, first.result.archivedTo, "reports", "change.md");
+  const shipped = fs.readFileSync(report, "utf8");
+  assert.match(shipped, /- `b\.js`/, "the report lists the new file");
+  git(root, "add", "-A");
+  git(root, "commit", "-qm", "feat: b");
+  assert.deepEqual(shipOnStop(root), { skipped: "unchanged-since-last-ship" });
+  assert.equal(fs.readFileSync(report, "utf8"), shipped, "report untouched");
+});
+
 test("the Stop hook keeps the change last shipped by name and never rewrites another archive", (t) => {
   const root = gitFixture(t);
   git(root, "checkout", "-qb", "fix/first-change");
