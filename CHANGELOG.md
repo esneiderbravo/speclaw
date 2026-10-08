@@ -17,6 +17,10 @@ All notable changes to this project are documented here. Speclaw follows
   in the background; the hint arrives on a later call (~14 s in that repo),
   ship reuses the cached measurement (stop overhead 12.6 s → 0.24 s), and a
   level counts as told only when its hint is returned.
+- A re-index no longer reads as the agent's work: the Stop hook ignores
+  `docs/compass.md` when it differs from the merge base only inside its
+  generated map block (line endings normalized), so a fresh branch no longer
+  archives an empty change and a branch with work does not reship.
 - The Compass nudge strips shell quotes and escapes from a searched pattern
   (`rg "foo\"` suggested `compass_find "foo\"`).
 

@@ -1,0 +1,64 @@
+{
+  "version": 1,
+  "change": "compass-map-not-work",
+  "stage": "done",
+  "level": 3,
+  "iteration": 0,
+  "maxRework": 3,
+  "verdicts": {
+    "review": "PASS",
+    "test": "PASS"
+  },
+  "openQuestions": [],
+  "history": [
+    {
+      "at": "2026-10-08T16:40:41.786Z",
+      "from": "exploring",
+      "to": "exploring",
+      "op": "start",
+      "note": "map fix: diff in /tmp/compass-map.diff; gates green 1045"
+    },
+    {
+      "at": "2026-10-08T16:40:41.824Z",
+      "from": "exploring",
+      "to": "planning",
+      "op": "advance",
+      "note": "map fix: diff in /tmp/compass-map.diff; gates green 1045"
+    },
+    {
+      "at": "2026-10-08T16:40:41.863Z",
+      "from": "planning",
+      "to": "implementing",
+      "op": "advance",
+      "note": "map fix: diff in /tmp/compass-map.diff; gates green 1045"
+    },
+    {
+      "at": "2026-10-08T16:40:41.901Z",
+      "from": "implementing",
+      "to": "reviewing",
+      "op": "advance",
+      "note": "map fix: diff in /tmp/compass-map.diff; gates green 1045"
+    },
+    {
+      "at": "2026-10-08T16:41:26.819Z",
+      "from": "reviewing",
+      "to": "testing",
+      "op": "advance",
+      "note": "Review PASS: no hidden real edits (missing markers/base fail safe), fingerprint stable, boundaries clean, regression test covers both scenarios on a throwaway fixture. Non-blocking: map-only compass.md name still hashed in workFingerprint (one redundant reship possible); CRLF fails safe."
+    },
+    {
+      "at": "2026-10-08T16:44:10.797Z",
+      "from": "testing",
+      "to": "archiving",
+      "op": "advance",
+      "note": "gates observed via ship after review notes #1/#2: check, build, test pass"
+    },
+    {
+      "at": "2026-10-08T16:44:10.986Z",
+      "from": "archiving",
+      "to": "done",
+      "op": "advance",
+      "note": "archived by lawbook archive"
+    }
+  ]
+}
