@@ -250,17 +250,11 @@ test(
 
     seed(root, "exploring", [started], "compassGate: strict");
     const before = read(root, "lawbook/changes/feat/harness.json");
-    const rejected = runCli(["lawbook", "harness", "advance", "--change", "feat"], { cwd: root });
+    const rejected = runCli(["cortex", "advance", "--change", "feat"], { cwd: root });
     assert.equal(rejected.code, 1);
     assert.match(rejected.stderr, /compass-first: cannot leave stage "exploring"/);
     assert.match(rejected.stderr, /compassGate/);
     assert.equal(read(root, "lawbook/changes/feat/harness.json"), before);
-
-    // the deprecated alias prints warn-mode warnings too
-    seed(root, "exploring", [started]);
-    const alias = runCli(["lawbook", "harness", "advance", "--change", "feat"], { cwd: root });
-    assert.equal(alias.code, 0, alias.stderr);
-    assert.match(alias.stderr, /compass-first/);
   },
 );
 

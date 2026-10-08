@@ -99,30 +99,3 @@ export function defineTool<Shape extends ToolInputShape>(
     spec.handler,
   );
 }
-
-const ALIAS_MAX_WORDS = 12;
-const ALIAS_MAX_TOKENS = 200;
-
-/**
- * Register a deprecated alias with a terse description (not counted in the
- * canonical eight-tool limit).
- */
-export function defineAliasTool<Shape extends ToolInputShape>(
-  server: McpServer,
-  spec: ToolSpec<Shape>,
-): void {
-  const words = countWords(spec.description);
-  if (words > ALIAS_MAX_WORDS) {
-    throw new Error(`alias ${spec.name}: description is ${words} words (cap ${ALIAS_MAX_WORDS})`);
-  }
-  const cost = toolDefinitionTokens({
-    name: spec.name,
-    description: spec.description,
-    inputSchema: spec.inputSchema,
-  });
-  if (cost > ALIAS_MAX_TOKENS) {
-    throw new Error(`alias ${spec.name}: ${cost} tokens exceeds alias cap ${ALIAS_MAX_TOKENS}`);
-  }
-  const inputSchema = (spec.inputSchema ?? {}) as Shape;
-  server.registerTool(spec.name, { description: spec.description, inputSchema }, spec.handler);
-}

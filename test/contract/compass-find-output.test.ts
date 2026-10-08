@@ -22,12 +22,9 @@ function seedManyFunctions(root: string): void {
   }
 }
 
-/** Registered Compass tools over an indexed fixture (aliases optional). */
-async function indexedTools(root: string, aliases = false) {
-  if (aliases) delete process.env.SPECLAW_NO_ALIASES;
-  else process.env.SPECLAW_NO_ALIASES = "1";
+/** Registered Compass tools over an indexed fixture. */
+async function indexedTools(root: string) {
   const tools = captureTools(registerCompass);
-  delete process.env.SPECLAW_NO_ALIASES;
   await tools.get("compass_index")!.handler({ projectPath: root });
   return tools;
 }
@@ -109,33 +106,6 @@ test("compass_find reports truncated only when it trimmed", async (t) => {
   assert.ok((tightBody.hits as unknown[]).length >= 1);
   assert.ok(estimateTokens(tight) <= 256);
   assert.equal(tightBody.tokens, estimateTokens(tight));
-});
-
-test("compass_search alias uses the same compact shape", async (t) => {
-  const root = tmpRepo(t);
-  seedManyFunctions(root);
-  const tools = await indexedTools(root, true);
-  const viaFind = JSON.parse(
-    textOf(
-      await tools.get("compass_find")!.handler({
-        projectPath: root,
-        query: "handleRequest3",
-        mode: "exact",
-      }),
-    ),
-  ) as Record<string, unknown>;
-  const aliasText = textOf(
-    await tools.get("compass_search")!.handler({ projectPath: root, query: "handleRequest3" }),
-  );
-  assert.match(aliasText, /^\[deprecated\]/);
-  assert.ok(estimateTokens(aliasText) <= OUTPUT_BUDGET.brief);
-  const alias = JSON.parse(aliasText.slice(aliasText.indexOf("{"))) as Record<string, unknown>;
-  assert.deepEqual(Object.keys(alias).sort(), Object.keys(viaFind).sort());
-  for (const h of alias.hits as Array<Record<string, unknown>>) {
-    assert.deepEqual(Object.keys(h).sort(), HIT_KEYS);
-  }
-  assert.equal(alias.mode, "exact");
-  assert.deepEqual(alias.terms, ["handleRequest3"]);
 });
 
 /**

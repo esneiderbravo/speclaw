@@ -507,7 +507,7 @@ export async function investigate(args: {
       const imp = impact(args.projectPath, { symbol: top.name, format: "grouped", maxDepth: 3 });
       blastRadiusSummary = `${imp.totals.nodes} node(s) in ${imp.totals.modules} module(s) reachable from ${top.name}`;
     } catch {
-      blastRadiusSummary = `(run compass_impact on ${top.name})`;
+      blastRadiusSummary = `(run compass_explore on ${top.name} with include ["blast_radius"])`;
     }
   }
 

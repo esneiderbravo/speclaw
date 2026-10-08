@@ -172,7 +172,7 @@ Cortex runs the loop. Cheat sheet: [`docs/cortex.md`](docs/cortex.md).
 | **implementer** | implementing | Code + tests; stops at hand-off (no final gates, no archive) |
 | **reviewer** | reviewing | `reports/review.md` PASS/FAIL; no code patches (skipped at level 0) |
 | **tester** | testing | Quality gates, manual verification, discipline reports |
-| **archiver** | archiving | Sync + `lawbook_archive` **in the same PR** |
+| **archiver** | archiving | Sync + `lawbook_change` action `archive` **in the same PR** |
 
 State lives in `lawbook/changes/<name>/harness.json`. Archive is gated on
 harness verdicts (test PASS; review PASS when level ≥ 1) plus tasks, reports,
@@ -204,7 +204,7 @@ requirement **coverage**, sealed **drift** anchors, bugfix + investigate.
 > [!NOTE]
 > **Delta specs are normative and testable.** Requirements use `SHALL`/`MUST`
 > under `### Requirement:` headers (EARS-friendly), each with `#### Scenario:`
-> blocks. `lawbook_validate` checks structure; `speclaw coverage` tracks
+> blocks. `lawbook_change` action `validate` checks structure; `speclaw coverage` tracks
 > `req~…~N` → impl/test via `// Covers:` comments.
 
 The workspace is committed under `lawbook/`: `specs/`, `changes/` (with

@@ -67,7 +67,7 @@ export function scaffoldQuick(
 }
 
 /**
- * Handle `lawbook_level` modes: propose / set / promote / explain.
+ * Handle `lawbook_change` action `level` modes: propose / set / promote / explain.
  *
  * A proposal is measured only when the call names paths or symbols. Without
  * targets, `propose`/`explain` return the `no-targets` proposal (level null),

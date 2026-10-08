@@ -1,6 +1,5 @@
 /**
- * MCP response of `compass_find` (and its `compass_search` / `compass_recall`
- * aliases): compact hits and one JSON document capped as a whole at the
+ * MCP response of `compass_find`: compact hits and one JSON document capped as a whole at the
  * caller's token budget. The CLI keeps printing `HybridSearchResult` as is.
  */
 

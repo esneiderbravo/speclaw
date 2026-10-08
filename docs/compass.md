@@ -102,5 +102,5 @@ entry: src/server.ts (mcp) · src/cli/index.ts (bin)
   (`shared/agents.ts`), hooks in `foundation/hooks.ts`, law compilation in
   `foundation/compile-laws.ts`, integrity in `foundation/integrity.ts`.
 - **Tests**: `tmpRepo` / `write` (`test/helpers/env.ts`) are the most-called
-  helpers; `compass_affected_tests` picks the tests for a change.
+  helpers; `compass_diff_context` picks the tests for a change.
 

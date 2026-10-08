@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { ALIAS_NAMES, CANONICAL_TOOLS } from "../../src/shared/tool-catalog.js";
+import { RETIRED_NAMES, CANONICAL_TOOLS } from "../../src/shared/tool-catalog.js";
 
 const ASSETS = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -112,7 +112,7 @@ function shippedMarkdown(dir = ASSETS): string[] {
 
 const FOUNDATION_ASSETS = path.resolve(ASSETS, "../../foundation/assets");
 
-test("no shipped agent, skill, command, rule, or template names a deprecated alias tool", () => {
+test("no shipped agent, skill, command, rule, or template names a retired tool", () => {
   const files = [...shippedMarkdown(), ...shippedMarkdown(FOUNDATION_ASSETS)];
   assert.ok(files.length > 20, "assets were found");
   assert.ok(
@@ -121,11 +121,11 @@ test("no shipped agent, skill, command, rule, or template names a deprecated ali
   );
   for (const file of files) {
     const body = fs.readFileSync(file, "utf8");
-    for (const alias of ALIAS_NAMES) {
+    for (const alias of RETIRED_NAMES) {
       assert.doesNotMatch(
         body,
         new RegExp(`\\b${alias}\\b`),
-        `${path.relative(path.dirname(ASSETS), file)} names alias ${alias}`,
+        `${path.relative(path.dirname(ASSETS), file)} names retired tool ${alias}`,
       );
     }
   }

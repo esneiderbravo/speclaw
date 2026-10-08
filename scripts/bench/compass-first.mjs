@@ -44,15 +44,7 @@ const WARMUP = 3;
 const MIN_ITERATIONS = 20;
 const CALL_LOG = path.join(".speclaw", "compass-calls.jsonl");
 const ROTATE_AT = 256 * 1024;
-const EVIDENCE = new Set([
-  "compass_explore",
-  "compass_find",
-  "compass_diff_context",
-  "compass_impact",
-  "compass_trace",
-  "compass_search",
-  "compass_recall",
-]);
+const EVIDENCE = new Set(["compass_explore", "compass_find", "compass_diff_context"]);
 // Never copied into a fixture, even when untracked and not ignored: they can
 // hold credentials or machine-local state.
 const NEVER_COPY = [

@@ -150,18 +150,18 @@ const MIGRATIONS: Migration[] = [
 
   {
     version: "0.3.8",
-    describe: "Requirement coverage: speclaw coverage + lawbook_coverage + schema 5",
+    describe: "Requirement coverage: speclaw coverage + lawbook_change coverage + schema 5",
     agentPrompt:
-      "- Mention `speclaw coverage` / `lawbook_coverage` for requirement → impl → test coverage " +
+      "- Mention `speclaw coverage` / `lawbook_change` action `coverage` for requirement → impl → test coverage " +
       "(ids like `req~name~1`, `// Covers:` comments). Compass schema is now 5 — reindex with " +
       "`speclaw index`. Optionally add coverage.gateArchive / defaultNeeds under lawbook/config.yaml.\n" +
       "- Preserve all project-specific wording; only apply these speclaw-authored changes.",
   },
   {
     version: "0.3.9",
-    describe: "Spec drift: speclaw drift + lawbook_drift + schema 6 dual hashes",
+    describe: "Spec drift: speclaw drift + lawbook_change drift + schema 6 dual hashes",
     agentPrompt:
-      "- Mention `speclaw drift` / `lawbook_drift` for sealed spec↔code drift " +
+      "- Mention `speclaw drift` / `lawbook_change` action `drift` for sealed spec↔code drift " +
       "(committed `lawbook/anchors/*.json`, dual body/norm hashes). Compass schema is now 6 — " +
       "reindex with `speclaw index`, then `speclaw drift --reseal` once to photograph current bodies.\n" +
       "- Preserve all project-specific wording; only apply these speclaw-authored changes.",
@@ -170,8 +170,8 @@ const MIGRATIONS: Migration[] = [
     version: "0.3.10",
     describe: "Impact v2 + affected-tests: schema 7, grouped blast radius",
     agentPrompt:
-      "- Mention `compass_impact` (grouped by default; `format: flat` escape hatch) and " +
-      "`compass_affected_tests` / `speclaw affected-tests --from-diff`. Compass schema is now 7 " +
+      '- Mention `compass_explore` with `include: ["blast_radius"]` (grouped) and ' +
+      "`compass_diff_context` / `speclaw affected-tests --from-diff`. Compass schema is now 7 " +
       "(`files.is_test`, `files.module`) — reindex with `speclaw index`. Optional " +
       "`.speclaw/affected.json` overrides globals/test globs.\n" +
       "- Preserve all project-specific wording; only apply these speclaw-authored changes.",
@@ -180,17 +180,17 @@ const MIGRATIONS: Migration[] = [
     version: "0.3.11",
     describe: "Hotspots + coupling: schema 8 node_metrics, 90d activity window",
     agentPrompt:
-      "- Mention `compass_hotspots` / `speclaw hotspots` and `compass_coupling` / `speclaw coupling` " +
+      "- Mention `speclaw hotspots` and `speclaw coupling` " +
       "(activity × AST health; Jaccard strength + in_graph + isTestPair). Compass schema is now 8 " +
       "(`node_metrics`) — reindex with `speclaw index`. Default history window is 90 days.\n" +
       "- Preserve all project-specific wording; only apply these speclaw-authored changes.",
   },
   {
     version: "0.3.12",
-    describe: "Adaptive ceremony levels 0–3, speclaw quick, lawbook_level",
+    describe: "Adaptive ceremony levels 0–3, speclaw quick, lawbook_change level",
     agentPrompt:
       "- Mention ceremony levels 0–3 (`change.json`), `speclaw quick` for level-0 scaffolds, and " +
-      "`lawbook_level` / `speclaw lawbook level` for propose/set/promote. Artifact volume follows " +
+      "`lawbook_change` action `level` / `speclaw lawbook level` for propose/set/promote. Artifact volume follows " +
       "the confirmed level; missing `change.json` still means full ceremony (level 3). Optional " +
       "`ceremony:` block in `lawbook/config.yaml` (cuts default [5, 16, 25]). Update LAWS / " +
       "docs/standards/lawbook.md wording if the project still says every change needs all four artifacts.\n" +
@@ -202,8 +202,7 @@ const MIGRATIONS: Migration[] = [
     agentPrompt:
       "- MCP exposes eight canonical tools: `compass_explore`, `compass_find`, `compass_diff_context`, " +
       "`compass_index`, `lawbook_change`, `lawbook_investigate`, `speclaw_setup`, `speclaw_check`. " +
-      "Retired names (e.g. `compass_search`, `lawbook_validate`, `init_project`) are aliases with " +
-      "`[deprecated]` responses — prefer the canonical names. `scaffold`, `doctor`, `compass_visualize`, " +
+      "Use only these canonical names. `scaffold`, `doctor`, `compass_visualize`, " +
       "and `law_verify` are CLI-only. Minimal profile omits setup/check/investigate/index.\n" +
       "- Preserve all project-specific wording; only apply these speclaw-authored changes.",
   },
@@ -354,6 +353,24 @@ const MIGRATIONS: Migration[] = [
       "- Cortex: `pauseForQuestions` is accepted only from stage `planning` (an error " +
       "elsewhere); `advance`/`rework` re-read the confirmed level; `speclaw lawbook draft " +
       "--bug` without `--level` leaves the level unconfirmed (validate uses 3).\n" +
+      "- Preserve all project-specific wording; only apply these speclaw-authored changes.",
+  },
+  {
+    version: "2.1.0",
+    describe: "Retired MCP tool names removed — only the nine canonical tools remain",
+    agentPrompt:
+      "- speclaw no longer registers the 20 retired MCP names (`compass_search`, " +
+      "`compass_recall`, `compass_impact`, `compass_trace`, `compass_affected_tests`, " +
+      "`compass_hotspots`, `compass_coupling`, `compass_watch`, `lawbook_init`, `lawbook_list`, " +
+      "`lawbook_validate`, `lawbook_sync`, `lawbook_archive`, `lawbook_level`, " +
+      "`lawbook_coverage`, `lawbook_drift`, `init_project`, `configure_agent`, `list_packs`, " +
+      "`add_pack`), and `lawbook_change` no longer takes action `harness` (use the `cortex` " +
+      "tool). Replace every mention in the project's docs, rules, skills and agents with the " +
+      "canonical call: `lawbook_change` with the matching `action` (init, list, validate, sync, " +
+      "archive, level, coverage, drift), `compass_find` (exact or concept), `compass_explore` " +
+      '(`include: ["blast_radius"]`, `to: <symbol>`), `compass_diff_context`, ' +
+      "`compass_index` (start|stop|status) and `speclaw_setup` (init, configure-agent, " +
+      "list-packs, add-pack). `speclaw doctor` lists any file that still names a retired tool.\n" +
       "- Preserve all project-specific wording; only apply these speclaw-authored changes.",
   },
 ];

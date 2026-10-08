@@ -14,8 +14,8 @@ import { doctorOwnersChecks } from "../team/owners.js";
 import { globError, hasBackend, hasBatchBackend, readLawManifest } from "./laws.js";
 import { estimateAlwaysOnTokens } from "./compile-laws.js";
 import { redactValue } from "../../shared/redact.js";
-import { readDeprecatedCallCounts, scanRetiredToolReferences } from "../../shared/deprecation.js";
-import { CANONICAL_TOOLS, ALIAS_TARGETS, isCanonicalTool } from "../../shared/tool-catalog.js";
+import { scanRetiredToolReferences } from "../../shared/deprecation.js";
+import { CANONICAL_TOOLS, isCanonicalTool } from "../../shared/tool-catalog.js";
 import { discoverIntegrityPaths, lockfilePath, readLockfile, rootDigest } from "./lock.js";
 
 /** Pass / warn / fail / not-applicable for a single diagnostic check. */
@@ -519,13 +519,6 @@ async function toolSurfaceCheck(projectPath: string): Promise<DoctorCheck> {
     const canonicalCount = collectRegisteredTools(false).filter((t) =>
       isCanonicalTool(t.name),
     ).length;
-    const deprecated = readDeprecatedCallCounts(projectPath);
-    const aliasDetail =
-      deprecated.size > 0
-        ? [...deprecated.entries()]
-            .map(([alias, n]) => `${alias}→${ALIAS_TARGETS[alias] ?? "?"} (${n}×)`)
-            .join("; ")
-        : "no deprecated alias calls logged";
     const staleRefs = scanRetiredToolReferences(projectPath);
     const staleDetail =
       staleRefs.length > 0
@@ -539,7 +532,6 @@ async function toolSurfaceCheck(projectPath: string): Promise<DoctorCheck> {
       detail: [
         `${canonicalCount}/${CANONICAL_TOOLS.length} canonical tools`,
         `~${full.tools} tool-definition tokens (full), ~${mini.tools} (minimal)`,
-        aliasDetail,
         staleDetail,
       ]
         .filter(Boolean)

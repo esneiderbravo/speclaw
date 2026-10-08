@@ -160,7 +160,7 @@ export async function runInit(flags: Flags): Promise<void> {
         "docs/standards/* with its real architecture, quality gates and conventions. " +
         "Infer the working language and conventions from the repo itself — docstrings, " +
         "commit messages, branch names, PR and ticket language — don't assume. " +
-        "Start with init_project.",
+        "Start with speclaw_setup (action: init).",
     ),
   );
   ui.plain();

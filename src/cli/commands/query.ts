@@ -10,10 +10,10 @@ import { recordCompassCall } from "../../shared/compass-calls.js";
 /** CLI query verbs that are Compass call-log twins of an MCP tool. */
 const LOGGED_VERBS: Readonly<Record<string, string>> = {
   explore: "compass_explore",
-  search: "compass_search",
-  recall: "compass_recall",
-  impact: "compass_impact",
-  trace: "compass_trace",
+  search: "compass_find",
+  recall: "compass_find",
+  impact: "compass_explore",
+  trace: "compass_explore",
   "diff-context": "compass_diff_context",
 };
 

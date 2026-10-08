@@ -153,7 +153,7 @@ function bugfixTemplate(
       : "<symbol (file:line) — must resolve against the graph>";
   const blast =
     seed?.blastRadiusSummary ??
-    "<Run compass_impact on the confirmed root cause; list modules and call sites.>";
+    "<Run compass_explore (include blast_radius) on the confirmed root cause; list modules and call sites.>";
 
   return `# Bugfix: ${name}
 

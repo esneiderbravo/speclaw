@@ -55,7 +55,6 @@ Lawbook (spec-driven workflow)
   lawbook validate <c>     Validate a change's artifacts
   lawbook sync <c>         Promote delta specs to canonical
   lawbook archive <c>      Finalize and archive a change
-  lawbook harness <op>     Deprecated alias for \`speclaw cortex\` (compat)
 
 Other
   doctor                   Verify the installation (--json, --offline, --strict)
@@ -407,7 +406,6 @@ Options
   validate <change>            Validate a change's artifacts
   sync <change>                Promote delta specs to canonical
   archive <change>             Finalize and archive a change
-  harness <op>                 Deprecated alias for speclaw cortex
 
 Options
   --json                       Print the result as JSON

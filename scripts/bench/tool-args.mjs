@@ -190,13 +190,6 @@ const CORPUS = [
     args: { action: "archive", change: "record-the-approval-trail" },
   },
   {
-    id: "alias-archive-no-date",
-    real: 5,
-    tool: "lawbook_archive",
-    fx: { changes: [{ name: "view-as-another-user" }] },
-    args: { change: "view-as-another-user" },
-  },
-  {
     id: "archive-unsynced-spec",
     real: 5,
     tool: "lawbook_change",
@@ -218,13 +211,6 @@ const CORPUS = [
     args: { action: "level", mode: "set", name: "administer-portal-modules", level: 3 },
   },
   {
-    id: "alias-level-no-change",
-    real: 1,
-    tool: "lawbook_level",
-    fx: { branch: FAR, changes: [{ name: "default-cost-center" }] },
-    args: { mode: "set", level: 2, reason: "confirmed with the human" },
-  },
-  {
     id: "create-action",
     real: 3,
     tool: "lawbook_change",
@@ -237,13 +223,6 @@ const CORPUS = [
     tool: "lawbook_change",
     fx: { files: { "src/a.ts": "export const a = 1;\n", "src/b.ts": "export const b = 2;\n" } },
     args: { action: "level", mode: "propose", paths: "src/a.ts,src/b.ts" },
-  },
-  {
-    id: "alias-validate-no-change",
-    real: 1,
-    tool: "lawbook_validate",
-    fx: { changes: [{ name: "keep-build-info" }] },
-    args: { strict: "true" },
   },
   {
     id: "explore-query",

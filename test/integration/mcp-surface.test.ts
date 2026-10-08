@@ -6,11 +6,7 @@ import { registerCompass } from "../../src/modules/compass/register.js";
 import { registerCortex } from "../../src/modules/cortex/register.js";
 import { registerSpec } from "../../src/modules/lawbook/register.js";
 import { registerTools } from "../../src/modules/tools/register.js";
-import {
-  CANONICAL_TOOLS,
-  isCanonicalTool,
-  MAX_CANONICAL_TOOLS,
-} from "../../src/shared/tool-catalog.js";
+import { CANONICAL_TOOLS, MAX_CANONICAL_TOOLS } from "../../src/shared/tool-catalog.js";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import fs from "node:fs";
@@ -22,7 +18,6 @@ import { measureBranchDiff } from "../../src/modules/lawbook/ship.js";
 import { tmpRepo, write } from "../helpers/env.js";
 
 test("full profile registers exactly nine canonical MCP tools", () => {
-  process.env.SPECLAW_NO_ALIASES = "1";
   const all = new Set([
     ...captureTools(registerFoundation).keys(),
     ...captureTools(registerCompass).keys(),
@@ -30,19 +25,8 @@ test("full profile registers exactly nine canonical MCP tools", () => {
     ...captureTools(registerSpec).keys(),
     ...captureTools(registerTools).keys(),
   ]);
-  delete process.env.SPECLAW_NO_ALIASES;
-  const canonical = [...all].filter(isCanonicalTool).sort();
-  assert.equal(canonical.length, MAX_CANONICAL_TOOLS);
-  assert.deepEqual(canonical, [...CANONICAL_TOOLS].sort());
-});
-
-test("alias descriptions stay within twelve words", () => {
-  delete process.env.SPECLAW_NO_ALIASES;
-  for (const [name, tool] of captureTools(registerCompass)) {
-    if (isCanonicalTool(name)) continue;
-    const words = tool.config.description!.trim().split(/\s+/).length;
-    assert.ok(words <= 12, `${name} description is ${words} words`);
-  }
+  assert.equal(all.size, MAX_CANONICAL_TOOLS);
+  assert.deepEqual([...all].sort(), [...CANONICAL_TOOLS].sort());
 });
 
 async function connect(minimal: boolean): Promise<Client> {

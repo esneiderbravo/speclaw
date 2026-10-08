@@ -9,9 +9,7 @@ import { handleLevel } from "../../modules/lawbook/quick.js";
 import { scaffoldBugfix } from "../../modules/lawbook/bugfix.js";
 import { scaffoldFeature } from "../../modules/lawbook/scaffold-change.js";
 import { investigate, formatInvestigateResult } from "../../modules/lawbook/investigate.js";
-import { handleHarness } from "../../modules/cortex/harness.js";
-import { printHarnessWarnings } from "./cortex.js";
-import { Flags, list, repeated } from "../lib/args.js";
+import { Flags, list } from "../lib/args.js";
 import { ui } from "../lib/ui.js";
 
 function today(): string {
@@ -185,48 +183,9 @@ export async function runSpec(flags: Flags): Promise<void> {
         if (r.harnessCompleted) ui.ok("Cortex harness completed (stage done)");
         return;
       }
-      case "harness": {
-        const opRaw = change;
-        const op = opRaw as "status" | "start" | "advance" | "rework";
-        if (!["status", "start", "advance", "rework"].includes(op)) {
-          ui.err(
-            "Usage: speclaw lawbook harness <status|start|advance|rework> --change <name> [--verdict PASS|FAIL] [--question …] [--pause-questions] [--note …] [--json]",
-          );
-          process.exit(1);
-        }
-        const changeName =
-          typeof flags.change === "string" ? flags.change : (flags._[2] as string | undefined);
-        if (!changeName) {
-          ui.err("Usage: speclaw lawbook harness <op> --change <name>");
-          process.exit(1);
-        }
-        const verdictRaw =
-          typeof flags.verdict === "string" ? flags.verdict.toUpperCase() : undefined;
-        const verdict =
-          verdictRaw === "PASS" || verdictRaw === "FAIL"
-            ? (verdictRaw as "PASS" | "FAIL")
-            : undefined;
-        const result = handleHarness({
-          projectPath: cwd,
-          change: changeName,
-          harnessOp: op,
-          verdict: verdict ?? null,
-          // Covers: req~harness-state~1
-          openQuestions: repeated(flags.question),
-          pauseForQuestions: Boolean(flags["pause-questions"]),
-          note: typeof flags.note === "string" ? flags.note : undefined,
-        });
-        printHarnessWarnings(result);
-        if (flags.json) {
-          console.log(JSON.stringify(result, null, 2));
-          return;
-        }
-        console.log(JSON.stringify(result, null, 2));
-        return;
-      }
       default:
         ui.err(
-          "Usage: speclaw lawbook <init|list|validate|sync|archive|level|draft|investigate|harness> [change]",
+          "Usage: speclaw lawbook <init|list|validate|sync|archive|level|draft|investigate> [change]",
         );
         process.exit(1);
     }
