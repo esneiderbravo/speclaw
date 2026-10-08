@@ -9,8 +9,10 @@
 - [x] 1.1 Remove the 20 retired MCP aliases, `lawbook_change` action `harness` and `speclaw lawbook harness`; keep `RETIRED_TOOLS` for doctor's stale-reference scan (now also `ai-specs/skills` and `ai-specs/agents`)
 - [x] 1.2 Rewrite every generated text and doc that named a retired tool to its canonical call; add the 2.1.0 update prompt
 - [x] 1.3 Scope the Cortex review: `cortex` `brief` at `reviewing` exports the diff and returns a bounded prompt; reviewer agent and dispatch step follow it, no model pinning
-- [x] 1.4 Point a failing test run at `lawbook_investigate` (`PostToolUseFailure` + piped failures) and a test run at `compass_diff_context`, rate-limited, in-memory only
-- [ ] 1.5 Benchmark scripts: full Cortex flow and fan-out vs one agent, in throwaway repos
+- [x] 1.4 Point a failing test run at `lawbook_investigate` (`PostToolUseFailure` + piped failures), rate-limited, in-memory only
+- [x] 1.5 Benchmark scripts: full Cortex flow, fan-out and review-only probe vs one agent, in throwaway repos; fix the clean probe (NaN rounding, missing mandatory steps)
+- [x] 1.6 Drop the `compass_diff_context` hint after passing test runs (measured: never followed, +60 s on a one-line fix)
+- [x] 1.7 Reuse the agent's green test run at the stop (same code, same setup step, no filter)
 
 ## 2. Verification
 

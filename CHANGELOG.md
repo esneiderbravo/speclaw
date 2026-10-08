@@ -30,7 +30,18 @@ All notable changes to this project are documented here. Speclaw follows
   diff once, one `compass_diff_context`, changed hunks only, a ≤ 40-line
   `review.md` and a checklist of the defect classes reviews have caught. The
   reviewer agent follows the same procedure and pins no model, so it works in
-  any agent.
+  any agent. Measured with planted defects: 35 s median vs 66 s on 2.0.25,
+  every defect caught, and a clean change passes 3/3 (2/3 on 2.0.25).
+- A failing test run (`PostToolUseFailure`, or a piped run whose output shows
+  failures) points the agent at `lawbook_investigate` with the output as
+  `stackTrace`.
+
+### Changed
+
+- The stop no longer re-runs tests the agent already passed: the edit hook
+  records green test runs, and the stop skips the planned test files a run
+  covered after the last edit (same setup step, no name filter). The report
+  cites that run and its output.
 
 ## [2.0.25] — 2026-10-08
 
