@@ -42,8 +42,101 @@ export interface ExploreRichResult extends ExploreResult {
     rank: number;
   };
   path?: string[] | null;
+  /**
+   * The symbols below this one — the callee tree to `maxDepth` (> 1), or the
+   * call path to `to` — each with its source when `source` is included, so a
+   * whole chain reads in one call instead of one file read per hop.
+   */
+  chain?: ChainNode[];
   truncated?: TruncationEntry[];
   degraded?: Array<"no-index" | "no-tests-data" | "no-hotspots">;
+}
+
+/** One symbol on a call chain (see {@link ExploreRichResult.chain}). */
+export interface ChainNode {
+  name: string;
+  file: string;
+  startLine: number;
+  /** Hops from the explored symbol. */
+  depth: number;
+  source?: string;
+}
+
+/** Chain limits per output mode: nodes, and source lines per node. */
+const CHAIN_LIMITS = { brief: { nodes: 8, lines: 25 }, full: { nodes: 20, lines: 80 } } as const;
+
+function chainNode(
+  projectPath: string,
+  name: string,
+  depth: number,
+  withSource: boolean,
+  maxLines: number,
+): { node: ChainNode; callees: string[] } | null {
+  const ex = explore(projectPath, name);
+  if (!ex.found || !ex.symbol) return null;
+  const node: ChainNode = {
+    name: ex.symbol.name,
+    file: ex.symbol.file,
+    startLine: ex.symbol.startLine,
+    depth,
+  };
+  if (withSource && ex.symbol.source) {
+    const lines = ex.symbol.source.split("\n");
+    node.source =
+      lines.length > maxLines ? lines.slice(0, maxLines).join("\n") + "\n…" : ex.symbol.source;
+  }
+  return { node, callees: (ex.callees ?? []).map((c) => c.name) };
+}
+
+/**
+ * Breadth-first callee tree below `root` to `maxDepth`, capped per mode; or,
+ * with `path`, the symbols along that call path. Records a truncation when the
+ * node cap cut the walk short.
+ */
+function buildChain(
+  projectPath: string,
+  root: string,
+  rootCallees: string[],
+  opts: { maxDepth: number; path?: string[] | null; withSource: boolean; mode: OutputMode },
+  truncated: TruncationEntry[],
+): ChainNode[] {
+  const limits = CHAIN_LIMITS[opts.mode];
+  const out: ChainNode[] = [];
+  if (opts.path) {
+    opts.path.slice(1).forEach((name, i) => {
+      const hit = chainNode(projectPath, name, i + 1, opts.withSource, limits.lines);
+      if (hit && out.length < limits.nodes) out.push(hit.node);
+    });
+    return out;
+  }
+  const seen = new Set([root]);
+  let frontier = rootCallees.map((name) => ({ name, depth: 1 }));
+  let skipped = 0;
+  while (frontier.length) {
+    const next: Array<{ name: string; depth: number }> = [];
+    for (const { name, depth } of frontier) {
+      if (seen.has(name)) continue;
+      seen.add(name);
+      if (out.length >= limits.nodes) {
+        skipped++;
+        continue;
+      }
+      const hit = chainNode(projectPath, name, depth, opts.withSource, limits.lines);
+      if (!hit) continue;
+      out.push(hit.node);
+      if (depth < opts.maxDepth)
+        next.push(...hit.callees.map((c) => ({ name: c, depth: depth + 1 })));
+    }
+    frontier = next;
+  }
+  if (skipped) {
+    truncated.push({
+      field: "chain",
+      omitted: skipped,
+      hint: 'use mode:"full", a lower maxDepth, or to:<symbol> for one path',
+    });
+  }
+  return out;
 }
 
 const DEFAULT_INCLUDES: ExploreInclude[] = [
@@ -85,6 +178,15 @@ export async function exploreRich(query: ExploreRichQuery): Promise<ExploreRichR
         ? `Call path ${query.node} → ${query.to} (${pathResult.hops} hop(s))`
         : `No call path found within depth limit`,
     };
+    if (pathResult.path && pathResult.path.length > 1) {
+      out.chain = buildChain(
+        query.projectPath,
+        query.node,
+        [],
+        { maxDepth: 0, path: pathResult.path, withSource: includes.includes("source"), mode },
+        truncated,
+      );
+    }
     if (!includes.includes("source") && out.symbol) out.symbol = withoutSource(out.symbol);
     if (!includes.includes("callers")) out.callers = [];
     if (!includes.includes("callees")) {
@@ -97,6 +199,15 @@ export async function exploreRich(query: ExploreRichQuery): Promise<ExploreRichR
 
   const base = explore(query.projectPath, query.node, { includeRefs: true });
   const out: ExploreRichResult = { ...base, truncated, degraded };
+  if (base.found && base.symbol && includes.includes("callees") && (query.maxDepth ?? 1) > 1) {
+    out.chain = buildChain(
+      query.projectPath,
+      base.symbol.name,
+      (base.callees ?? []).map((c) => c.name),
+      { maxDepth: query.maxDepth ?? 1, withSource: includes.includes("source"), mode },
+      truncated,
+    );
+  }
 
   if (!includes.includes("source") && out.symbol) out.symbol = withoutSource(out.symbol);
   if (!includes.includes("callers")) out.callers = [];

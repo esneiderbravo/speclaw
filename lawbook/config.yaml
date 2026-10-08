@@ -16,7 +16,7 @@ mandatory_task_steps:
 
 # Ceremony levels (adaptive). Defaults match speclaw's built-in thresholds.
 ceremony:
-  cuts: [3, 8, 15]
+  cuts: [5, 16, 25]
   hotspotFloor: 0.7
 
 # Requirement → impl → test coverage (`speclaw coverage`).

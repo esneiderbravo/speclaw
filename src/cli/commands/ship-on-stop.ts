@@ -3,7 +3,8 @@ import { shipOnStop } from "../../modules/lawbook/ship.js";
 /**
  * `speclaw ship-on-stop`: the Claude Code `Stop` hook. Ships the branch's
  * change when the work changed since the last ship; prints nothing on stdout.
- * A failing gate goes to stderr with exit 2 so the agent sees it and fixes it
+ * Artifacts the change's level still owes, or a failing gate, go to stderr with
+ * exit 2 so the agent sees them and writes or fixes them
  * — once: when the hook already blocked this stop (`stop_hook_active`), it
  * exits 0 so the agent can never loop. Any other failure exits 0.
  *
@@ -14,6 +15,10 @@ export async function runShipOnStop(cwd: string = process.cwd()): Promise<void> 
   const active = await stopHookActive();
   try {
     const out = shipOnStop(cwd);
+    if (out.skipped === null && out.result.pending.length && !active) {
+      process.stderr.write(`speclaw: ${out.result.next.join("\n- ")}\n`);
+      process.exit(2);
+    }
     if (out.skipped === null && !out.result.gatesPassed && !active) {
       const failed = out.result.gates[out.result.gates.length - 1];
       process.stderr.write(

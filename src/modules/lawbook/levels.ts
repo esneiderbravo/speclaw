@@ -72,7 +72,8 @@ export interface CeremonyProposal {
 
 export interface CeremonyRecord extends CeremonyProposal {
   confirmedLevel: CeremonyLevel;
-  confirmedBy: "human" | "config-default" | "agent-forced";
+  /** `measured`: set by ship from the branch diff, so a growing diff may raise it. */
+  confirmedBy: "human" | "config-default" | "agent-forced" | "measured";
   confirmedAt: string;
   changeType?: ChangeType;
   resolution?: "fixed" | "mitigated" | "not-a-bug";
@@ -91,11 +92,11 @@ export const DEFAULT_THRESHOLDS: LevelThresholds = {
   modulesTouched: [0, 2, 4, 6],
   affectedTests: [0, 1, 2, 4],
   blastRadiusNodes: [0, 1, 3, 5],
-  publicApi: 4,
+  publicApi: 5,
   globalFile: 5,
   hotspot: 3,
   hotspotFloor: 0.7,
-  cuts: [3, 8, 15],
+  cuts: [5, 16, 25],
   globalGlobs: [
     "package.json",
     "package-lock.json",
@@ -107,6 +108,9 @@ export const DEFAULT_THRESHOLDS: LevelThresholds = {
   docGlobs: ["**/*.md", "docs/**", "assets/**"],
   moduleRoots: ["src"],
 };
+
+/** Commits in the hotspot window a file needs before it can count as a hotspot. */
+const MIN_HOTSPOT_COMMITS = 3;
 
 const BUCKETS = {
   filesTouched: [1, 3, 10, Infinity],
@@ -421,7 +425,13 @@ export function gatherSignals(
     }
     try {
       const hs = hotspots(projectPath, { days: 90, sortBy: "combined", limit: 200 });
-      const byFile = new Map(hs.hotspots.map((h) => [h.file, h.combinedScore]));
+      // The score is relative to the hottest file, so in a young repo any file
+      // is "the hottest"; only files with real churn count as hotspots.
+      const byFile = new Map(
+        hs.hotspots
+          .filter((h) => h.activity.commits >= MIN_HOTSPOT_COMMITS)
+          .map((h) => [h.file, h.combinedScore]),
+      );
       let maxCombined = 0;
       for (const h of hs.hotspots) maxCombined = Math.max(maxCombined, h.combinedScore);
       if (maxCombined <= 0) degraded.push("no-hotspots");

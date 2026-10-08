@@ -6,14 +6,11 @@ import { readManifest } from "./manifest.js";
 /**
  * Tools omitted when the exposure profile is `minimal`. Kept tools are the
  * discovery + law loop: compass_explore/find/diff_context, lawbook_change,
- * cortex. Deprecated aliases are never registered in minimal mode.
+ * lawbook_investigate, cortex, and speclaw_check — the tool every installed
+ * hook calls, so omitting it silently disables the laws and the Compass nudge.
+ * Deprecated aliases are never registered in minimal mode.
  */
-export const MINIMAL_OMIT = new Set<string>([
-  "compass_index",
-  "lawbook_investigate",
-  "speclaw_setup",
-  "speclaw_check",
-]);
+export const MINIMAL_OMIT = new Set<string>(["compass_index", "speclaw_setup"]);
 
 /** Options passed to each module's register function. */
 export interface RegisterOpts {

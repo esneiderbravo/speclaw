@@ -57,6 +57,28 @@ export interface CheckResult {
   hookSpecificOutput?: { hookEventName: string; additionalContext: string };
 }
 
+/**
+ * Whether a check call should carry the documentation hint: its own mutation
+ * hook group, or a Bash call (agents edit through the shell too). The hint
+ * itself lives in the lawbook module and is loaded by the MCP handler only, so
+ * this hot path never loads the index database.
+ */
+export function wantsDocHint(args: CheckArgs): boolean {
+  if (args.event !== "PostToolUse") return false;
+  const payload = (args.payload ?? {}) as Record<string, unknown>;
+  return payload.speclaw_hint === "doc" || (args.toolName ?? payload.tool_name) === "Bash";
+}
+
+/** Append a hint to a `PostToolUse` result's reason and the agent's additional context. */
+export function withHint(result: CheckResult, hint: string): CheckResult {
+  const reason = result.reason ? `${result.reason}\n${hint}` : hint;
+  return {
+    ...result,
+    reason,
+    hookSpecificOutput: { hookEventName: "PostToolUse", additionalContext: reason },
+  };
+}
+
 /** Arguments accepted by {@link checkAction} and the `speclaw_check` tool. */
 export interface CheckArgs {
   projectPath: string;
@@ -168,6 +190,8 @@ export function checkAction(args: CheckArgs): CheckResult {
   // Runs before the manifest load so the nudge works with no laws at all; it
   // swallows its own errors and returns null.
   const nudge = compassNudge(args);
+  // The documentation-hint group never evaluates a law (see wantsDocHint).
+  const docGroup = (args.payload as Record<string, unknown> | null)?.speclaw_hint === "doc";
   const done = (r: Omit<CheckResult, "elapsedMs">): CheckResult => {
     const reason = nudge ? (r.reason ? `${r.reason}\n${nudge}` : nudge) : r.reason;
     return {
@@ -183,7 +207,7 @@ export function checkAction(args: CheckArgs): CheckResult {
   try {
     // Laws govern mutations: a PostToolUse Read/Grep/Glob carries only the
     // nudge and never evaluates a law, so reads stay as silent as on main.
-    if (isNudgeEvent(args)) return done({ verdict: "allow", evaluated: [] });
+    if (isNudgeEvent(args) || docGroup) return done({ verdict: "allow", evaluated: [] });
 
     const laws = loadLaws(args.projectPath);
     if (!laws) {

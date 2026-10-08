@@ -55,9 +55,12 @@ See [`docs/compass.md`](docs/compass.md).
 Every change is built with **Cortex** (*One brain. Many agents.*), and Cortex
 costs no more time than working alone: branch `<type>/<slug>`, locate with
 Compass, implement the change and its test yourself, run the tests, finish.
-Then stop: the `Stop` hook (`speclaw ship-on-stop`) records the change, runs
-the gates once, writes the report from their real output, and archives
-level-0 work with no agent turns; a failing gate comes back to you. Do not run
+Then stop: the `Stop` hook (`speclaw ship-on-stop`) sizes the change from its
+diff, runs the gates once, writes the report from their real output, and
+archives level-0 work with no agent turns. What the level owes (the why — a
+commit body counts — tasks, delta specs, proposal/design) is named while you
+edit: write it in the same turn. A missing piece or a failing gate comes back
+to you at the stop. Do not run
 `speclaw ship` yourself, check the hook, open the archive, edit the generated
 report, read the process docs, or drive the harness by hand. Review happens on the PR, never blocking the
 agent. Add agents only to run three or more large, independent parts in

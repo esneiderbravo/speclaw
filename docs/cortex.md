@@ -5,9 +5,12 @@ agent working alone (`docs/benchmarks/cortex-speed.md`: 18.1 s median vs
 15.8 s on the same bug). **One brain does the critical path** — the primary
 agent locates with Compass, implements, runs the tests, and stops. Everything
 mechanical runs without agent turns: the Claude Code `Stop` hook runs
-`speclaw ship-on-stop`, which records the change, runs the gates once, writes
-the report from their real output, records the test verdict from the exit
-codes, and archives level-0 work. Agents without hooks call `speclaw ship
+`speclaw ship-on-stop`, which sizes the change from the branch diff (a
+measured level rises as the diff grows, and reopens a level-0 archive the
+branch outgrew), returns the artifacts that level owes before any gate runs —
+the why (a commit body counts), tasks, delta specs, proposal and design — then
+runs the gates once, writes the report from their real output, records the
+test verdict from the exit codes, and archives level-0 work. Agents without hooks call `speclaw ship
 <change>` (MCP `lawbook_change` action `ship`) once, last. Ship never records a
 review verdict: review happens on the PR.
 

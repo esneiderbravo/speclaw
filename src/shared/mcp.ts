@@ -50,12 +50,19 @@ export interface ToolSpec<Shape extends ToolInputShape = ToolInputShape> {
     idempotentHint?: boolean;
     openWorldHint?: boolean;
   };
+  /**
+   * Load the definition up front instead of behind the client's tool search
+   * (Claude Code: `_meta["anthropic/alwaysLoad"]`). Reserve it for the tools
+   * agents need on every task: a deferred tool costs a search turn, so agents
+   * fall back to shell reads instead.
+   */
+  alwaysLoad?: boolean;
 }
 
 /**
  * Register one MCP tool after enforcing the context-budget caps (description
- * word count and estimated definition tokens). Does **not** set
- * `defer_loading` — that is not author-settable for MCP servers.
+ * word count and estimated definition tokens). `alwaysLoad` marks the
+ * definition `_meta["anthropic/alwaysLoad"]` so Claude Code never defers it.
  *
  * @param server - MCP server to register on.
  * @param spec - Tool name, description, schema, and handler.
@@ -87,6 +94,7 @@ export function defineTool<Shape extends ToolInputShape>(
       description: spec.description,
       inputSchema,
       ...(spec.annotations ? { annotations: spec.annotations } : {}),
+      ...(spec.alwaysLoad ? { _meta: { "anthropic/alwaysLoad": true } } : {}),
     },
     spec.handler,
   );

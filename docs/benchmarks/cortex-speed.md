@@ -7,6 +7,61 @@ Every run is a real agent fixing real bugs in a throwaway git fixture under
 to exit (includes ~3–5 s CLI start-up and the `Stop` hook); "calls" are agent
 tool calls. Runs of one table were launched in the same time window.
 
+## 2.0.20 vs 2.0.19 vs an agent alone, per level and on a code-graph task
+
+**Date:** 2026-10-08. `scripts/bench-workflow.sh 3 <A|B> <scenario>`, 45 runs:
+per scenario the three modes ran back to back (2.0.19 from a `main` worktree
+build via `SPECLAW_DIST`). Fixtures come from `scripts/bench-fixture.mjs`:
+`one`…`wide` are sized so the reference fix measures levels 0–3; `deep` is a
+132-file repo whose rounding bug sits five calls below the failing test among
+dozens of look-alike helpers. Every run fixed the bugs and left the tests
+passing. Medians of 3: agent seconds (model `duration_ms`), process seconds
+(wall-clock with CLI start-up and the `Stop` hook), cost, and tokens (input +
+cache + output). Tool calls come from the session transcripts. Until this date
+the script's Cortex fixture never installed the `Stop` hook (`init --minimal`
+configures no IDE folder since 2.0.16; it now runs `speclaw agent add claude`).
+
+| Scenario | Agent alone | 2.0.19 | 2.0.20 |
+|---|---|---|---|
+| L0 — one-line bug | 11.8 s · 14.4 s · $0.185 · 118k tok · 4 turns | 12.1 s · 20.1 s · $0.203 · 130k · 4 | 14.9 s · 18.2 s · $0.207 · 135k · 4 |
+| L1 — bug across 2 modules | 12.8 s · 15.5 s · $0.195 · 120k · 4 | 14.2 s · 17.1 s · $0.211 · 131k · 4 | 28.5 s · 31.9 s · $0.293 · 282k · 8 |
+| L2 — 5 modules + public entry | 13.5 s · 16.1 s · $0.200 · 121k · 4 | 13.1 s · 16.3 s · $0.216 · 132k · 4 | 27.6 s · 30.8 s · $0.276 · 214k · 6 |
+| L3 — 16 modules + entry + `package.json` | 16.1 s · 18.8 s · $0.224 · 126k · 4 | 20.5 s · 23.5 s · $0.248 · 139k · 4 | 29.7 s · 33.1 s · $0.304 · 225k · 6 |
+| deep — bug 5 calls down, 132 files | 30.5 s · 33.2 s · $0.254 · 229k · 7 | 22.4 s · 25.2 s · $0.253 · 175k · 5 | 23.2 s · 26.5 s · $0.268 · 182k · 7 |
+
+The 2.0.20 column is the final build (in-turn documentation hint, nudge
+silent under 40 indexed files); the other two columns are from the same day's
+45-run batch. Run-to-run spread is wide: the same 2.0.20 L0 path measured
+11.0 s and the deep scenario 16.7 s in that batch.
+
+What each 2.0.20 run left in `lawbook/changes/` besides the fix (2.0.19
+archived every scenario at level 0 with a file-list record and a report):
+
+| Level | Artifacts |
+|---|---|
+| L0, deep | archived: record, report (level 0 never waits) |
+| L1 | record with why, checked tasks, delta spec, report; waits for PR review |
+| L2 | proposal, checked tasks, delta spec, report; waits for PR review |
+| L3 | proposal, design, checked tasks, delta spec, report; waits for PR review |
+
+The documentation hint reached all 9 L1–L3 runs and none was blocked at the
+stop: the agent wrote what its level owed in the same turn.
+
+Tool use (all 3 runs of a cell; reads are Read/Grep/Glob or shell
+`cat`/`sed`/`grep`/… per run, median):
+
+| Scenario | 2.0.19 | 2.0.20 |
+|---|---|---|
+| deep | Compass in 1 of 3 runs, after a tool-search turn; 4 reads | `compass_explore` ×5 and `lawbook_investigate` ×1, no tool search; 4 reads |
+| L1 | `compass_explore` ×2 | `compass_explore` ×2, `compass_find` ×2, `lawbook_investigate` ×1 |
+| L0, L2, L3 | `compass_explore` ×0–2 | `compass_explore`/`compass_find` ×0–1 |
+
+Against an agent alone, 2.0.20 is faster on the code-graph task (−24 % agent
+time, −20 % tokens) and costs about +3 s at L0 and +14–16 s with +$0.08–0.10
+at L1–L3, where the agent writes the documentation those levels owe. The hook
+itself (`speclaw ship-on-stop`, gates included, no agent) takes 0.5–0.8 s, and
+the per-call `PostToolUse` documentation check about 17 ms.
+
 ## New Cortex (one brain on the critical path, `Stop` hook ships)
 
 | Mode | Process per run | Median | Calls | Cost | Archived with report |

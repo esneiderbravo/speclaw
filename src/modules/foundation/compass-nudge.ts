@@ -8,6 +8,7 @@ import {
 } from "../../shared/compass-calls.js";
 // Pure extension → language table: loads no grammar and opens no index DB.
 import { langForPath } from "../compass/languages.js";
+import { readIndexStats } from "../../shared/index-stats.js";
 
 // Covers: req~compass-nudge~1
 //
@@ -18,7 +19,66 @@ import { langForPath } from "../compass/languages.js";
 // in-memory extension table, so it stays inside the hook latency budget.
 
 /** Tools whose completed calls the nudge watches. */
-export const NUDGE_TOOLS: ReadonlySet<string> = new Set(["Read", "Grep", "Glob"]);
+export const NUDGE_TOOLS: ReadonlySet<string> = new Set(["Read", "Grep", "Glob", "Bash"]);
+
+/** Shell commands that print a file's contents: a Bash `Read`. */
+const SHELL_READERS = new Set(["cat", "head", "tail", "sed", "less", "more", "nl", "bat", "awk"]);
+
+/** Shell commands that search contents: a Bash `Grep`. */
+const SHELL_SEARCHERS = new Set(["grep", "egrep", "rg", "ag", "ack", "git-grep"]);
+
+/**
+ * The code read a Bash command performs, as the Read/Grep call it stands in
+ * for, or null when it reads no indexed code. A reader counts only with an
+ * existing indexed file argument (so `cat > f <<EOF` writes stay silent); a
+ * searcher counts on an indexed file, a directory, or the whole repo.
+ */
+export function bashCodeRead(
+  projectPath: string,
+  command: string,
+): { tool: "Read" | "Grep"; raw: string; pattern?: string } | null {
+  // Split on command separators first, then pipes: a command after `|` reads
+  // the previous command's output, not a file (`npm test | grep fail`).
+  const commands = command.split(/\|\||&&|;|\n/).map((c) => c.split("|")[0] ?? "");
+  for (const segment of commands) {
+    const words = segment.trim().split(/\s+/).filter(Boolean);
+    let verb = words[0] ? path.basename(words[0]) : "";
+    let rest = words.slice(1);
+    if (verb === "git" && rest[0] === "grep") {
+      verb = "git-grep";
+      rest = rest.slice(1);
+    }
+    const reader = SHELL_READERS.has(verb);
+    if (!reader && !SHELL_SEARCHERS.has(verb)) continue;
+    // A redirect or heredoc writes; `sed -i` edits in place.
+    if (reader && rest.some((w) => w.startsWith(">") || w.startsWith("<<"))) continue;
+    if (verb === "sed" && rest.some((w) => /^-[a-zA-Z]*i/.test(w))) continue;
+    const args = rest.filter((w) => !w.startsWith("-")).map((w) => w.replace(/^['"]|['"]$/g, ""));
+    const existing = args.filter((a) => {
+      const target = resolveTarget(projectPath, a);
+      return target !== null && target !== ROOT && isDirectory(projectPath, target) !== undefined;
+    });
+    if (reader) {
+      const file = existing.find((a) => indexedExt(path.extname(a) || "."));
+      if (file) return { tool: "Read", raw: file };
+      continue;
+    }
+    const where = existing.find(
+      (a) => isDirectory(projectPath, a) === true || indexedExt(path.extname(a) || "."),
+    );
+    // No path argument: a search of the working directory, i.e. the repo.
+    if (where || existing.length === 0)
+      return { tool: "Grep", raw: where ?? ".", pattern: args[0] };
+  }
+  return null;
+}
+
+/**
+ * Below this many indexed files, reading a file costs less than a graph query
+ * (measured: in a 2-file repo a nudged agent spent an extra turn on Compass and
+ * still read the file), so the nudge stays silent.
+ */
+export const NUDGE_MIN_INDEXED_FILES = 40;
 
 /** No nudge when a Compass evidence call landed within this window. */
 export const NUDGE_EVIDENCE_WINDOW_MS = 10 * 60 * 1000;
@@ -187,10 +247,19 @@ export function compassNudge(args: NudgeInput, now: number = Date.now()): string
   try {
     if (args.event !== "PostToolUse") return null;
     const payload = args.payload ?? {};
-    const tool = usable(args.toolName) ?? usable(payload.tool_name);
+    let tool = usable(args.toolName) ?? usable(payload.tool_name);
     if (!tool || !NUDGE_TOOLS.has(tool)) return null;
+    const indexed = readIndexStats(args.projectPath);
+    if (indexed && indexed.files < NUDGE_MIN_INDEXED_FILES) return null;
 
-    const input = (payload.tool_input ?? payload.toolInput ?? payload) as Record<string, unknown>;
+    let input = (payload.tool_input ?? payload.toolInput ?? payload) as Record<string, unknown>;
+    if (tool === "Bash") {
+      const command = usable(input.command);
+      const read = command ? bashCodeRead(args.projectPath, command) : null;
+      if (!read) return null;
+      tool = read.tool;
+      input = { path: read.raw, ...(read.pattern ? { pattern: read.pattern } : {}) };
+    }
     // No path on Grep/Glob means the cwd: a repo-wide search.
     const raw = usable(input.file_path) ?? usable(input.path) ?? ".";
     const target = resolveTarget(args.projectPath, raw);

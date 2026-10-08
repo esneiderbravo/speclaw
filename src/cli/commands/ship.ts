@@ -29,7 +29,7 @@ export async function runShip(flags: Flags): Promise<void> {
       if (g.exitCode === 0) ui.ok(`${g.command} (${t})`);
       else ui.err(`${g.command} failed, exit ${g.exitCode} (${t})`);
     }
-    ui.ok(`report ${ui.code(result.report)}`);
+    if (result.report) ui.ok(`report ${ui.code(result.report)}`);
     if (result.archivedTo) ui.ok(`archived to ${result.archivedTo}`);
     for (const n of result.next) ui.warn(n);
     const s = (ms: number): string => `${(ms / 1000).toFixed(2)} s`;

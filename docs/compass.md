@@ -94,8 +94,8 @@ entry: src/server.ts (mcp) · src/cli/index.ts (bin)
   (`compass/parser.ts`) → `extract` → `openDb` (`compass/db.ts`); queries in
   `compass/query.ts` and `compass/hybrid.ts`; ranking in `compass/pagerank.ts`.
 - **Lawbook core**: `specInit` and the archive/sync rules in
-  `lawbook/engine.ts`; ceremony in `lawbook/levels.ts`; `quick.ts`/`ship.ts`
-  for level-0 work.
+  `lawbook/engine.ts`; ceremony in `lawbook/levels.ts`; `quick.ts` for level-0 work,
+  `ship.ts` for the diff-sized fast path.
 - **Cortex**: `handleHarness` (`cortex/harness.ts`), briefs in
   `cortex/brief.ts`, the Compass-first gate in `cortex/compass-gate.ts`.
 - **Foundation / setup**: `configureAgent` + `writeMcpConfig`

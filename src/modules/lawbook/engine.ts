@@ -68,7 +68,7 @@ mandatory_task_steps:
 
 # Ceremony levels (adaptive). Defaults match speclaw's built-in thresholds.
 ceremony:
-  cuts: [3, 8, 15]
+  cuts: [5, 16, 25]
   hotspotFloor: 0.7
 
 # Requirement → impl → test coverage (\`speclaw coverage\`).
@@ -215,7 +215,7 @@ function nearMatchCapability(name: string, capabilities: string[]): string | und
 }
 
 /** Recursively collect every .md file under a change's specs/ directory. */
-function deltaSpecFiles(changeDir: string): string[] {
+export function deltaSpecFiles(changeDir: string): string[] {
   const specsDir = path.join(changeDir, "specs");
   if (!fs.existsSync(specsDir)) return [];
   const out: string[] = [];

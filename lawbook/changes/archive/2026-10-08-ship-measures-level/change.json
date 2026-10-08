@@ -1,0 +1,29 @@
+{
+  "level": 3,
+  "score": 25,
+  "signals": {
+    "filesTouched": 46,
+    "modulesTouched": 16,
+    "blastRadiusNodes": 0,
+    "affectedTests": 127,
+    "touchesPublicApi": true,
+    "maxHotspotScore": 0.5738636363636364,
+    "touchesGlobalFile": true,
+    "onlyDocs": false,
+    "degraded": []
+  },
+  "rationale": "46 file(s), 16 module(s), 127 affected test(s), 0 blast node(s), public API, global file, hotspot=0.57 → score 25 → level 3 (cuts 5/16/25)",
+  "degraded": [],
+  "confirmedLevel": 3,
+  "confirmedBy": "measured",
+  "confirmedAt": "2026-10-08T12:17:58.630Z",
+  "promotions": [
+    {
+      "from": 2,
+      "to": 3,
+      "at": "2026-10-08T12:17:58.630Z",
+      "reason": "the branch diff grew"
+    }
+  ],
+  "changeType": "feature"
+}

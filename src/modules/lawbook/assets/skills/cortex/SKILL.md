@@ -8,18 +8,18 @@ description: Cortex — One brain. Many agents. The standard way to build any ch
 One brain does the critical path; mechanical work costs no agent turns.
 
 1. Branch `<type>/<slug>` (the slug is the change name).
-2. Locate with Compass (`compass_find` / `compass_explore`). Do not read
-   LAWS.md, config, standards, or `--help` to learn the process — this is it.
-3. Implement the change and its test yourself; ask the human only when blocked.
-4. Run the tests once.
-5. Stop. In Claude Code the `Stop` hook (`speclaw ship-on-stop`) records the
-   change, runs the gates once, writes the report from real output, and
-   archives level-0 work; a failing gate comes back to you. Do not run ship,
-   check the hook, or edit its output. Agents without hooks run `speclaw ship
-   <change> --summary "<what and why>"` once, last.
+2. Locate with `compass_find`, read with `compass_explore` (`include:
+   ["source"]`), not cat/grep. No LAWS.md, config, or `--help`.
+3. Public-API or multi-module work: `draft` skill first.
+4. Implement the change and its test yourself; ask only when blocked.
+5. Run the tests once; commit with a body that says why.
+6. Stop. The `Stop` hook sizes the change from its diff and lists what its
+   level owes in `lawbook/changes/<change>/` (why, checked tasks, delta spec,
+   proposal, design). Write just that and stop again: gates run once, level 0
+   archives. Never run ship or edit its report. Without hooks: `speclaw ship <change> --summary "<why>"`, last.
 
-Never drive the harness by hand, write proposal/design/reports for small work,
-or post status updates. Review happens on the PR and never blocks you.
+Never drive the harness by hand or post status updates. Review happens on the
+PR and never blocks you.
 
 Only when the work splits into three or more large, independent parts, read
 `steps/01-load-or-start.md` (fan-out lane: parallel agents, never a chain).

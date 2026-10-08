@@ -4,7 +4,7 @@ import { defineTool, defineAliasTool, text, type ToolSpec } from "../../shared/m
 import { shouldExpose, type RegisterOpts } from "../../shared/exposure.js";
 import { aliasesEnabled } from "../../shared/tool-catalog.js";
 import { logDeprecatedCall, prefixDeprecated } from "../../shared/deprecation.js";
-import { checkAction, CheckEvent } from "./check.js";
+import { checkAction, CheckEvent, wantsDocHint, withHint } from "./check.js";
 import { handleSpeclawSetup, speclawSetupSchema } from "./setup-tool.js";
 
 type AddFn = <Shape extends z.ZodRawShape>(
@@ -31,7 +31,7 @@ export function registerFoundationCore(server: McpServer, opts: RegisterOpts = {
 
   add(
     "speclaw_setup",
-    "Project setup: init questionnaire, configure agent, list or add packs.",
+    "Use to install or reconfigure speclaw: init questionnaire, configure an agent, list or add packs.",
     speclawSetupSchema,
     async (args) => text(handleSpeclawSetup(args)),
   );
@@ -45,8 +45,15 @@ export function registerFoundationCore(server: McpServer, opts: RegisterOpts = {
       toolName: z.string().optional(),
       payload: z.record(z.unknown()),
     },
-    async ({ projectPath, event, toolName, payload }) =>
-      text(checkAction({ projectPath, event: event as CheckEvent, toolName, payload })),
+    async ({ projectPath, event, toolName, payload }) => {
+      const args = { projectPath, event: event as CheckEvent, toolName, payload };
+      const result = checkAction(args);
+      if (!wantsDocHint(args)) return text(result);
+      // Loaded here, not in checkAction: the hint measures the diff with the index.
+      const { docHint } = await import("../lawbook/ship.js");
+      const hint = docHint(projectPath);
+      return text(hint ? withHint(result, hint) : result);
+    },
   );
 
   if (minimal || !aliasesEnabled()) return;

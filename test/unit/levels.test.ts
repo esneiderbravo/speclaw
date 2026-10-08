@@ -2,6 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
+import { spawnSync } from "node:child_process";
 import {
   DEFAULT_THRESHOLDS,
   artifactNeeds,
@@ -52,17 +53,17 @@ const cases: Array<{ name: string; s: CeremonySignals; expect: number | null }> 
   {
     name: "hotspot floor",
     s: sig({ filesTouched: 1, modulesTouched: 1, maxHotspotScore: 0.8 }),
-    expect: 1,
+    expect: 0,
   },
   {
     name: "many files",
     s: sig({ filesTouched: 12, modulesTouched: 5, blastRadiusNodes: 20, affectedTests: 20 }),
-    expect: 3,
+    expect: 2,
   },
   {
     name: "mid blast",
     s: sig({ filesTouched: 4, modulesTouched: 2, blastRadiusNodes: 12, affectedTests: 5 }),
-    expect: 2,
+    expect: 1,
   },
   {
     name: "degraded no-index no files",
@@ -74,11 +75,11 @@ const cases: Array<{ name: string; s: CeremonySignals; expect: number | null }> 
     s: sig({ degraded: ["unresolved-symbols"] }),
     expect: null,
   },
-  { name: "two modules", s: sig({ filesTouched: 2, modulesTouched: 2 }), expect: 1 },
+  { name: "two modules", s: sig({ filesTouched: 2, modulesTouched: 2 }), expect: 0 },
   {
     name: "public+files",
     s: sig({ filesTouched: 5, modulesTouched: 3, touchesPublicApi: true, affectedTests: 4 }),
-    expect: 2,
+    expect: 1,
   },
   {
     name: "docs false with code",
@@ -93,7 +94,7 @@ const cases: Array<{ name: string; s: CeremonySignals; expect: number | null }> 
   {
     name: "big modules",
     s: sig({ filesTouched: 6, modulesTouched: 6, blastRadiusNodes: 3 }),
-    expect: 2,
+    expect: 1,
   },
   {
     name: "hotspot below floor",
@@ -108,7 +109,7 @@ const cases: Array<{ name: string; s: CeremonySignals; expect: number | null }> 
       touchesGlobalFile: true,
       maxHotspotScore: 1,
     }),
-    expect: 2,
+    expect: 1,
   },
   {
     name: "level1 band",
@@ -124,7 +125,7 @@ const cases: Array<{ name: string; s: CeremonySignals; expect: number | null }> 
       blastRadiusNodes: 15,
       touchesPublicApi: true,
     }),
-    expect: 3,
+    expect: 2,
   },
   {
     name: "onlyDocs ignores blast",
@@ -143,9 +144,10 @@ test("score/level table covers ≥20 combinations", () => {
 
 test("levelFromScore respects cuts", () => {
   assert.equal(levelFromScore(0), 0);
-  assert.equal(levelFromScore(3), 1);
-  assert.equal(levelFromScore(8), 2);
-  assert.equal(levelFromScore(15), 3);
+  assert.equal(levelFromScore(4), 0);
+  assert.equal(levelFromScore(5), 1);
+  assert.equal(levelFromScore(16), 2);
+  assert.equal(levelFromScore(25), 3);
 });
 
 test("artifactNeeds matrix", () => {
@@ -163,7 +165,7 @@ test("setCeremonyLevel rejects silent downgrade", (t) => {
   const proposal = proposeLevel(
     sig({ filesTouched: 12, modulesTouched: 5, blastRadiusNodes: 40, affectedTests: 20 }),
   );
-  assert.equal(proposal.level, 3);
+  assert.equal(proposal.level, 2);
   assert.throws(() =>
     setCeremonyLevel(root, "c", {
       proposal,
@@ -296,4 +298,27 @@ test("promote on a change with no confirmed level is rejected with use mode set"
     /no confirmed level to promote — use mode 'set'/,
   );
   assert.equal(fs.readFileSync(file, "utf8"), before, "change.json is untouched");
+});
+
+test("a file counts as a hotspot only with real churn, not as the hottest of a young repo", async (t) => {
+  const root = tmpRepo(t);
+  const git = (...args: string[]) => {
+    const r = spawnSync("git", args, { cwd: root, encoding: "utf8" });
+    assert.equal(r.status, 0, r.stderr);
+  };
+  git("init", "-q", "-b", "main");
+  git("config", "user.email", "t@t");
+  git("config", "user.name", "t");
+  await seedIndexed(root);
+  git("add", "-A");
+  git("commit", "-qm", "init");
+  const young = gatherSignals(root, { paths: ["src/a.ts"], symbols: [] });
+  assert.equal(young.maxHotspotScore, 0, JSON.stringify(young));
+
+  for (let i = 2; i <= 4; i++) {
+    write(root, "src/a.ts", `export function a(): number { return ${i}; }\n`);
+    git("commit", "-qam", `a ${i}`);
+  }
+  const churned = gatherSignals(root, { paths: ["src/a.ts"], symbols: [] });
+  assert.ok(churned.maxHotspotScore > 0, JSON.stringify(churned));
 });

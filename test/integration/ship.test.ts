@@ -7,8 +7,11 @@ import { tmpRepo } from "../helpers/env.js";
 import { specInit } from "../../src/modules/lawbook/engine.js";
 import { readHarness } from "../../src/modules/cortex/harness.js";
 import { handleLevel, scaffoldQuick } from "../../src/modules/lawbook/quick.js";
+import { confirmedLevel } from "../../src/modules/lawbook/levels.js";
 import {
   changeNameForBranch,
+  docHint,
+  pendingArtifacts,
   detectGates,
   readShipConfig,
   shipChange,
@@ -39,13 +42,13 @@ test("ship on passing gates scaffolds, reports from real output, and archives a 
 test("ship stops on the first failing gate and archives nothing", (t) => {
   const root = tmpRepo(t);
   specInit(root);
-  const r = shipChange(root, "fix-x", { gates: [FAIL, PASS] });
+  const r = shipChange(root, "fix-x", { gates: [FAIL, PASS], summary: "fix x" });
   assert.equal(r.gatesPassed, false);
   assert.equal(r.gates.length, 1);
   assert.equal(r.gates[0].exitCode, 3);
   assert.equal(r.archivedTo, null);
   assert.match(r.next[0], /fix the failing gate/);
-  const report = fs.readFileSync(path.join(root, r.report), "utf8");
+  const report = fs.readFileSync(path.join(root, r.report!), "utf8");
   assert.match(report, /FAIL \(exit 3\)/);
   assert.match(report, /boom/);
   assert.equal(readHarness(root, "fix-x"), null);
@@ -56,13 +59,15 @@ test("ship never records a review verdict and leaves level 1+ for the PR", (t) =
   specInit(root);
   scaffoldQuick(root, "feat-y");
   handleLevel({ projectPath: root, change: "feat-y", mode: "promote", level: 1, reason: "test" });
-  const r = shipChange(root, "feat-y", { gates: [PASS] });
+  document(root, "feat-y");
+  const r = shipChange(root, "feat-y", { gates: [PASS], summary: "feature y" });
+  assert.deepEqual(r.pending, []);
   assert.equal(r.gatesPassed, true);
   assert.equal(r.archivedTo, null);
   assert.match(r.next[0], /review happens there/);
   assert.equal(readHarness(root, "feat-y"), null);
 
-  const zero = shipChange(root, "fix-z", { gates: [PASS], date: "2026-10-07" });
+  const zero = shipChange(root, "fix-z", { gates: [PASS], date: "2026-10-07", summary: "z" });
   assert.ok(zero.archivedTo);
   const harness = JSON.parse(
     fs.readFileSync(path.join(root, zero.archivedTo, "harness.json"), "utf8"),
@@ -95,6 +100,29 @@ function git(root: string, ...args: string[]): void {
   assert.equal(r.status, 0, r.stderr);
 }
 
+/** Write the level-1+ artifacts an agent owes: record why, checked tasks, a real delta. */
+function document(root: string, change: string): void {
+  const dir = path.join(root, "lawbook", "changes", change);
+  const record = path.join(dir, "record.md");
+  if (fs.existsSync(record)) {
+    fs.writeFileSync(
+      record,
+      fs.readFileSync(record, "utf8").replace("<!-- 2–5 lines: what and why. -->", "why: test"),
+    );
+  }
+  for (const f of ["proposal.md", "design.md"]) {
+    if (fs.existsSync(path.join(dir, f)))
+      fs.writeFileSync(path.join(dir, f), `# ${f}\n\nWritten.\n`);
+  }
+  fs.writeFileSync(path.join(dir, "tasks.md"), "- [x] 1.1 Change the widget\n");
+  fs.rmSync(path.join(dir, "specs"), { recursive: true, force: true });
+  fs.mkdirSync(path.join(dir, "specs", "widget"), { recursive: true });
+  fs.writeFileSync(
+    path.join(dir, "specs", "widget", "spec.md"),
+    "# widget\n\n### Requirement: Widget\n\nThe system SHALL render the widget.\n",
+  );
+}
+
 function gitFixture(t: Parameters<typeof tmpRepo>[0]): string {
   const root = tmpRepo(t);
   git(root, "init", "-q", "-b", "main");
@@ -124,7 +152,10 @@ test("shipOnStop skips the base branch and unchanged work, ships changed work on
   assert.equal(first.skipped, null);
   if (first.skipped !== null) return;
   assert.equal(first.change, "a-value");
+  assert.deepEqual(first.result.pending, [], "level 0 never waits on prose");
   assert.ok(first.result.archivedTo, JSON.stringify(first.result.next));
+  const record = fs.readFileSync(path.join(root, first.result.archivedTo, "record.md"), "utf8");
+  assert.match(record, /Changed 1 file\(s\): a\.js/, "no commit body: the file list stands in");
   assert.deepEqual(shipOnStop(root), { skipped: "unchanged-since-last-ship" });
 
   // More work on the same branch refreshes the archived report in place.
@@ -133,7 +164,7 @@ test("shipOnStop skips the base branch and unchanged work, ships changed work on
   assert.equal(again.skipped, null);
   if (again.skipped !== null) return;
   assert.equal(again.result.archivedTo, first.result.archivedTo);
-  assert.ok(again.result.report.startsWith(first.result.archivedTo!));
+  assert.ok(again.result.report?.startsWith(first.result.archivedTo!));
 });
 
 test("changeNameForBranch keeps the last segment, kebab-cased", () => {
@@ -146,7 +177,7 @@ test("a manual ship marks the work shipped, so the Stop hook does not ship it tw
   const root = gitFixture(t);
   git(root, "checkout", "-qb", "fix/b-value");
   fs.writeFileSync(path.join(root, "a.js"), "export const a = 5;\n");
-  const manual = shipChange(root, "fix-b-value-by-hand");
+  const manual = shipChange(root, "fix-b-value-by-hand", { summary: "b by hand" });
   assert.ok(manual.archivedTo);
   assert.deepEqual(shipOnStop(root), { skipped: "unchanged-since-last-ship" });
 });
@@ -183,16 +214,17 @@ test("the Stop hook keeps the change last shipped by name and never rewrites ano
   const root = gitFixture(t);
   git(root, "checkout", "-qb", "fix/first-change");
   fs.writeFileSync(path.join(root, "a.js"), "export const a = 8;\n");
-  const first = shipChange(root, "first-change");
+  const first = shipChange(root, "first-change", { summary: "first" });
   assert.ok(first.archivedTo);
   const firstReport = path.join(root, first.archivedTo!, "reports", "change.md");
   const sealed = fs.readFileSync(firstReport, "utf8");
 
-  // A second change on the same branch, shipped by name, then more work on it.
-  fs.writeFileSync(path.join(root, "b.js"), "export const b = 1;\n");
-  const second = shipChange(root, "second-change");
-  assert.ok(second.archivedTo);
-  fs.writeFileSync(path.join(root, "b.js"), "export const b = 2;\n");
+  // A second change on the same branch, shipped by name, then more work on it
+  // (the same file, so the diff stays level 0).
+  fs.writeFileSync(path.join(root, "a.js"), "export const a = 81;\n");
+  const second = shipChange(root, "second-change", { summary: "second" });
+  assert.ok(second.archivedTo, JSON.stringify(second.next));
+  fs.writeFileSync(path.join(root, "a.js"), "export const a = 82;\n");
   const hook = shipOnStop(root);
   assert.equal(hook.skipped, null);
   if (hook.skipped !== null) return;
@@ -204,9 +236,219 @@ test("a legacy fingerprint-only marker still skips unchanged work", (t) => {
   const root = gitFixture(t);
   git(root, "checkout", "-qb", "fix/d-value");
   fs.writeFileSync(path.join(root, "a.js"), "export const a = 9;\n");
-  shipChange(root, "d-value");
+  shipChange(root, "d-value", { summary: "d" });
   const marker = path.join(root, ".speclaw", "ship-last");
   const { fingerprint } = JSON.parse(fs.readFileSync(marker, "utf8")) as { fingerprint: string };
   fs.writeFileSync(marker, fingerprint);
   assert.deepEqual(shipOnStop(root), { skipped: "unchanged-since-last-ship" });
+});
+
+/** Spread work over `modules` top-level folders under src/, `per` files each. */
+function spread(root: string, modules: number, per: number, value = 1): void {
+  for (let m = 0; m < modules; m++) {
+    fs.mkdirSync(path.join(root, "src", `m${m}`), { recursive: true });
+    for (let f = 0; f < per; f++) {
+      fs.writeFileSync(path.join(root, "src", `m${m}`, `f${f}.js`), `export const v = ${value};\n`);
+    }
+  }
+}
+
+test("ship measures the branch diff: a multi-module change owes its artifacts before any gate", (t) => {
+  const root = gitFixture(t);
+  git(root, "checkout", "-qb", "feat/widget");
+  spread(root, 5, 3);
+
+  const owed = shipChange(root, "widget", { gates: [FAIL] });
+  assert.deepEqual(owed.gates, [], "no gate runs while artifacts are owed");
+  assert.equal(owed.report, null);
+  const rec = JSON.parse(
+    fs.readFileSync(path.join(root, "lawbook", "changes", "widget", "change.json"), "utf8"),
+  ) as { confirmedLevel: number; confirmedBy: string };
+  assert.equal(rec.confirmedBy, "measured");
+  assert.ok(rec.confirmedLevel >= 1, `level ${rec.confirmedLevel}`);
+  assert.match(owed.next[0], /^level \d .*document the change/);
+  for (const f of ["record.md", "tasks.md", "specs/widget/spec.md"]) {
+    assert.ok(
+      owed.pending.some((p) => p.includes(f)),
+      `${f} owed: ${owed.pending.join(" | ")}`,
+    );
+  }
+
+  document(root, "widget");
+  const shipped = shipChange(root, "widget", { gates: [PASS] });
+  assert.deepEqual(shipped.pending, []);
+  assert.equal(shipped.gatesPassed, true);
+  assert.equal(shipped.archivedTo, null);
+  assert.match(shipped.next[0], /review happens there/);
+});
+
+test("a release bump of package.json does not raise the measured level", (t) => {
+  const root = gitFixture(t);
+  fs.writeFileSync(path.join(root, "package.json"), '{\n  "name": "x",\n  "version": "1.0.0"\n}\n');
+  git(root, "add", "-A");
+  git(root, "commit", "-qm", "pkg");
+  git(root, "checkout", "-qb", "chore/release-1-0-1");
+  fs.writeFileSync(path.join(root, "package.json"), '{\n  "name": "x",\n  "version": "1.0.1"\n}\n');
+  const r = shipChange(root, "release-1-0-1", {
+    gates: [PASS],
+    summary: "bump",
+    date: "2026-10-07",
+  });
+  assert.ok(r.archivedTo, JSON.stringify(r.next));
+  const rec = JSON.parse(fs.readFileSync(path.join(root, r.archivedTo, "change.json"), "utf8")) as {
+    confirmedLevel: number;
+  };
+  assert.equal(rec.confirmedLevel, 0);
+});
+
+test("the branch's commit messages stand in for the record's why", (t) => {
+  const root = gitFixture(t);
+  git(root, "checkout", "-qb", "fix/e-value");
+  fs.writeFileSync(path.join(root, "a.js"), "export const a = 11;\n");
+  git(root, "add", "-A");
+  git(
+    root,
+    "commit",
+    "-qm",
+    "fix(a): raise a to 11",
+    "-m",
+    "Callers divide by a; 10 overflowed the budget.",
+    "-m",
+    "Co-Authored-By: Bot <b@b>",
+  );
+  const hook = shipOnStop(root);
+  assert.equal(hook.skipped, null);
+  if (hook.skipped !== null) return;
+  assert.ok(hook.result.archivedTo, JSON.stringify(hook.result.next));
+  const record = fs.readFileSync(path.join(root, hook.result.archivedTo, "record.md"), "utf8");
+  assert.match(record, /raise a to 11/);
+  assert.match(record, /10 overflowed the budget/);
+  assert.doesNotMatch(record, /Co-Authored-By/);
+});
+
+test("a change archived at level 0 on this branch reopens when the diff outgrows it", (t) => {
+  const root = gitFixture(t);
+  git(root, "checkout", "-qb", "feat/grows");
+  fs.writeFileSync(path.join(root, "a.js"), "export const a = 12;\n");
+  const small = shipChange(root, "grows", { gates: [PASS], summary: "small", date: "2026-10-07" });
+  assert.ok(small.archivedTo);
+
+  spread(root, 5, 3);
+  const grown = shipOnStop(root);
+  assert.equal(grown.skipped, null);
+  if (grown.skipped !== null) return;
+  assert.equal(grown.change, "grows");
+  assert.equal(grown.result.archivedTo, null);
+  assert.ok(grown.result.pending.length > 0);
+  assert.ok(!fs.existsSync(path.join(root, small.archivedTo)), "the archive moved back");
+  assert.ok(confirmedLevel(root, "grows") >= 1);
+  assert.equal(readHarness(root, "grows"), null, "the finished harness is dropped");
+});
+
+test("an archive merged into the base is never reopened", (t) => {
+  const root = gitFixture(t);
+  git(root, "checkout", "-qb", "fix/merged");
+  fs.writeFileSync(path.join(root, "a.js"), "export const a = 13;\n");
+  const done = shipChange(root, "merged", { gates: [PASS], summary: "merged", date: "2026-10-07" });
+  assert.ok(done.archivedTo);
+  git(root, "add", "-A");
+  git(root, "commit", "-qm", "fix: merged");
+  git(root, "checkout", "-q", "main");
+  git(root, "merge", "-q", "--ff-only", "fix/merged");
+  git(root, "checkout", "-qb", "feat/merged");
+  spread(root, 5, 3);
+  const r = shipChange(root, "merged", { gates: [PASS], summary: "later" });
+  assert.equal(r.archivedTo, done.archivedTo, "the merged archive only gets its report refreshed");
+  assert.ok(!fs.existsSync(path.join(root, "lawbook", "changes", "merged")));
+});
+
+test("a measured level in flight rises with the diff; a human-set level stands", (t) => {
+  const root = gitFixture(t);
+  git(root, "checkout", "-qb", "feat/flight");
+  fs.writeFileSync(path.join(root, "a.js"), "export const a = 14;\n");
+  shipChange(root, "flight", { gates: [PASS], noArchive: true });
+  assert.equal(confirmedLevel(root, "flight"), 0);
+  scaffoldQuick(root, "by-hand");
+
+  spread(root, 5, 3);
+  const grown = shipChange(root, "flight", { gates: [PASS] });
+  assert.ok(confirmedLevel(root, "flight") >= 1);
+  assert.ok(grown.pending.length > 0);
+
+  const kept = shipChange(root, "by-hand", { gates: [PASS], date: "2026-10-07" });
+  assert.ok(kept.archivedTo, JSON.stringify(kept.next));
+  const rec = JSON.parse(
+    fs.readFileSync(path.join(root, kept.archivedTo, "change.json"), "utf8"),
+  ) as {
+    confirmedLevel: number;
+    confirmedBy: string;
+  };
+  assert.deepEqual([rec.confirmedLevel, rec.confirmedBy], [0, "human"]);
+});
+
+test("docHint tells a level 1+ change what it owes once, while the agent still works", (t) => {
+  const root = gitFixture(t);
+  git(root, "checkout", "-qb", "feat/hinted");
+  fs.writeFileSync(path.join(root, "a.js"), "export const a = 15;\n");
+  assert.equal(docHint(root), null, "level 0 owes nothing");
+
+  spread(root, 5, 3);
+  const hint = docHint(root) ?? "";
+  assert.match(hint, /measures level [1-3]/);
+  assert.match(hint, /tasks\.md/);
+  assert.ok(fs.existsSync(path.join(root, "lawbook", "changes", "hinted", "change.json")));
+  assert.equal(docHint(root), null, "same files: no second hint");
+
+  document(root, "hinted");
+  const shipped = shipOnStop(root);
+  assert.equal(shipped.skipped, null);
+  if (shipped.skipped !== null) return;
+  assert.deepEqual(shipped.result.pending, [], "written in the same turn: the stop is not blocked");
+  assert.equal(shipped.result.gatesPassed, true);
+});
+
+test("a promoted change owes a real proposal, tasks and why, not the text the promotion seeded", (t) => {
+  const root = gitFixture(t);
+  git(root, "checkout", "-qb", "feat/seeded");
+  fs.writeFileSync(path.join(root, "a.js"), "export const a = 16;\n");
+  shipChange(root, "seeded", { gates: [PASS], noArchive: true });
+  assert.equal(confirmedLevel(root, "seeded"), 0);
+
+  spread(root, 5, 3);
+  fs.writeFileSync(path.join(root, "package.json"), '{ "name": "x", "sideEffects": false }\n');
+  const grown = shipChange(root, "seeded", { gates: [PASS] });
+  assert.ok(confirmedLevel(root, "seeded") >= 2);
+  for (const f of ["proposal.md", "tasks.md"]) {
+    assert.ok(
+      grown.pending.some((p) => p.includes(f)),
+      `${f} owed: ${grown.pending.join(" | ")}`,
+    );
+  }
+});
+
+test("a written task that starts like a generated one is not a stub", (t) => {
+  const root = gitFixture(t);
+  git(root, "checkout", "-qb", "feat/real-tasks");
+  spread(root, 5, 3);
+  shipChange(root, "real-tasks", { gates: [PASS] });
+  document(root, "real-tasks");
+  fs.writeFileSync(
+    path.join(root, "lawbook", "changes", "real-tasks", "tasks.md"),
+    "- [x] Make the hook idempotent\n- [x] Make the fix visible in the report\n",
+  );
+  assert.deepEqual(pendingArtifacts(root, "real-tasks"), []);
+});
+
+test("a commit body with $-patterns lands in the record literally", (t) => {
+  const root = gitFixture(t);
+  git(root, "checkout", "-qb", "fix/dollar");
+  fs.writeFileSync(path.join(root, "a.js"), "export const a = 17;\n");
+  git(root, "add", "-A");
+  git(root, "commit", "-qm", "fix: keep $& and $' literal");
+  const r = shipChange(root, "dollar", { gates: [PASS], date: "2026-10-07" });
+  assert.ok(r.archivedTo);
+  assert.match(
+    fs.readFileSync(path.join(root, r.archivedTo, "record.md"), "utf8"),
+    /keep \$& and \$' literal/,
+  );
 });

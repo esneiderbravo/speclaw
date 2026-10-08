@@ -35,6 +35,10 @@ export interface ScaffoldChangeOptions {
   changeType?: ChangeType;
   /** Paths/symbols used to propose the level (default empty). */
   targets?: CeremonyTargets;
+  /** A proposal already measured from `targets`; skips measuring them again. */
+  proposal?: CeremonyProposal;
+  /** Who confirmed the level (default `human`). */
+  confirmedBy?: CeremonyRecord["confirmedBy"];
   /**
    * Level to confirm. A function receives the proposal and may return
    * `undefined` to leave the change unconfirmed (no `confirmedLevel`).
@@ -84,9 +88,7 @@ export function scaffoldChange(
     throw new Error(`change "${name}" already exists under lawbook/changes/`);
   }
   const targets = opts.targets ?? { paths: [], symbols: [] };
-  const { thresholds } = loadCeremonyConfig(projectPath);
-  const signals = gatherSignals(projectPath, targets, thresholds);
-  const proposal = proposeLevel(signals, thresholds);
+  const proposal = opts.proposal ?? measureTargets(projectPath, targets);
   const level = typeof opts.level === "function" ? opts.level(proposal) : opts.level;
   const stored = opts.recordProposal ? opts.recordProposal(proposal) : proposal;
   const reason = typeof opts.reason === "function" ? opts.reason(proposal) : opts.reason;
@@ -114,7 +116,7 @@ export function scaffoldChange(
     let confirmed = setCeremonyLevel(projectPath, name, {
       proposal: stored,
       level,
-      confirmedBy: "human",
+      confirmedBy: opts.confirmedBy ?? "human",
       reason,
     });
     if (opts.changeType) {
@@ -134,10 +136,20 @@ export function scaffoldChange(
   };
 }
 
-const featureRecordMd = (name: string, level: CeremonyLevel, proposal: CeremonyProposal) =>
+function measureTargets(projectPath: string, targets: CeremonyTargets): CeremonyProposal {
+  const { thresholds } = loadCeremonyConfig(projectPath);
+  return proposeLevel(gatherSignals(projectPath, targets, thresholds), thresholds);
+}
+
+const featureRecordMd = (
+  name: string,
+  level: CeremonyLevel,
+  proposal: CeremonyProposal,
+  confirmedBy: CeremonyRecord["confirmedBy"],
+) =>
   `# ${name}
 
-**Level:** ${level} (proposed: ${proposal.level ?? "n/a"}, confirmed by: human)
+**Level:** ${level} (proposed: ${proposal.level ?? "n/a"}, confirmed by: ${confirmedBy})
 **Why:** ${proposal.rationale}
 
 ## What changes
@@ -244,6 +256,7 @@ The system SHALL provide the behavior described in \`proposal.md\` for ${change}
  * @param level - Confirmed level, or `undefined` for no stubs.
  * @param proposal - Proposal quoted in `record.md`.
  * @param delta - Capability and starting content for the delta (levels 1–3).
+ * @param confirmedBy - Who confirmed the level, quoted in `record.md`.
  */
 export function featureStubs(
   name: string,
@@ -253,14 +266,15 @@ export function featureStubs(
     capability: name,
     content: featureDeltaMd(name, name),
   },
+  confirmedBy: CeremonyRecord["confirmedBy"] = "human",
 ): Record<string, string> {
   const spec = { [`specs/${delta.capability}/spec.md`]: delta.content };
   switch (level) {
     case 0:
-      return { "record.md": featureRecordMd(name, 0, proposal) };
+      return { "record.md": featureRecordMd(name, 0, proposal, confirmedBy) };
     case 1:
       return {
-        "record.md": featureRecordMd(name, 1, proposal),
+        "record.md": featureRecordMd(name, 1, proposal, confirmedBy),
         "tasks.md": featureTasksMd(name),
         ...spec,
       };
@@ -289,7 +303,8 @@ export function featureStubs(
  *
  * @param projectPath - Project root with `lawbook/`.
  * @param name - Change folder name (kebab-case).
- * @param opts - Optional level, override reason, delta capability, and targets.
+ * @param opts - Optional level, override reason, delta capability, targets, a proposal
+ *   already measured from them, and who confirmed the level.
  * @throws When `capability` is not kebab-case (plus every `scaffoldChange` refusal).
  */
 export function scaffoldFeature(
@@ -300,6 +315,8 @@ export function scaffoldFeature(
     reason?: string;
     capability?: string;
     targets?: CeremonyTargets;
+    proposal?: CeremonyProposal;
+    confirmedBy?: CeremonyRecord["confirmedBy"];
   } = {},
 ): ScaffoldChangeResult {
   // Only feature drafts enforce kebab-case: quick and bug drafts keep their
@@ -318,10 +335,12 @@ export function scaffoldFeature(
   return scaffoldChange(projectPath, name, {
     changeType: "feature",
     targets: opts.targets,
+    proposal: opts.proposal,
+    confirmedBy: opts.confirmedBy,
     level: opts.level,
     reason: opts.reason,
     reportsReadme: `# Reports — ${name}\n\nAdd at least one discipline report before archive.\n`,
     artifacts: ({ level, proposal }) =>
-      featureStubs(name, level, proposal, { capability, content }),
+      featureStubs(name, level, proposal, { capability, content }, opts.confirmedBy),
   });
 }

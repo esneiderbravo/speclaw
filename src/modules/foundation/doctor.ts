@@ -802,7 +802,7 @@ function ceremonyChecks(projectPath: string): DoctorCheck[] {
       id: "cfg.ceremony.cuts",
       title: "ceremony thresholds",
       status: "warn",
-      detail: "invalid ceremony.cuts — using built-in defaults [3, 8, 15]",
+      detail: "invalid ceremony.cuts — using built-in defaults [5, 16, 25]",
       remedy:
         "fix cuts in lawbook/config.yaml so they are strictly increasing, or remove the block",
     });

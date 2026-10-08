@@ -27,9 +27,12 @@ Claude-specific notes: [`CLAUDE.md`](CLAUDE.md). The law: [`LAWS.md`](LAWS.md).
    agents.*). Branch `<type>/<slug>`, locate with Compass, implement the
    change and its test yourself, run the tests, finish. The `Stop` hook
    (`speclaw ship-on-stop`) — or `speclaw ship <change> --summary "<what and
-   why>"` as your last step on agents without hooks — records the change, runs
-   the gates once, writes the report from their real output, and archives
-   level-0 work. Review happens on the PR and never blocks the agent. Add
+   why>"` as your last step on agents without hooks — sizes the change from
+   its diff, names the artifacts that level owes while you edit (the why,
+   tasks, delta specs, proposal/design; write them in the same turn), runs the
+   gates once, writes the report
+   from their real output, and archives level-0 work. Commit with a message
+   whose body says why. Review happens on the PR and never blocks the agent. Add
    agents only to run three or more large, independent parts in parallel.
    Details: the `cortex` skill and
    [`docs/standards/lawbook.md`](docs/standards/lawbook.md).

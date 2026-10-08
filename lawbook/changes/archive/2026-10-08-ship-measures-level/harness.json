@@ -1,0 +1,77 @@
+{
+  "version": 1,
+  "change": "ship-measures-level",
+  "stage": "done",
+  "level": 3,
+  "iteration": 1,
+  "maxRework": 3,
+  "verdicts": {
+    "review": "PASS",
+    "test": "PASS"
+  },
+  "openQuestions": [],
+  "history": [
+    {
+      "at": "2026-10-08T12:45:45.469Z",
+      "from": "exploring",
+      "to": "exploring",
+      "op": "start"
+    },
+    {
+      "at": "2026-10-08T12:45:48.379Z",
+      "from": "exploring",
+      "to": "planning",
+      "op": "advance",
+      "note": "exploration done in-session: Compass + benchmark"
+    },
+    {
+      "at": "2026-10-08T12:45:52.265Z",
+      "from": "planning",
+      "to": "implementing",
+      "op": "advance",
+      "note": "artifacts written: proposal, design, tasks, 3 delta specs"
+    },
+    {
+      "at": "2026-10-08T12:45:52.360Z",
+      "from": "implementing",
+      "to": "reviewing",
+      "op": "advance",
+      "note": "implemented; gates green via ship (check, build, 1033 tests)"
+    },
+    {
+      "at": "2026-10-08T12:51:17.410Z",
+      "from": "reviewing",
+      "to": "implementing",
+      "op": "rework",
+      "note": "Review FAIL: B1 promoted proposal.md/record counted as written (levels.ts:619-623 + ship.ts STUBS); B2 mcp-surface.test.ts runs docHint on the real checkout (process.cwd()); B3 tasks.md stub marker \"] Make the \" blocks real tasks; B4 missing api.md / scenario coverage / performance reports. See reports/review.md."
+    },
+    {
+      "at": "2026-10-08T12:58:06.690Z",
+      "from": "implementing",
+      "to": "reviewing",
+      "op": "advance",
+      "note": "rework 1: B1–B4 fixed with red-first tests; N2, N3, N6 fixed; gates green (1037 tests)"
+    },
+    {
+      "at": "2026-10-08T12:58:58.970Z",
+      "from": "reviewing",
+      "to": "testing",
+      "op": "advance",
+      "note": "Re-review PASS: B1-B4 verified fixed (regex STUBS incl. promoted proposal + level-0 file list; tmpRepo fixture in mcp-surface test; anchored task stubs; backend/api/performance reports). N2/N3/N6 fixed. N1, N4, N5, N7-N10 non-blocking, deferred. See reports/review.md."
+    },
+    {
+      "at": "2026-10-08T12:59:15.928Z",
+      "from": "testing",
+      "to": "archiving",
+      "op": "advance",
+      "note": "gates observed: npm run check exit 0, npm run build exit 0, npm test 1037/1037; reports backend/api/performance written"
+    },
+    {
+      "at": "2026-10-08T12:59:24.090Z",
+      "from": "archiving",
+      "to": "done",
+      "op": "advance",
+      "note": "archived by lawbook archive"
+    }
+  ]
+}

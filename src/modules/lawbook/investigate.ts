@@ -21,7 +21,11 @@ export type SuspectReason =
   | "temporal-coupling"
   | "semantic-match"
   | "hint-path"
-  | "recently-changed";
+  | "recently-changed"
+  /** Reachable through calls from a hinted file or a stack-frame file (e.g. the failing test). */
+  | "test-reachable"
+  /** Calls nothing else in the project: where a wrong value is computed, not passed on. */
+  | "leaf";
 
 export interface Suspect {
   name: string;
@@ -60,7 +64,60 @@ const WEIGHTS: Record<SuspectReason, number> = {
   "semantic-match": 10,
   "hint-path": 8,
   "recently-changed": 10,
+  "test-reachable": 20,
+  leaf: 10,
 };
+
+/** Test files: their frames show where a failure surfaced, never its cause. */
+const TEST_FILE_RE =
+  /(^|\/)(tests?|__tests__|spec)\/|\.(test|spec)\.[cm]?[jt]sx?$|(^|\/)test_[^/]+\.py$/;
+
+/** Call depth and node cap for the walk from the failing test's file. */
+const REACH_DEPTH = 8;
+const REACH_CAP = 80;
+
+/**
+ * Every project symbol reachable by calls from `files` (a failing test, a
+ * stack frame's file), breadth-first, with its depth and whether it calls
+ * anything else in the project. Only this code can make that test fail.
+ */
+function reachableFrom(
+  projectPath: string,
+  files: string[],
+): Map<
+  string,
+  { name: string; file: string; line: number; depth: number; leaf: boolean; from: string }
+> {
+  const out = new Map<
+    string,
+    { name: string; file: string; line: number; depth: number; leaf: boolean; from: string }
+  >();
+  for (const seed of files) {
+    const root = explore(projectPath, seed);
+    if (!root.found) continue;
+    let frontier = (root.callees ?? []).filter((c) => c.file).map((c) => ({ ...c, depth: 1 }));
+    while (frontier.length && out.size < REACH_CAP) {
+      const next: typeof frontier = [];
+      for (const c of frontier) {
+        const key = `${c.file}:${c.name}`;
+        if (out.has(key) || out.size >= REACH_CAP) continue;
+        const ex = explore(projectPath, c.name);
+        const callees = (ex.callees ?? []).filter((x) => x.file);
+        out.set(key, {
+          name: c.name,
+          file: c.file!,
+          line: c.line,
+          depth: c.depth,
+          leaf: callees.length === 0,
+          from: seed,
+        });
+        if (c.depth < REACH_DEPTH) next.push(...callees.map((x) => ({ ...x, depth: c.depth + 1 })));
+      }
+      frontier = next;
+    }
+  }
+  return out;
+}
 
 interface Candidate {
   name: string;
@@ -166,7 +223,7 @@ export async function investigate(args: {
   hintPaths?: string[];
   maxSuspects?: number;
 }): Promise<InvestigateResult> {
-  const maxSuspects = args.maxSuspects ?? 8;
+  const maxSuspects = args.maxSuspects ?? 5;
   const degraded: InvestigateDegraded[] = [];
   const hintPaths = (args.hintPaths ?? []).map((p) => p.replace(/^\.\//, ""));
 
@@ -219,6 +276,9 @@ export async function investigate(args: {
     }
 
     frames.forEach((frame, idx) => {
+      // A test's own frame is where the failure surfaced, not where it was
+      // caused: it seeds the reachable walk below but is never a suspect.
+      if (TEST_FILE_RE.test(frame.file)) return;
       const dist = idx;
       const atLine = resolveAtLine(args.projectPath, frame.file, frame.line);
       const symName = atLine?.name ?? frameSymbolName(frame) ?? frame.fn;
@@ -271,10 +331,38 @@ export async function investigate(args: {
     });
   }
 
-  if (args.symptom?.trim() && candidates.size === 0) {
+  // A failing test (hinted, or a frame's file) bounds the search: only code it
+  // reaches can fail it, so look-alike symbols elsewhere never outrank that path.
+  const reach = reachableFrom(args.projectPath, [
+    ...new Set([...hintPaths, ...frames.map((f) => f.file)]),
+  ]);
+  for (const [key, r] of reach) {
+    addCandidate(candidates, key, {
+      name: r.name,
+      kind: "function",
+      file: r.file,
+      startLine: r.line,
+      reason: "test-reachable",
+      detail: `reached from ${r.from} in ${r.depth} call(s)`,
+      distanceFromFrame: r.depth,
+      callerCount: callerCount(args.projectPath, r.name),
+    });
+    if (r.leaf) {
+      const c = candidates.get(key)!;
+      addCandidate(candidates, key, {
+        ...c,
+        reason: "leaf",
+        detail: "calls nothing else in the project",
+      });
+    }
+  }
+
+  if (args.symptom?.trim() && (candidates.size === 0 || reach.size > 0)) {
     try {
       const hits = await recall(args.projectPath, args.symptom, 15);
       for (const h of hits) {
+        // With a reachable set, a semantic hit only corroborates code on it.
+        if (reach.size > 0 && !candidates.has(`${h.file}:${h.name}`)) continue;
         addCandidate(candidates, `${h.file}:${h.name}`, {
           name: h.name,
           kind: h.kind,
@@ -372,7 +460,14 @@ export async function investigate(args: {
     }
   }
 
-  let suspects: Suspect[] = [...candidates.values()]
+  let suspects: Suspect[] = [...candidates.entries()]
+    .filter(
+      ([key, c]) =>
+        reach.size === 0 ||
+        reach.has(key) ||
+        c.reasons.some((r) => r.reason === "stack-frame" || r.reason === "frame-caller"),
+    )
+    .map(([, c]) => c)
     .map((c) => ({
       name: c.name,
       kind: c.kind,
@@ -425,7 +520,9 @@ export async function investigate(args: {
 
   return {
     suspects,
-    unresolvedFrames,
+    // Runtime and dependency frames are excluded by design; listing each one
+    // only spends the reader's tokens.
+    unresolvedFrames: unresolvedFrames.filter((f) => f.reason !== "external"),
     degraded: [...new Set(degraded)],
     guidance,
     inputSymptom: args.symptom ?? args.stackTrace?.split("\n")[0]?.trim(),

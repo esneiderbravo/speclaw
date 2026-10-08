@@ -179,7 +179,7 @@ test("installHooks never clobbers an unparseable settings file", (t) => {
 });
 
 // Covers: req~compass-nudge~1
-test("compileHooks always emits the Read|Grep|Glob PostToolUse nudge entry, even with zero laws", () => {
+test("compileHooks always emits the Read|Grep|Glob|Bash PostToolUse nudge entry, even with zero laws", () => {
   const { byEvent } = compileHooks(manifest([]));
   assert.deepEqual(Object.keys(byEvent), ["PostToolUse", "Stop", "SessionStart"]);
   const ship = byEvent.Stop![0]!.hooks[0]!;
@@ -187,7 +187,7 @@ test("compileHooks always emits the Read|Grep|Glob PostToolUse nudge entry, even
   assert.match((ship as { command: string }).command, /speclaw ship-on-stop/);
   assert.ok(isSpeclawHook(ship));
   const group = byEvent.PostToolUse![0]!;
-  assert.equal(group.matcher, "Read|Grep|Glob");
+  assert.equal(group.matcher, "Read|Grep|Glob|Bash");
   const hook = group.hooks[0]!;
   assert.equal(hook.type, "mcp_tool");
   assert.equal(hook.server, "speclaw");
@@ -198,6 +198,7 @@ test("compileHooks always emits the Read|Grep|Glob PostToolUse nudge entry, even
     pattern: "${tool_input.pattern}",
     glob: "${tool_input.glob}",
     type: "${tool_input.type}",
+    command: "${tool_input.command}",
   });
 });
 
@@ -210,11 +211,20 @@ test("compileHooks never puts the nudge matcher on PreToolUse", () => {
   );
   assert.ok(byEvent.PreToolUse!.every((g) => !/Read|Grep|Glob/.test(g.matcher ?? "")));
   // feedback laws keep their mutation group alongside the nudge group; the
-  // edit reindex group is a separate, last group
+  // documentation-hint group follows, and the edit reindex group is last
   assert.deepEqual(
     byEvent.PostToolUse!.map((g) => g.matcher),
-    ["Write|Edit|MultiEdit|NotebookEdit", "Read|Grep|Glob", "Write|Edit|MultiEdit|NotebookEdit"],
+    [
+      "Write|Edit|MultiEdit|NotebookEdit",
+      "Read|Grep|Glob|Bash",
+      "Write|Edit|MultiEdit|NotebookEdit",
+      "Write|Edit|MultiEdit|NotebookEdit",
+    ],
   );
+  const doc = byEvent.PostToolUse![2]!.hooks[0] as {
+    input?: { payload?: { speclaw_hint?: string } };
+  };
+  assert.equal(doc.input?.payload?.speclaw_hint, "doc");
   assert.equal(byEvent.PostToolUse![0]!.hooks[0]!.type, "mcp_tool");
 });
 
@@ -242,7 +252,9 @@ test("installHooks with zero laws installs the nudge, keeps foreign entries, and
   const post = settings.hooks.PostToolUse!;
   assert.ok(post.some((g) => g.hooks.some((h) => h.command === "echo mine")));
   assert.ok(
-    post.some((g) => g.matcher === "Read|Grep|Glob" && g.hooks.some((h) => h.server === "speclaw")),
+    post.some(
+      (g) => g.matcher === "Read|Grep|Glob|Bash" && g.hooks.some((h) => h.server === "speclaw"),
+    ),
   );
   assert.ok(!settings.hooks.PreToolUse);
 

@@ -64,8 +64,9 @@ test("minimal registration omits the omit-set", () => {
   const names = new Set(collectRegisteredTools(true).map((t) => t.name));
   assert.ok(!names.has("compass_index"));
   assert.ok(!names.has("speclaw_setup"));
-  assert.ok(!names.has("speclaw_check"));
-  assert.ok(!names.has("lawbook_investigate"));
+  // Every installed hook calls speclaw_check; bugs need lawbook_investigate.
+  assert.ok(names.has("speclaw_check"));
+  assert.ok(names.has("lawbook_investigate"));
   assert.ok(names.has("compass_explore"));
   assert.ok(names.has("lawbook_change"));
   delete process.env.SPECLAW_NO_ALIASES;

@@ -36,7 +36,7 @@ test("scaffold seeds the law manifest and installs Claude hooks", (t) => {
       matcher?: string;
       hooks: Array<{ server: string; input: { payload: { tool_input: Record<string, string> } } }>;
     }>
-  ).find((g) => g.matcher === "Read|Grep|Glob");
+  ).find((g) => g.matcher === "Read|Grep|Glob|Bash");
   assert.ok(nudge);
   assert.equal(nudge.hooks[0]!.server, "speclaw");
   assert.equal(nudge.hooks[0]!.input.payload.tool_input.path, "${tool_input.path}");

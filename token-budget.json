@@ -12,8 +12,8 @@
   "dispatcher": 500,
   "map": 300,
   "minimal": {
-    "tools": 1500,
+    "tools": 1850,
     "total": 16500
   },
-  "note": "Raised for Cortex MCP tool + cortex/test skills (9 canonical tools). Minimal measured ~1414 tools / ~16026 total with cortex kept in profile."
+  "note": "Minimal keeps speclaw_check (every installed hook calls it) and lawbook_investigate (bug triage): measured ~1799 tools / ~14653 total. compass_find, compass_explore, compass_diff_context and lawbook_investigate load up front (anthropic/alwaysLoad)."
 }

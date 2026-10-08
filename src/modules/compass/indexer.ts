@@ -24,6 +24,7 @@ import {
   type AffectedConfig,
 } from "./affected-config.js";
 import { realPathOf } from "../../shared/paths.js";
+import { writeIndexStats } from "../../shared/index-stats.js";
 import { personalizedPageRank, edgeWeightMul, type PrEdge } from "./pagerank.js";
 import type { DatabaseSync, StatementSync } from "node:sqlite";
 import type { Embedder } from "./embedder.js";
@@ -1240,6 +1241,7 @@ export async function buildIndex(
     stats.nextStep = indexNextStep(stats.totals);
 
     db.exec("COMMIT");
+    writeIndexStats(projectPath, stats.totals);
   } catch (err) {
     // SQLite may already have rolled back (or BEGIN never succeeded): an
     // unguarded ROLLBACK would throw and mask the original error.

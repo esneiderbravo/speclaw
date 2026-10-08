@@ -1,4 +1,13 @@
+import fs from "node:fs";
 import path from "node:path";
+
+function realRoot(projectPath: string): string {
+  try {
+    return fs.realpathSync(projectPath);
+  } catch {
+    return projectPath;
+  }
+}
 
 /** One frame extracted from a stack trace. */
 export interface ParsedFrame {
@@ -60,12 +69,20 @@ export function mapDistToSrc(rel: string): string {
  */
 export function normalizeTracePath(projectPath: string, rawPath: string): string {
   let p = rawPath.replace(/\\/g, "/");
-  const root = projectPath.replace(/\\/g, "/");
-  if (p.startsWith(root + "/")) p = p.slice(root.length + 1);
+  // A runtime prints real paths: under a symlinked root (macOS /tmp → /private/tmp)
+  // the trace names the real root, not the one the project was opened by.
+  const roots = [
+    ...new Set([projectPath, realRoot(projectPath)].map((r) => r.replace(/\\/g, "/"))),
+  ];
+  const strip = () => {
+    const root = roots.find((r) => p.startsWith(r + "/"));
+    if (root) p = p.slice(root.length + 1);
+  };
+  strip();
   if (p.startsWith("file://")) {
     try {
       p = decodeURIComponent(new URL(p).pathname);
-      if (p.startsWith(root + "/")) p = p.slice(root.length + 1);
+      strip();
     } catch {
       /* keep raw */
     }

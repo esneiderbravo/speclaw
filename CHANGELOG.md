@@ -5,6 +5,67 @@ All notable changes to this project are documented here. Speclaw follows
 
 ## [Unreleased]
 
+## [2.0.20] — 2026-10-08
+
+### Fixed
+
+- The `Stop` hook sizes every change from its branch diff. It created each
+  change with no targets, so the level was never measured and every change —
+  multi-module fixes included — was archived at level 0 with no tasks, delta
+  specs, proposal or design, and a record that only listed file names (wrongly
+  "confirmed by: human"). Ship now measures the diff (a version-only bump of
+  `package.json` does not count), records the level as `measured`, raises it
+  when the diff grows (reopening a level-0 archive the branch outgrew, never
+  one already merged), and lists what that level owes before any gate runs:
+  the why — the branch's commit bodies count — checked tasks, the delta spec,
+  proposal and design. The gates still run once. A `PostToolUse` hook names
+  what the level owes as soon as an edit raises the diff to level 1+, so the
+  agent writes it in the same turn instead of after a blocked stop. Level 0 never waits: its record takes the commit bodies, else the
+  file list, so a trivial fix costs no extra turn.
+- A file counts as a hotspot only with 3+ commits in the window. The score is
+  relative to the hottest file, so in a young repo any file was "the hottest"
+  and a one-line fix scored level 1.
+
+- `minimal` projects kept their hooks but not the tool they call:
+  `speclaw_check` was omitted from the minimal profile, so every law hook and
+  the Compass-first nudge answered "Tool not found". Minimal now keeps
+  `speclaw_check` and `lawbook_investigate`.
+- The Compass-first nudge also watches Bash: `cat`, `sed`, `head`, `grep`,
+  `rg` and friends on indexed code get the same hint as Read/Grep/Glob (agents
+  read through the shell far more often). Heredoc writes stay silent, and so
+  does a repo under 40 indexed files, where a read beats a graph query (the
+  index now records its totals in `.speclaw/index-stats.json`).
+- `lawbook_investigate` ranks only code the failing test reaches. It walks the
+  call graph from the hinted test file or the trace's test frame, marks leaf
+  computations, never lists the test itself or runtime frames, and returns 5
+  suspects by default; before, look-alike helpers anywhere in the repo
+  outranked the real cause and a long result was cut mid-JSON.
+- Stack-trace paths resolve under a symlinked project root (macOS `/tmp`),
+  where the runtime prints the real path.
+
+### Added
+
+- `compass_explore` with `maxDepth` > 1 (and `include: ["callees"]`) returns
+  the whole callee chain with each symbol's source, and `to: <symbol>` returns
+  the path's sources: one call reads what took one file read per hop.
+- The MCP server sends `instructions` naming the tool for each job, and
+  `compass_find`, `compass_explore`, `compass_diff_context` and
+  `lawbook_investigate` load up front (`_meta["anthropic/alwaysLoad"]`), so
+  agents no longer pay a tool-search turn before using them. Tool
+  descriptions say when to use each tool.
+
+### Changed
+
+- Ceremony cuts default to `[5, 16, 25]` (was `[3, 8, 15]`) and a public-API
+  change weighs 5 (was 4), measured against this repo's last twelve PRs: a
+  cross-module fix or any public-API change is level 1, a multi-module feature
+  level 2, a sweeping refactor level 3. Projects whose `lawbook/config.yaml`
+  sets `cuts` keep their values.
+- `scripts/bench-workflow.sh` installs the `Stop` hook in its Cortex fixture
+  (`speclaw agent add claude`; since 2.0.16 `init` configures no IDE folder,
+  so "Cortex" runs measured an agent alone), runs on macOS bash 3.2, and adds
+  a two-module scenario. Results: `docs/benchmarks/cortex-speed.md`.
+
 ## [2.0.19] — 2026-10-08
 
 ### Fixed

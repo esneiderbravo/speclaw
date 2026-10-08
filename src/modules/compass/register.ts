@@ -32,6 +32,7 @@ export function registerCompass(server: McpServer, opts: RegisterOpts = {}): voi
     description: string,
     inputSchema: Shape,
     handler: ToolSpec<Shape>["handler"],
+    alwaysLoad = false,
   ) => {
     if (!shouldExpose(name, minimal)) return;
     // Every canonical call lands in the call log the Cortex gate and the
@@ -41,12 +42,12 @@ export function registerCompass(server: McpServer, opts: RegisterOpts = {}): voi
       recordCompassCall(args.projectPath, name);
       return call(args, extra);
     }) as typeof handler;
-    defineTool(server, { name, description, inputSchema, handler: logged });
+    defineTool(server, { name, description, inputSchema, handler: logged, alwaysLoad });
   };
 
   add(
     "compass_explore",
-    "Symbol context in one call: source, callers, callees, blast radius, tests, hotspot. Prefer before grep.",
+    "Symbol context in one call: source, callers, callees, blast radius, tests. maxDepth>1 returns the whole callee chain with source.",
     {
       projectPath: z.string(),
       node: z.string(),
@@ -66,6 +67,8 @@ export function registerCompass(server: McpServer, opts: RegisterOpts = {}): voi
       });
       return text(formatExploreRich(result, (mode ?? "brief") as OutputMode), mode ?? "brief");
     },
+    // The two code-reading tools load up front: deferred, agents `cat` instead.
+    true,
   );
 
   add(
@@ -83,11 +86,12 @@ export function registerCompass(server: McpServer, opts: RegisterOpts = {}): voi
       const found = await findSymbols(projectPath, query, mode, limit, { focus, maxTokens });
       return text(formatFindResponse(found), { maxTokens: found.cap });
     },
+    true,
   );
 
   add(
     "compass_diff_context",
-    "Graph context of changes in one call: symbols, blast radius, tests, hotspots. Default: working tree.",
+    "Use before testing or finishing: what the diff touches — symbols, blast radius, covering tests.",
     {
       projectPath: z.string(),
       rev: z.string().optional(),
@@ -105,11 +109,12 @@ export function registerCompass(server: McpServer, opts: RegisterOpts = {}): voi
       });
       return text(formatDiffContext(result, (mode ?? "brief") as OutputMode), mode ?? "brief");
     },
+    true,
   );
 
   add(
     "compass_index",
-    "Build or refresh the code graph index; optional watch action for live re-index.",
+    "Use when the index is missing or stale: build or refresh the code graph; watch re-indexes live.",
     {
       projectPath: z.string(),
       action: z.enum(["index", "start", "stop", "status"]).optional(),
