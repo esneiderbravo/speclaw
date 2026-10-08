@@ -272,7 +272,7 @@ export function writeReviewChange(dir, defects) {
   put(
     dir,
     "src/ledger/money.js",
-    `/** Round to cents, half away from zero. */\nexport function roundCents(x) {\n  return (Math.sign(x) * Math.round(Number(Math.abs(x) + "e2"))) / 100;\n}\n`,
+    `/** Round to cents, half away from zero. */\nexport function roundCents(x) {\n  return (Math.sign(x) * Math.round(Number((Math.abs(x) * 100).toPrecision(15)))) / 100;\n}\n`,
   );
   const regression = has("real-data")
     ? `${testHead}import path from "node:path";\nimport { balance } from "../src/ledger/balance.js";\nimport { loadLedger, saveLedger } from "../src/ledger/store.js";\n\nconst LEDGER = path.resolve("data/ledger.json");\n\ntest("balance rounds half-cent entries half up", () => {\n  const entries = loadLedger(LEDGER);\n  entries.push({ id: "test-rounding", memo: "half cent", amount: 0.005 });\n  saveLedger(LEDGER, entries);\n  assert.equal(balance(loadLedger(LEDGER)), 1030.25);\n});\n`
@@ -283,19 +283,19 @@ export function writeReviewChange(dir, defects) {
   put(
     dir,
     `${ch}/bugfix.md`,
-    `# Bugfix: ${REVIEW_CHANGE}\n\n**Level:** 2 · **Type:** bug · **Severity:** normal\n\n## 1. Observed symptom\nThe ledger balance is one cent short whenever an entry ends in half a cent (e.g. 89.995 rounds to 89.99).\n\n## 2. Minimal reproduction\n\`balance([{ amount: 89.995 }])\` returns 89.99; expected 90.00.\n\n## 3. Root cause\n\`roundCents\` (src/ledger/money.js:3) truncates with \`Math.floor\` instead of rounding half away from zero; negative amounts round the wrong way too.\n\n## 4. Blast radius\n\`balance\` (src/ledger/balance.js) is the only caller; no other module rounds money.\n\n## 5. Proposed fix\nShift the absolute value two decimal places in its decimal string form (\`"89.995e2"\` is exactly 8999.5), round half up, restore the sign. Rejected: \`toFixed\`, which rounds binary fractions inconsistently.\n\n## 6. Regression test\ntest/balance.test.js::balance rounds half-cent entries half up\n\n## 7. Prevention\nnone: a single rounding helper already centralises money rounding; the regression test pins it.\n`,
+    `# Bugfix: ${REVIEW_CHANGE}\n\n**Level:** 2 · **Type:** bug · **Severity:** normal\n\n## 1. Observed symptom\nThe ledger balance is one cent short whenever an entry ends in half a cent (e.g. 89.995 rounds to 89.99).\n\n## 2. Minimal reproduction\n\`balance([{ amount: 89.995 }])\` returns 89.99; expected 90.00.\n\n## 3. Root cause\n\`roundCents\` (src/ledger/money.js:3) truncates with \`Math.floor\` instead of rounding half away from zero; negative amounts round the wrong way too.\n\n## 4. Blast radius\n\`balance\` (src/ledger/balance.js) is the only caller; no other module rounds money.\n\n## 5. Proposed fix\nScale the absolute value by 100 and drop binary noise with \`toPrecision(15)\` (89.995 × 100 = 8999.499999999999 → 8999.5), round half up, restore the sign. Rejected: \`toFixed\`, which rounds binary fractions inconsistently, and shifting through the decimal string (\`x + "e2"\`), which is \`NaN\` for amounts printed in exponent form.\n\n## 6. Regression test\ntest/balance.test.js::balance rounds half-cent entries half up\n\n## 7. Prevention\nnone: a single rounding helper already centralises money rounding; the regression test pins it.\n`,
   );
   put(
     dir,
     `${ch}/design.md`,
     has("stub")
       ? `# Design — ${REVIEW_CHANGE}\n\n## Approach\n\n(structural bugfix — document the fix architecture)\n`
-      : `# Design — ${REVIEW_CHANGE}\n\n## Approach\n\nKeep one money-rounding helper (\`roundCents\`) and fix it in place: shift the\nabsolute value by two decimal places through its decimal string, round half\nup, then restore the sign, so credits and debits round symmetrically. \`balance\` keeps\nrounding per entry, which matches how the ledger is reconciled.\n`,
+      : `# Design — ${REVIEW_CHANGE}\n\n## Approach\n\nKeep one money-rounding helper (\`roundCents\`) and fix it in place: scale the\nabsolute value by 100, drop binary noise with \`toPrecision(15)\`, round half\nup, then restore the sign, so credits and debits round symmetrically. \`balance\` keeps\nrounding per entry, which matches how the ledger is reconciled.\n`,
   );
   put(
     dir,
     `${ch}/tasks.md`,
-    `- [x] Reproduce and confirm root cause\n- [x] Implement fix\n- [x] Add regression test (red before, green after)\n- [x] Complete prevention §7\n- [x] Write discipline report under reports/\n`,
+    `- [x] Step 0: Create the branch \`fix/ledger-rounding\`\n- [x] Reproduce and confirm root cause\n- [x] Implement fix\n- [x] Review and update the affected tests: regression test (red before, green after)\n- [x] Run the quality gates (\`npm test\`)\n- [x] Manual verification: \`balance\` on the symptom's entries returns 90.00\n- [x] Complete prevention §7\n- [x] Write discipline report under reports/\n- [x] Update the technical documentation: none touched (no public API or docs change)\n- [ ] Archive the change within the same PR (after review PASS)\n`,
   );
   if (!has("missing-report")) {
     const red = has("red-first")
