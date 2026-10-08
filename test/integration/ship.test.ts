@@ -9,6 +9,7 @@ import { readHarness } from "../../src/modules/cortex/harness.js";
 import { handleLevel, scaffoldQuick } from "../../src/modules/lawbook/quick.js";
 import { confirmedLevel } from "../../src/modules/lawbook/levels.js";
 import { buildIndex } from "../../src/modules/compass/indexer.js";
+import { recordGreenRun } from "../../src/shared/test-runs.js";
 import {
   changeNameForBranch,
   docHint,
@@ -615,6 +616,40 @@ test("the stop runs only the tests the diff reaches", async (t) => {
   assert.equal(gate.exitCode, 0, gate.tail);
   assert.match(gate.scope ?? "", /affected test file\(s\).*full suite runs in CI/);
   assert.notEqual(gate.command, "npm test");
+  assert.match(gate.command, /slug0\.test\.js/);
+});
+
+test("the stop reuses the agent's green run of the same tests on the same code", async (t) => {
+  const root = await centralFixture(t, "fix/slug-reuse", RUNNER);
+  fixSlug(root);
+  recordGreenRun(
+    root,
+    "npm test 2>&1 | tail -5",
+    "ℹ tests 3\nℹ fail 0",
+    new Date(Date.now() + 1000),
+  );
+  const r = shipChange(root, "slug-reuse", { gates: ["npm test"], summary: "digits" });
+  const gate = r.gates[0]!;
+  assert.equal(gate.exitCode, 0);
+  assert.equal(gate.durationMs, 0, "nothing re-ran");
+  assert.match(gate.scope ?? "", /reused from the agent's green run|reused the agent's green/);
+  assert.match(gate.tail, /fail 0/);
+});
+
+test("a green run older than the last edit, or a filtered one, is run again", async (t) => {
+  const root = await centralFixture(t, "fix/slug-stale", RUNNER);
+  recordGreenRun(root, "npm test", "ℹ fail 0", new Date(Date.now() - 60_000));
+  recordGreenRun(
+    root,
+    "node --test --test-name-pattern=slug test/slug0.test.js",
+    "ℹ fail 0",
+    new Date(Date.now() + 1000),
+  );
+  fixSlug(root);
+  const r = shipChange(root, "slug-stale", { gates: ["npm test"], summary: "digits" });
+  const gate = r.gates[0]!;
+  assert.equal(gate.exitCode, 0, gate.tail);
+  assert.doesNotMatch(gate.scope ?? "", /reused/);
   assert.match(gate.command, /slug0\.test\.js/);
 });
 
