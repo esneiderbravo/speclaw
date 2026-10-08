@@ -46,7 +46,7 @@
     "test": "node --test 'dist-test/test/**/*.test.js'",
     "prepublishOnly": "npm run build",
     "test:ci": "node --test --test-concurrency=1 --experimental-test-coverage --test-coverage-lines=80 --test-coverage-functions=80 --test-coverage-branches=80 --test-coverage-exclude='dist-test/test/**' --test-coverage-exclude='dist/**' 'dist-test/test/**/*.test.js'",
-    "pretest:ci": "tsc -p tsconfig.test.json && node scripts/prep-test-assets.mjs"
+    "pretest:ci": "npm run pretest"
   },
   "engines": {
     "node": ">=22.16"

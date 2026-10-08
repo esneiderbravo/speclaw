@@ -649,5 +649,12 @@ test("an archive's promoted specs and sealed anchors are not new work for the St
   fs.writeFileSync(path.join(root, "lawbook", "specs", "widget", "spec.md"), "# widget\n");
   fs.mkdirSync(path.join(root, "lawbook", "anchors"), { recursive: true });
   fs.writeFileSync(path.join(root, "lawbook", "anchors", "widget.json"), "{}\n");
-  assert.equal(shipOnStop(root).skipped, "unchanged-since-last-ship");
+  assert.equal(shipOnStop(root).skipped, "unchanged-since-last-ship", "uncommitted");
+  git(root, "add", "-A");
+  git(root, "commit", "-qm", "archive");
+  assert.equal(
+    shipOnStop(root).skipped,
+    "unchanged-since-last-ship",
+    "committed, as an archive is",
+  );
 });

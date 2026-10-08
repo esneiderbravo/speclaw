@@ -173,3 +173,12 @@ WHEN there is no Compass index, a global file changed, or no test reaches change
 - Given a project without a Compass index
 - When ship runs its `npm test` gate
 - Then the gate runs `npm test` and the report names why
+
+### Requirement: The lawbook's own output is not work
+
+The system SHALL exclude `lawbook/changes/`, `lawbook/specs/`, `lawbook/anchors/` and `.speclaw/` from the files a ship measures and from the fingerprint that decides whether the Stop hook ships again.
+
+#### Scenario: Archive output after a ship
+- Given a branch whose work was shipped by the Stop hook
+- When an archive promotes a canonical spec under `lawbook/specs/` and seals an anchor under `lawbook/anchors/`
+- Then the next Stop hook skips with `unchanged-since-last-ship`
