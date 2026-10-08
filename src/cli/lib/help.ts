@@ -26,6 +26,7 @@ Compass (code intelligence — the same surface agents use via MCP)
   index                    (Re)build the local code graph (--force / --prune / --json)
   session-start            Silent, fail-safe refresh of an existing index (SessionStart hook)
   ship-on-stop             Ship the branch's change when work changed (Stop hook)
+  measure-diff             Measure the branch diff's level into the cache (edit hook job)
   reindex-file [paths...]  Silent re-index of edited files (PostToolUse hook; stdin JSON)
   watch                    Keep the index fresh on file changes
   explore <node>           A node's source + callers/callees
@@ -190,6 +191,16 @@ Keep the Compass index fresh: re-index changed files until interrupted (Ctrl-C).
 The Claude Code Stop hook. On a feature branch whose work changed since the
 last ship, runs \`speclaw ship\` for the change named after the branch. Prints
 nothing on stdout; a failing gate goes to stderr with exit 2 once.
+`,
+  },
+  {
+    name: "measure-diff",
+    usage: `Usage: speclaw measure-diff
+
+Measure the branch diff's ceremony level into .speclaw/level-cache.json. The
+edit hook starts it as a detached background job when the changed files change,
+so the hook never waits on a slow measurement; ship reuses the cached result.
+Silent and fail-safe.
 `,
   },
   {

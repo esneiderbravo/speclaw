@@ -66,9 +66,10 @@ export function bashCodeRead(
     const where = existing.find(
       (a) => isDirectory(projectPath, a) === true || indexedExt(path.extname(a) || "."),
     );
+    // Shell quoting and escapes are not part of the searched text.
+    const pattern = args[0]?.replace(/^[\\'"]+|[\\'"]+$/g, "") || undefined;
     // No path argument: a search of the working directory, i.e. the repo.
-    if (where || existing.length === 0)
-      return { tool: "Grep", raw: where ?? ".", pattern: args[0] };
+    if (where || existing.length === 0) return { tool: "Grep", raw: where ?? ".", pattern };
   }
   return null;
 }

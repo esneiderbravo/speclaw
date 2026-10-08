@@ -1,4 +1,4 @@
-import { shipOnStop } from "../../modules/lawbook/ship.js";
+import { measureBranchDiff, shipOnStop } from "../../modules/lawbook/ship.js";
 
 /**
  * `speclaw ship-on-stop`: the Claude Code `Stop` hook. Ships the branch's
@@ -28,6 +28,21 @@ export async function runShipOnStop(cwd: string = process.cwd()): Promise<void> 
     }
   } catch {
     // A hook must never break the session.
+  }
+}
+
+/**
+ * `speclaw measure-diff`: the edit hook's detached background job. Measures the
+ * branch diff's ceremony level into `.speclaw/level-cache.json` so the next
+ * hook call and the stop reuse it. Silent and fail-safe.
+ *
+ * @param cwd - Project root (defaults to the process working directory).
+ */
+export async function runMeasureDiff(cwd: string = process.cwd()): Promise<void> {
+  try {
+    measureBranchDiff(cwd);
+  } catch {
+    // A background job must never surface anywhere.
   }
 }
 

@@ -18,6 +18,7 @@ import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { buildServer } from "../../src/server.js";
 import { specInit } from "../../src/modules/lawbook/engine.js";
+import { measureBranchDiff } from "../../src/modules/lawbook/ship.js";
 import { tmpRepo, write } from "../helpers/env.js";
 
 test("full profile registers exactly nine canonical MCP tools", () => {
@@ -110,8 +111,11 @@ test("speclaw_check carries the documentation hint for its doc group and Bash, i
       ).content[0]!.text,
     ) as { verdict: string; hookSpecificOutput?: { additionalContext: string } };
 
+  const queued = await call({ speclaw_hint: "doc", tool_input: {} }, "Edit");
+  assert.equal(queued.verdict, "allow");
+  assert.equal(queued.hookSpecificOutput, undefined, "measured in the background first");
+  measureBranchDiff(root);
   const first = await call({ speclaw_hint: "doc", tool_input: {} }, "Edit");
-  assert.equal(first.verdict, "allow");
   assert.match(first.hookSpecificOutput?.additionalContext ?? "", /measures level [1-3]/);
   assert.ok(fs.existsSync(path.join(root, "lawbook", "changes", "widget", "change.json")));
 

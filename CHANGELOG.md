@@ -5,6 +5,21 @@ All notable changes to this project are documented here. Speclaw follows
 
 ## [Unreleased]
 
+## [2.0.21] — 2026-10-08
+
+### Fixed
+
+- The documentation hint no longer stalls the agent on large diffs. It measured
+  the branch diff inside the `PostToolUse` hook: on a 47-file change in a
+  1,211-file repo that took 12.9 s against the hook's 5 s timeout, so Claude
+  Code cancelled it, the level-3 hint was lost, and the stop measured the same
+  diff again. The hook now answers in ~35 ms and starts `speclaw measure-diff`
+  in the background; the hint arrives on a later call (~14 s in that repo),
+  ship reuses the cached measurement (stop overhead 12.6 s → 0.24 s), and a
+  level counts as told only when its hint is returned.
+- The Compass nudge strips shell quotes and escapes from a searched pattern
+  (`rg "foo\"` suggested `compass_find "foo\"`).
+
 ## [2.0.20] — 2026-10-08
 
 ### Fixed

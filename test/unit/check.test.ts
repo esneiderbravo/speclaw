@@ -542,3 +542,10 @@ test("Bash output filters and in-place edits are not code reads", (t) => {
   assert.equal(post(root, "Bash", { command: "npm test 2>&1 | grep -n fail" }).nudge, undefined);
   assert.equal(post(root, "Bash", { command: "sed -i '' 's/1/2/' src/ship.ts" }).nudge, undefined);
 });
+
+test("a quoted or escaped shell search pattern reaches the nudge clean", (t) => {
+  const root = bare(t);
+  write(root, "src/ship.ts", "export const a = 1;\n");
+  const nudge = post(root, "Bash", { command: 'rg -n "noEmitOnError\\" src' }).nudge ?? "";
+  assert.match(nudge, /compass_find "noEmitOnError"/);
+});

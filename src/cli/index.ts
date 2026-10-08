@@ -128,6 +128,8 @@ async function dispatch(
       return (await import("./commands/ship.js")).runShip(flags);
     case "ship-on-stop":
       return (await import("./commands/ship-on-stop.js")).runShipOnStop();
+    case "measure-diff":
+      return (await import("./commands/ship-on-stop.js")).runMeasureDiff();
     case "cortex":
       return (await import("./commands/cortex.js")).runCortex(flags);
     case "lawbook":
@@ -175,7 +177,7 @@ async function main(): Promise<void> {
   await maybeHeader(cmd, flags);
   await dispatch(cmd, flags);
   // The SessionStart and edit hooks must stay silent: no update notice either.
-  if (cmd === "session-start" || cmd === "reindex-file" || cmd === "ship-on-stop") return;
+  if (["session-start", "reindex-file", "ship-on-stop", "measure-diff"].includes(cmd ?? "")) return;
   await maybeNotifyUpdate(cmd);
 }
 
