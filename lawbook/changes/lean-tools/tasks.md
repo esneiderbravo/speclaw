@@ -18,7 +18,7 @@
 
 - [x] 2.1 Update the affected tests; add `review-handoff`, `test-nudge`, retired-name and harness-rejection tests
 - [x] 2.2 Verify live that Claude Code fires `PostToolUseFailure` for a failing Bash, with the output in `error`
-- [ ] 2.3 Real agent runs (one-line, medium, large) speclaw vs agent alone → `reports/performance.md`
+- [x] 2.3 Real agent runs (one-line, medium, large) speclaw vs agent alone → `reports/performance.md`
 - [x] 2.4 Version 2.1.0 and CHANGELOG with the BREAKING note
 - [ ] 2.5 Discipline reports under reports/ (written by ship from the gates)
 - [ ] 2.6 Archive the change within the same PR
