@@ -5,6 +5,20 @@ All notable changes to this project are documented here. Speclaw follows
 
 ## [Unreleased]
 
+## [2.0.19] — 2026-10-08
+
+### Fixed
+
+- The `Stop` hook no longer re-ships work that was only committed. A branch
+  that added new files changed its fingerprint on commit (the files moved from
+  the untracked hash into the diff), so the next turn re-ran every gate and
+  rewrote the archived report with nothing but new timings. Files now hash by
+  name and contents whether untracked, staged or committed, and the report's
+  file list includes new files before they are committed.
+- Every branded command, not only `speclaw init`, matches its palette to the
+  terminal background, so `speclaw update`, `doctor`, `ship` and the rest are
+  legible on light terminals.
+
 ## [2.0.18] — 2026-10-08
 
 ### Fixed
