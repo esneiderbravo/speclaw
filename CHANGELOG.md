@@ -5,6 +5,23 @@ All notable changes to this project are documented here. Speclaw follows
 
 ## [Unreleased]
 
+## [2.0.23] — 2026-10-08
+
+### Fixed
+
+- `lawbook_change` accepts the arguments agents actually send: `archive`
+  dates the folder today when no date is given; `archive` and level-0 `ship`
+  sync an unsynced delta themselves instead of refusing; `validate`, `sync`,
+  `archive`, `ship`, `level set`/`promote` and `harness` infer the change when
+  it is left out (the only active change, else the branch's); `name` reads as
+  `change`; action `create`/`new` drafts; a comma-separated `paths` is a list.
+  In real sessions these accounted for most of the 11 % of speclaw calls that
+  failed and cost the agent a retry.
+- `compass_explore` given a search phrase and no `node` answers as a find
+  instead of a validation error.
+- `cortex` on an undrafted change says to draft it first and lists the active
+  changes.
+
 ## [2.0.22] — 2026-10-08
 
 ### Fixed
