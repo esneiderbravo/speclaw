@@ -193,6 +193,14 @@ test("retired tool names are not registered", () => {
   for (const name of RETIRED_NAMES) assert.equal(tools.has(name), false, name);
 });
 
+test("lawbook_change rejects the removed harness action", () => {
+  const change = schemaOf(captureTools(registerSpec).get("lawbook_change")!);
+  assert.throws(
+    () => change.parse({ projectPath: "/x", action: "harness", harnessOp: "status" }),
+    /action/,
+  );
+});
+
 /** A ~110-line function whose source renders between the brief and full ceilings. */
 function seedBigFunction(root: string): void {
   const body = Array.from(
