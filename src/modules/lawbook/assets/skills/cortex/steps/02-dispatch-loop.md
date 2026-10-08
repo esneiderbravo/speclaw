@@ -8,6 +8,11 @@ For the current Cortex stage (`cortex` action `brief` or `status`):
      list file paths for the explorer to read — it locates code through
      Compass (`compass_find` / `compass_explore`) and reports
      `Compass calls made: N`.
+   - **Reviewer template.** At stage `reviewing`, `brief` exports the branch
+     diff to `review.diffPath` and returns `review.prompt`: paste that prompt
+     unchanged. The reviewer works from the diff and `compass_diff_context`,
+     checks the defect classes, and writes a `reports/review.md` of at most
+     40 lines. Do not widen its scope to the whole repo.
    - When the role is the planner, paste the explorer brief into the prompt
      unchanged: symbols with files, callers and callees, blast radius,
      standards already read, recommended approach, open questions, and gaps.
