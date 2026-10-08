@@ -14,6 +14,7 @@
  *               planted process defects (`--defects`); a Cortex reviewer
  *               reviews it. Measures review time and which defects it caught.
  *               `--control` adds a defect-free probe that should PASS.
+ *               `--scenario review` runs only this probe.
  *   fanout  A — one agent builds three large independent modules.
  *           F — the same task through the Cortex fan-out lane (parallel agents).
  *
@@ -50,7 +51,7 @@
  * setup, grading, transcript parsing, summary — runs with no model call.
  *
  * Usage:
- *   node scripts/bench/cortex-flow.mjs [--scenario full|fanout|all] [--runs 3]
+ *   node scripts/bench/cortex-flow.mjs [--scenario full|fanout|review|all] [--runs 3]
  *     [--defects stub,real-data,red-first] [--control] [--dry-run]
  *     [--speclaw-dist <dist>] [--timeout-min 40] [--json <file>] [--md <file>]
  *     [--keep]
@@ -139,7 +140,8 @@ function parseArgs(argv) {
       process.exit(0);
     } else throw new Error(`unknown argument: ${a}`);
   }
-  if (!["full", "fanout", "all"].includes(out.scenario)) throw new Error(`bad --scenario`);
+  if (!["full", "fanout", "review", "all"].includes(out.scenario))
+    throw new Error(`bad --scenario`);
   if (!(out.runs >= 1)) throw new Error("--runs must be ≥ 1");
   for (const d of out.defects) if (!DEFECTS[d]) throw new Error(`unknown defect: ${d}`);
   return out;
@@ -949,11 +951,13 @@ function main() {
   const log = (msg) => process.stderr.write(`[cortex-flow] ${msg}\n`);
   try {
     for (let i = 1; i <= opts.runs; i++) {
-      if (opts.scenario !== "fanout") {
+      if (opts.scenario === "full" || opts.scenario === "all") {
         for (const mode of ["A", "B"]) {
           log(`full ${mode} run ${i}/${opts.runs}`);
           push(`full-${mode}`, runTask(bench, opts, "full", mode, i));
         }
+      }
+      if (opts.scenario !== "fanout") {
         log(`review probe run ${i}/${opts.runs}`);
         push("review", runReview(bench, opts, i, opts.defects, "review"));
         if (opts.control) {
@@ -961,7 +965,7 @@ function main() {
           push("control", runReview(bench, opts, i, [], "control"));
         }
       }
-      if (opts.scenario !== "full") {
+      if (opts.scenario === "fanout" || opts.scenario === "all") {
         for (const mode of ["A", "F"]) {
           log(`fanout ${mode} run ${i}/${opts.runs}`);
           push(`fanout-${mode}`, runTask(bench, opts, "fanout", mode, i));
