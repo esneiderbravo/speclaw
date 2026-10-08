@@ -772,7 +772,11 @@ export function pendingArtifacts(projectPath: string, name: string, files?: stri
       }
     }
   }
-  if (level > 0 && state(path.join("reports", "api.md")) === "missing") {
+  // A report ship generated (`ship.discipline: api`) is gate output, not the contract.
+  const apiReport = path.join(dir, "reports", "api.md");
+  const apiWritten =
+    fs.existsSync(apiReport) && !fs.readFileSync(apiReport, "utf8").includes(GENERATED_MARK);
+  if (level > 0 && !apiWritten) {
     const api = files
       ? apiSurfaceChanges(projectPath, files).map((h) => h.file)
       : (readCeremonyRecord(projectPath, name)?.signals.apiSurface ?? []);

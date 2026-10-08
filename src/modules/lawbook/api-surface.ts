@@ -18,8 +18,9 @@ const ROUTE_LINE: RegExp[] = [
   /^@(RestController|RequestMapping|GetMapping|PostMapping|PutMapping|PatchMapping|DeleteMapping)\b/,
   // FastAPI, Flask and similar decorator routers.
   /^@\w+\.(get|post|put|patch|delete|route|api_route|websocket)\s*\(/,
-  // Express, Koa, Fastify, Hono: `router.get("/x", …)`.
-  /^(\w+\.)?(app|router|server|fastify|api|routes?)\.(get|post|put|patch|delete|all|route)\s*\(\s*["'`/]/,
+  // Express, Koa, Fastify, Hono: `router.get("/x", handler)` — a path and a
+  // handler, so a client call (`api.get("/users")`) or `app.get("port")` is not one.
+  /^(\w+\.)?(app|router|server|fastify|routes?)\.(get|post|put|patch|delete|all)\s*\(\s*["'`]\/[^"'`]*["'`]\s*,/,
   // Go net/http, gin, echo, chi: `r.GET("/x", …)`, `mux.HandleFunc("/x", …)`.
   /^\w+\.(GET|POST|PUT|PATCH|DELETE|HandleFunc|Handle)\s*\(\s*"\//,
 ];
@@ -93,12 +94,26 @@ function changedLines(projectPath: string, files: string[]): Map<string, string[
   if (base) {
     const r = spawnSync(
       "git",
-      ["-c", "core.quotePath=false", "diff", "-U0", "--no-color", base, "--", ...files],
+      [
+        "-c",
+        "core.quotePath=false",
+        "diff",
+        "-U0",
+        "--no-color",
+        "--no-ext-diff",
+        "--no-renames",
+        "--src-prefix=a/",
+        "--dst-prefix=b/",
+        base,
+        "--",
+        ...files,
+      ],
       { cwd: projectPath, encoding: "utf8", maxBuffer: 64 * 1024 * 1024 },
     );
     let current: string | null = null;
     for (const line of (r.status === 0 ? r.stdout : "").split("\n")) {
-      const head = /^(---|\+\+\+) (?:[ab]\/(.+)|\/dev\/null)$/.exec(line);
+      // A path with a space ends its header with a tab.
+      const head = /^(---|\+\+\+) (?:[ab]\/(.+?)|\/dev\/null)\t?$/.exec(line);
       if (head) {
         // A deleted file's `+++ /dev/null` keeps the name its `--- a/` line set.
         if (head[2]) current = head[2];

@@ -213,7 +213,7 @@ WHEN a change at level 2 or more runs a test gate whose affected tests span seve
 
 ### Requirement: The stop tells the user what it did
 
-WHEN the `Stop` hook ships, the system SHALL print one JSON line on stdout whose `systemMessage` names the gates with their times and the result, the archive or what is left (open the PR, owed artifacts, a failing gate); a skipped stop prints nothing.
+WHEN the `Stop` hook ships, the system SHALL print one JSON line on stdout and exit 0: its `systemMessage` names the gates with their times and the result, the archive or what is left (open the PR, owed artifacts, a failing gate), and when the agent owes artifacts or a gate failed on a first stop it also carries `decision: block` with the reason the agent acts on; a skipped stop prints nothing.
 
 #### Scenario: Passing gates at level 3
 - Given a level-3 change whose gates pass

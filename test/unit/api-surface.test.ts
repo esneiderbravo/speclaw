@@ -92,3 +92,28 @@ test("removing a route is an API change too", (t) => {
   fs.writeFileSync(file, fs.readFileSync(file, "utf8").replace("  @Get()\n", ""));
   assert.equal(apiSurfaceChanges(root, ["src/orders.controller.ts"]).length, 1);
 });
+
+test("a mention is not a route: strings, regexes and client calls", (t) => {
+  const root = repo(t);
+  write(
+    root,
+    "src/detector.ts",
+    [
+      "const re = /@(Controller|Get)\\s*\\(/;",
+      'const s = "@Get(\\"x\\")";',
+      'api.get("/users");',
+      'app.get("port");',
+    ].join("\n") + "\n",
+  );
+  assert.deepEqual(apiSurfaceChanges(root, ["src/detector.ts"]), []);
+});
+
+test("a path with a space is still read from the diff", (t) => {
+  const root = repo(t);
+  write(root, "src/my routes/orders.controller.ts", "export class X {}\n");
+  git(root, "add", "-A");
+  git(root, "commit", "-qm", "space");
+  const file = path.join(root, "src", "my routes", "orders.controller.ts");
+  fs.writeFileSync(file, '@Controller("x")\nexport class X {}\n');
+  assert.equal(apiSurfaceChanges(root, ["src/my routes/orders.controller.ts"]).length, 1);
+});
