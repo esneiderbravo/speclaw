@@ -50,13 +50,21 @@ export function registerCompass(server: McpServer, opts: RegisterOpts = {}): voi
     "Symbol context in one call: source, callers, callees, blast radius, tests. maxDepth>1 returns the whole callee chain with source.",
     {
       projectPath: z.string(),
-      node: z.string(),
+      node: z.string().optional(),
+      query: z.string().optional(),
       to: z.string().optional(),
       include: includeEnum.optional(),
       mode: z.enum(["brief", "full"]).optional(),
       maxDepth: z.number().int().min(1).max(8).optional(),
     },
-    async ({ projectPath, node, to, include, mode, maxDepth }) => {
+    async ({ projectPath, node, query, to, include, mode, maxDepth }) => {
+      if (!node) {
+        // Agents send a search phrase here; answer it as a find instead of a
+        // validation error that costs a second call.
+        if (!query) throw new Error("compass_explore requires 'node' (a symbol name)");
+        const found = await findSymbols(projectPath, query, "concept");
+        return text(formatFindResponse(found), { maxTokens: found.cap });
+      }
       const result = await exploreRich({
         projectPath,
         node,

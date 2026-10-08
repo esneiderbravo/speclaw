@@ -6,7 +6,7 @@ import { createHash } from "node:crypto";
 import { changedFiles, isGitRepo, mergeBase, worktreeChangedFiles } from "../../shared/git.js";
 import { COMPASS_DOC, stripCompassMapBlock } from "../../shared/compass-map.js";
 import { handleHarness, readHarness } from "../cortex/harness.js";
-import { deltaSpecFiles, specArchive, specArchivePreconditions } from "./engine.js";
+import { deltaSpecFiles, specArchive, specArchivePreconditions, specList } from "./engine.js";
 import {
   artifactNeeds,
   confirmedLevel,
@@ -658,7 +658,7 @@ export function shipChange(projectPath: string, name: string, opts: ShipOptions 
     );
   } else if (!opts.noArchive) {
     recordGateVerdict(projectPath, name);
-    const pre = specArchivePreconditions(projectPath, name);
+    const pre = specArchivePreconditions(projectPath, name, { syncing: true });
     if (pre.length) next.push(...pre);
     else archivedTo = specArchive(projectPath, name, date).archivedTo;
   }
@@ -828,6 +828,26 @@ export function changeNameForBranch(branch: string): string {
       .replace(/[^a-z0-9-]+/g, "-")
       .replace(/^-+|-+$/g, "") || "change"
   );
+}
+
+/**
+ * The change an action means when the agent left `change` out: the only
+ * active change, else the one this branch ships (same rule as the stop hook).
+ *
+ * @param projectPath - Project root.
+ * @returns The change name, or null when no single change fits.
+ */
+export function resolveActiveChange(projectPath: string): string | null {
+  const active = specList(projectPath).activeChanges;
+  if (active.length === 1) return active[0];
+  if (active.length === 0 || !isGitRepo(projectPath)) return null;
+  const branch = currentBranch(projectPath);
+  const named = branchChange(projectPath, branch);
+  if (active.includes(named)) return named;
+  // `feat/FAR-1360-default-cost-center` ships `default-cost-center` too.
+  const slug = changeNameForBranch(branch);
+  const fits = active.filter((c) => slug.endsWith(`-${c}`) || c.endsWith(`-${slug}`));
+  return fits.length === 1 ? fits[0] : null;
 }
 
 function git(projectPath: string, args: string[]): string {
