@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { parseFlags, REPEATABLE_FLAGS } from "./lib/args.js";
-import { ui, header } from "./lib/ui.js";
+import { ui, header, detectTheme } from "./lib/ui.js";
 import { maybeNotifyUpdate } from "./lib/update-check.js";
 import { GLOBAL_HELP as HELP, helpFor, knownCommands, wantsHelp } from "./lib/help.js";
 
@@ -40,11 +40,16 @@ const HEADER_COMMANDS = new Set<string | undefined>([
  * child process. `budget --json`, `doctor --json`, and `coverage` when emitting
  * TAP/JSON (or when stdout is not a TTY) are machine-consumed and suppress the
  * header. `session-start` and `reindex-file` are not header-eligible: they must print
- * nothing.
+ * nothing. The palette is matched to the terminal background first, so every
+ * styled line after it — not only `init`'s — stays legible on a light theme.
  */
-function maybeHeader(cmd: string | undefined, flags: ReturnType<typeof parseFlags>): void {
+async function maybeHeader(
+  cmd: string | undefined,
+  flags: ReturnType<typeof parseFlags>,
+): Promise<void> {
   if (!process.stdout.isTTY && process.env.FORCE_COLOR !== "1") return;
   if (!HEADER_COMMANDS.has(cmd)) return;
+  await detectTheme();
   // A self-update child re-runs `update`; the parent already printed the header.
   if (cmd === "update" && process.env.SPECLAW_SELF_UPDATED) return;
   if (cmd === "budget" && flags.json) return;
@@ -167,7 +172,7 @@ async function main(): Promise<void> {
     return;
   }
   const flags = parseFlags(rest, REPEATABLE_FLAGS);
-  maybeHeader(cmd, flags);
+  await maybeHeader(cmd, flags);
   await dispatch(cmd, flags);
   // The SessionStart and edit hooks must stay silent: no update notice either.
   if (cmd === "session-start" || cmd === "reindex-file" || cmd === "ship-on-stop") return;

@@ -127,6 +127,9 @@ export async function detectTheme(): Promise<Theme> {
     theme = themeFromOsc11(await queryBackground()) ?? (await macAppearance()) ?? "dark";
   }
   setTheme(theme);
+  // Child speclaw processes (a self-update re-run) inherit the answer instead
+  // of querying the terminal again.
+  process.env.SPECLAW_THEME ??= theme;
   return theme;
 }
 
