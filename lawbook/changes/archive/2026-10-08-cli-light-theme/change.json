@@ -1,0 +1,21 @@
+{
+  "level": null,
+  "score": 0,
+  "signals": {
+    "filesTouched": 0,
+    "modulesTouched": 0,
+    "blastRadiusNodes": 0,
+    "affectedTests": 0,
+    "touchesPublicApi": false,
+    "maxHotspotScore": 0,
+    "touchesGlobalFile": false,
+    "onlyDocs": false,
+    "degraded": ["no-targets"]
+  },
+  "rationale": "0 file(s), 0 module(s), 0 affected test(s), 0 blast node(s), no public API, no global file, hotspot=0.00, degraded:[no-targets] → score 0 → level none (cuts 3/8/15)",
+  "degraded": ["no-targets"],
+  "confirmedLevel": 0,
+  "confirmedBy": "human",
+  "confirmedAt": "2026-10-08T00:29:14.939Z",
+  "promotions": []
+}

@@ -1,0 +1,46 @@
+{
+  "version": 1,
+  "change": "cli-light-theme",
+  "stage": "done",
+  "level": 0,
+  "iteration": 0,
+  "maxRework": 3,
+  "verdicts": {
+    "review": null,
+    "test": "PASS"
+  },
+  "openQuestions": [],
+  "history": [
+    {
+      "at": "2026-10-08T00:30:35.181Z",
+      "from": "exploring",
+      "to": "exploring",
+      "op": "start"
+    },
+    {
+      "at": "2026-10-08T00:30:35.183Z",
+      "from": "exploring",
+      "to": "implementing",
+      "op": "advance"
+    },
+    {
+      "at": "2026-10-08T00:30:35.183Z",
+      "from": "implementing",
+      "to": "testing",
+      "op": "advance"
+    },
+    {
+      "at": "2026-10-08T00:30:35.183Z",
+      "from": "testing",
+      "to": "archiving",
+      "op": "advance"
+    },
+    {
+      "at": "2026-10-08T00:30:35.195Z",
+      "from": "archiving",
+      "to": "done",
+      "op": "advance",
+      "note": "archived by lawbook archive"
+    }
+  ]
+}
