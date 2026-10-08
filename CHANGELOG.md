@@ -5,6 +5,33 @@ All notable changes to this project are documented here. Speclaw follows
 
 ## [Unreleased]
 
+## [2.1.0] — 2026-10-08
+
+### Removed — BREAKING
+
+- The 20 retired MCP tool aliases are gone: `compass_search`, `compass_recall`,
+  `compass_impact`, `compass_trace`, `compass_affected_tests`,
+  `compass_hotspots`, `compass_coupling`, `compass_watch`, `lawbook_init`,
+  `lawbook_list`, `lawbook_validate`, `lawbook_sync`, `lawbook_archive`,
+  `lawbook_level`, `lawbook_coverage`, `lawbook_drift`, `init_project`,
+  `configure_agent`, `list_packs`, `add_pack`. Only the nine canonical tools
+  register. A client calling a removed name gets "tool not found": run
+  `speclaw update` and `speclaw doctor`, which lists every project file (now
+  including `ai-specs/skills` and `ai-specs/agents`) that still names one, with
+  its canonical call.
+- `lawbook_change` action `harness` and `speclaw lawbook harness`: use the
+  `cortex` tool or `speclaw cortex`.
+- `SPECLAW_NO_ALIASES` no longer does anything.
+
+### Added
+
+- `cortex` action `brief` at stage `reviewing` exports the branch diff to
+  `.speclaw/review/<change>.diff` and returns a bounded review prompt: read the
+  diff once, one `compass_diff_context`, changed hunks only, a ≤ 40-line
+  `review.md` and a checklist of the defect classes reviews have caught. The
+  reviewer agent follows the same procedure and pins no model, so it works in
+  any agent.
+
 ## [2.0.25] — 2026-10-08
 
 ### Fixed
