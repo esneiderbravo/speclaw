@@ -40,6 +40,34 @@ WHEN a `measured` change archived on the branch is outgrown by the diff and its 
 - When a later branch reuses the change name with a larger diff
 - Then the archive stays in place and only its report is refreshed
 
+### Requirement: An API change owes its contract report
+
+WHEN a change at level 1 or more adds, changes or removes an HTTP route declaration, a DTO's code, or a contract file (OpenAPI, proto, GraphQL) — tests aside — and its `reports/api.md` is missing, the system SHALL list `reports/api.md` among the owed artifacts, naming the files, and SHALL count the change as touching a public API.
+
+#### Scenario: A new endpoint owes the API report
+- Given a branch that adds a NestJS controller with a `@Get` route
+- When ship runs
+- Then the change is level 1 or more and the owed artifacts include `reports/api.md` naming the controller
+
+#### Scenario: A mention is not a route
+- Given a changed line that holds a decorator inside a string or regex, or a comment in a DTO
+- When the API surface is read
+- Then the file is not an API change
+
+#### Scenario: Ship never writes the API report
+- Given the agent wrote `reports/api.md`
+- When the gates pass
+- Then the report is left as written and is not owed
+
+### Requirement: Public entry points come from package.json
+
+The system SHALL take a project's published entry points from the `main` and `bin` fields of its root `package.json`, mapped back to their source file when one exists, for both the level's public-API signal and the Compass map's `entry:` line, and SHALL name no entry when the package declares none.
+
+#### Scenario: A workspace root names no entry
+- Given a root `package.json` with only `workspaces`
+- When the Compass map is generated
+- Then it has no `entry:` line
+
 ### Requirement: Artifacts before gates
 
 WHEN a change at level 1 or more lacks an artifact its level requires or holds a scaffold stub, the system SHALL return the list of owed artifacts instead of running any gate.
@@ -56,7 +84,7 @@ WHEN a change at level 1 or more lacks an artifact its level requires or holds a
 
 ### Requirement: Documentation named while editing
 
-WHEN an edit or a Bash call changes the branch's file set and its measurement shows level 1 or more, the system SHALL create the change and return the artifacts its level owes as additional context, once per change and level.
+WHEN an edit or a Bash call changes the branch's file set and its measurement shows level 1 or more, the system SHALL create the change and return the artifacts its level owes as additional context, once per change, level and kind of artifact owed.
 
 #### Scenario: The hint arrives before the stop
 - Given a branch whose edits grow to five modules and whose diff was measured
@@ -65,7 +93,7 @@ WHEN an edit or a Bash call changes the branch's file set and its measurement sh
 
 ### Requirement: The edit hook never waits on a measurement
 
-WHEN the branch's file set has no cached measurement, the system SHALL start `speclaw measure-diff` as a detached background process and return without a hint.
+WHEN the branch's file set has no cached measurement, the system SHALL start `speclaw measure-diff` as a detached background process, unless one started within the grace period is still running, and return without waiting on it.
 
 #### Scenario: A slow diff does not stall the hook
 - Given a feature branch whose new file set was never measured
@@ -76,6 +104,15 @@ WHEN the branch's file set has no cached measurement, the system SHALL start `sp
 - Given the background job finished measuring the file set
 - When the next hook call runs
 - Then it returns the hint for the measured level
+
+### Requirement: A grown diff is told from its last measurement
+
+WHEN the branch's file set has no measurement of its own but contains every file of the last measured set, the system SHALL tell the hint from that measurement's level, since a measured level only rises.
+
+#### Scenario: An agent that keeps adding files is told at once
+- Given a branch measured at level 1 or more
+- When the agent adds one more file and the documentation hook runs before any new measurement
+- Then the hook creates the change and returns its hint
 
 ### Requirement: One measurement per file set
 
@@ -164,6 +201,24 @@ WHEN ship runs the project's whole-suite test gate (`npm test`, `npm run test`, 
 - Given `ship.tests: full` in `lawbook/config.yaml`
 - When ship runs
 - Then the test gate runs `npm test`
+
+### Requirement: One report per discipline at level 2 or more
+
+WHEN a change at level 2 or more runs a test gate whose affected tests span several packages, the system SHALL run each package's tests as its own gate and write one report per discipline — named for the package directory (`backend`, `frontend`, `e2e`, `mobile`, else the directory name, never `api`) — carrying the repo-wide gates, its own test gate and the files under its package, and SHALL remove reports an earlier ship generated that it no longer writes.
+
+#### Scenario: A backend and a web package
+- Given a level-2 change whose diff reaches tests in `apps/backend` and `apps/web`
+- When the gates pass
+- Then `reports/backend.md` and `reports/frontend.md` are written, each with its own files, and an earlier generated `reports/change.md` is removed
+
+### Requirement: The stop tells the user what it did
+
+WHEN the `Stop` hook ships, the system SHALL print one JSON line on stdout and exit 0: its `systemMessage` names the gates with their times and the result, the archive or what is left (open the PR, owed artifacts, a failing gate), and when the agent owes artifacts or a gate failed on a first stop it also carries `decision: block` with the reason the agent acts on; a skipped stop prints nothing.
+
+#### Scenario: Passing gates at level 3
+- Given a level-3 change whose gates pass
+- When the Stop hook ships
+- Then the user sees `speclaw: gates PASS (…)` followed by the step left: open the PR and archive after approval
 
 ### Requirement: The full suite when the selection cannot be trusted
 

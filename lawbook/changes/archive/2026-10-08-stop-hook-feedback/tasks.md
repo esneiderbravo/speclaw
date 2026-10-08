@@ -18,3 +18,4 @@
 - [x] 2.2 Affected suites pass locally (ship, api-surface, package-entries, hooks, levels, compass, dialects, add-agent, update, check, cli, session-start); the gates run at the stop
 - [x] 2.3 Read-only run of the API detection on the FAR-1387 diff: 5 files (3 endpoints, DTOs) in 130 ms
 - [x] 2.4 Discipline reports under reports/ (written by the Stop hook from the gates)
+- [x] 2.5 Review PASS (reports/review.md), notes 1, 2, 3 and 5 fixed; archive the change within the same PR
