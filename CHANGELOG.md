@@ -5,6 +5,31 @@ All notable changes to this project are documented here. Speclaw follows
 
 ## [Unreleased]
 
+## [2.0.25] — 2026-10-08
+
+### Fixed
+
+- The edit hook tells a change's level while the agent works, not first at the
+  stop: a diff that only grew is told from its last measurement (a floor for
+  its level), and one background measurement runs at a time. Before, an agent
+  adding files faster than a ~20 s measurement landed was never told.
+- HTTP endpoints count as a public API: changed route declarations (NestJS,
+  Spring, FastAPI/Flask, Express-style routers, Go, Next.js route handlers),
+  DTO code and contract files (OpenAPI, proto, GraphQL) raise the level, and at
+  level 1+ owe `reports/api.md`.
+- Entry points come from the project's own `package.json` (`main`, `bin`) for
+  the level signal and the Compass map; speclaw's own `src/server.ts` and
+  `src/cli/index.ts` are no longer assumed in every repo.
+
+### Changed
+
+- At level 2+, tests spanning several packages run one gate per package and
+  ship writes one report per discipline (`backend.md`, `frontend.md`, `e2e.md`…)
+  instead of one lumped `change.md`.
+- The `Stop` hook ends every ship with a one-line `systemMessage` for the user:
+  the gates and their times, then the archive or what is left. Run
+  `speclaw update` to reinstall the hook command that keeps its stdout.
+
 ## [2.0.24] — 2026-10-08
 
 ### Fixed

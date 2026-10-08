@@ -1,0 +1,64 @@
+{
+  "version": 1,
+  "change": "stop-hook-feedback",
+  "stage": "done",
+  "level": 2,
+  "iteration": 0,
+  "maxRework": 3,
+  "verdicts": {
+    "review": "PASS",
+    "test": "PASS"
+  },
+  "openQuestions": [],
+  "history": [
+    {
+      "at": "2026-10-08T20:55:57.469Z",
+      "from": "exploring",
+      "to": "exploring",
+      "op": "start",
+      "note": "level 2 measured; implemented with tests; CI green on PR #77"
+    },
+    {
+      "at": "2026-10-08T20:56:02.475Z",
+      "from": "exploring",
+      "to": "planning",
+      "op": "advance",
+      "note": "artifacts written: proposal, design, tasks, ship delta spec"
+    },
+    {
+      "at": "2026-10-08T20:56:02.550Z",
+      "from": "planning",
+      "to": "implementing",
+      "op": "advance",
+      "note": "implemented; review notes 1,2,3,5 fixed in 3e33fc2"
+    },
+    {
+      "at": "2026-10-08T20:56:02.618Z",
+      "from": "implementing",
+      "to": "reviewing",
+      "op": "advance",
+      "note": "ready for review"
+    },
+    {
+      "at": "2026-10-08T20:56:12.041Z",
+      "from": "reviewing",
+      "to": "testing",
+      "op": "advance",
+      "note": "reviewer PASS, no blocking findings; notes 1,2,3,5 fixed (reports/review.md)"
+    },
+    {
+      "at": "2026-10-08T20:56:14.782Z",
+      "from": "testing",
+      "to": "archiving",
+      "op": "advance",
+      "note": "stop gates PASS (check, build, 61 affected files); CI PASS on 3a04515; 172 affected tests pass after 3e33fc2; CLI blocked-stop verified in scratch repo"
+    },
+    {
+      "at": "2026-10-08T20:56:20.418Z",
+      "from": "archiving",
+      "to": "done",
+      "op": "advance",
+      "note": "archived by lawbook archive"
+    }
+  ]
+}

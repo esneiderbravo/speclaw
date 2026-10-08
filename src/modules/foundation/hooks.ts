@@ -135,7 +135,8 @@ export const SHIP_ON_STOP_MARKER = "speclaw ship-on-stop";
  * with new changes on a feature branch, speclaw sizes the change from its diff,
  * returns the artifacts that level owes, runs the gates once, writes the report
  * from their real output, and archives level-0 work — with no agent turn. Guarded on `lawbook/` instead of the index. Its
- * stderr is kept so a failing gate reaches the agent (exit 2).
+ * stdout is kept: one JSON line blocks the stop with the reason the agent acts
+ * on (owed artifacts, a failing gate) and tells the user what the stop did.
  */
 export const SHIP_ON_STOP_COMMAND = speclawCommand("ship-on-stop");
 
@@ -160,10 +161,11 @@ export function speclawCommand(sub: "session-start" | "reindex-file" | "ship-on-
     `if [ -x node_modules/.bin/speclaw ]; then node_modules/.bin/speclaw ${sub}; ` +
     `elif command -v speclaw >/dev/null 2>&1; then speclaw ${sub}; ` +
     `else npm_config_update_notifier=false npm_config_offline=true npx --no-install @esneiderbravo/speclaw ${sub}; fi; `;
-  // The ship hook keeps its exit code (2 feeds a failing gate back to the
-  // agent) and its stderr; stdout is discarded like the other hooks.
+  // The ship hook keeps its stdout and stderr: the one JSON line it prints
+  // blocks the stop when the agent owes something and tells the user what
+  // the stop did.
   return ship
-    ? 'cd "${CLAUDE_PROJECT_DIR:-.}" 2>/dev/null && [ -d lawbook ] && { ' + run + "} >/dev/null"
+    ? 'cd "${CLAUDE_PROJECT_DIR:-.}" 2>/dev/null && [ -d lawbook ] && { ' + run + "}"
     : 'cd "${CLAUDE_PROJECT_DIR:-.}" 2>/dev/null && [ -f .speclaw/index.db ] && { ' +
         run +
         "} >/dev/null 2>&1 || true";

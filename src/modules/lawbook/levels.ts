@@ -12,6 +12,8 @@ import {
   inferModule,
 } from "../compass/affected-config.js";
 import { formatJson } from "../../shared/json.js";
+import { packageEntries } from "../../shared/package-entries.js";
+import { apiSurfaceChanges } from "./api-surface.js";
 
 /** Confirmed / proposed ceremony level. */
 export type CeremonyLevel = 0 | 1 | 2 | 3;
@@ -39,6 +41,12 @@ export interface CeremonySignals {
   blastRadiusNodes: number;
   affectedTests: number;
   touchesPublicApi: boolean;
+  /**
+   * Changed files that add, change or remove an HTTP route, a DTO or a contract
+   * file (OpenAPI, proto, GraphQL); present only when there is one. They owe
+   * `reports/api.md`.
+   */
+  apiSurface?: string[];
   /** 0..1 pressure from hotspots among touched files (max combinedScore / floor). */
   maxHotspotScore: number;
   touchesGlobalFile: boolean;
@@ -381,8 +389,19 @@ export function gatherSignals(
 
   let blastRadiusNodes = 0;
   let affected = 0;
-  let touchesPublicApi = false;
   let maxHotspotScore = 0;
+
+  // A published entry point (package.json `main`/`bin`) or an HTTP route,
+  // DTO or contract file in the diff: either is a surface other code calls.
+  const entries = packageEntries(projectPath).map((e) => e.file);
+  const apiSurface = pathList.length
+    ? apiSurfaceChanges(projectPath, pathList).map((h) => h.file)
+    : [];
+  const touchesPublicApi =
+    apiSurface.length > 0 ||
+    pathList.some((p) =>
+      entries.some((e) => p === e || e.endsWith(`/${p}`) || p.endsWith(`/${e}`)),
+    );
 
   if (indexExists(projectPath) && pathList.length > 0) {
     try {
@@ -395,31 +414,6 @@ export function gatherSignals(
     try {
       const at = affectedTests(projectPath, { files: pathList });
       affected = at.mode === "all" ? Math.max(at.tests.length, 50) : at.tests.length;
-    } catch {
-      /* soft */
-    }
-    try {
-      const pkgPath = path.join(projectPath, "package.json");
-      if (fs.existsSync(pkgPath)) {
-        const pkg = JSON.parse(fs.readFileSync(pkgPath, "utf8")) as {
-          main?: string;
-          bin?: string | Record<string, string>;
-        };
-        const entries = new Set<string>();
-        if (typeof pkg.main === "string") entries.add(pkg.main.replace(/^\.\//, ""));
-        if (typeof pkg.bin === "string") entries.add(pkg.bin.replace(/^\.\//, ""));
-        else if (pkg.bin && typeof pkg.bin === "object") {
-          for (const v of Object.values(pkg.bin)) entries.add(String(v).replace(/^\.\//, ""));
-        }
-        for (const e of entries) {
-          if (pathList.some((p) => p === e || e.endsWith(p) || p.endsWith(e))) {
-            touchesPublicApi = true;
-          }
-        }
-        if (pathList.some((p) => p === "src/cli/index.ts" || p === "src/server.ts")) {
-          touchesPublicApi = true;
-        }
-      }
     } catch {
       /* soft */
     }
@@ -452,6 +446,7 @@ export function gatherSignals(
     blastRadiusNodes,
     affectedTests: affected,
     touchesPublicApi,
+    ...(apiSurface.length ? { apiSurface } : {}),
     maxHotspotScore,
     touchesGlobalFile,
     onlyDocs,
