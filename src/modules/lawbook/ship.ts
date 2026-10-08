@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
-import { spawnSync } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
 import { createHash } from "node:crypto";
 import { changedFiles, isGitRepo, mergeBase, worktreeChangedFiles } from "../../shared/git.js";
 import { handleHarness, readHarness } from "../cortex/harness.js";
@@ -290,10 +291,77 @@ function isVersionBump(projectPath: string, base: string | null, file: string): 
  * manifests is not a global change, so it does not raise the level.
  */
 function measureDiff(projectPath: string, files: string[]): CeremonyProposal {
+  const cached = cachedMeasure(projectPath, files);
+  if (cached) return cached;
   const base = mergeBase(projectPath, "main") ?? mergeBase(projectPath, "master");
   const paths = files.filter((f) => !isVersionBump(projectPath, base, f));
   const { thresholds } = loadCeremonyConfig(projectPath);
-  return proposeLevel(gatherSignals(projectPath, { paths, symbols: [] }, thresholds), thresholds);
+  const proposal = proposeLevel(
+    gatherSignals(projectPath, { paths, symbols: [] }, thresholds),
+    thresholds,
+  );
+  try {
+    const file = path.join(projectPath, LEVEL_CACHE);
+    fs.mkdirSync(path.dirname(file), { recursive: true });
+    fs.writeFileSync(file, JSON.stringify({ key: fileSetKey(files), proposal }) + "\n");
+  } catch {
+    // The cache only saves time; the measurement stands without it.
+  }
+  return proposal;
+}
+
+/**
+ * The last measurement, kept per changed-file set: measuring a large diff
+ * (blast radius, affected tests) takes seconds, so the edit hook measures in
+ * the background and ship reuses the result at the stop.
+ */
+const LEVEL_CACHE = path.join(".speclaw", "level-cache.json");
+
+function fileSetKey(files: string[]): string {
+  return createHash("sha256").update(files.join("\n")).digest("hex");
+}
+
+/** The cached proposal for exactly this file set, or null. */
+function cachedMeasure(projectPath: string, files: string[]): CeremonyProposal | null {
+  try {
+    const c = JSON.parse(fs.readFileSync(path.join(projectPath, LEVEL_CACHE), "utf8")) as {
+      key?: string;
+      proposal?: CeremonyProposal;
+    };
+    return c.key === fileSetKey(files) && c.proposal ? c.proposal : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Measure the branch's current diff into the level cache (`speclaw
+ * measure-diff`, the edit hook's detached background job).
+ *
+ * @param projectPath - Project root.
+ */
+export function measureBranchDiff(projectPath: string): void {
+  const files = branchFiles(projectPath);
+  if (files.length) measureDiff(projectPath, files);
+}
+
+/** The CLI entry beside this module, run by the background measurement. */
+const CLI_ENTRY = fileURLToPath(new URL("../../cli/index.js", import.meta.url));
+
+/** Start `speclaw measure-diff` in its own process group; never waits, never throws. */
+function measureInBackground(projectPath: string): void {
+  try {
+    const child = spawn(process.execPath, [CLI_ENTRY, "measure-diff"], {
+      cwd: projectPath,
+      detached: true,
+      stdio: "ignore",
+      windowsHide: true,
+    });
+    child.on("error", () => {});
+    child.unref();
+  } catch {
+    // The stop measures anyway; a lost background job only delays the hint.
+  }
 }
 
 /**
@@ -639,21 +707,41 @@ export function docHint(projectPath: string): string | null {
       .filter((l) => !l.includes(" lawbook/changes/") && !l.includes(" .speclaw/"))
       .join("\n");
     const statePath = path.join(projectPath, DOC_HINT_STATE);
-    let prev: { quick?: string; key?: string; change?: string; level?: number } = {};
+    let prev: {
+      quick?: string;
+      key?: string;
+      /** A background measurement started for this file set, at this time. */
+      pending?: { key: string; at: number };
+      /** The last change and level a hint was returned for. */
+      told?: { change: string; level: number };
+    } = {};
     try {
       prev = JSON.parse(fs.readFileSync(statePath, "utf8")) as typeof prev;
     } catch {
       // First hint on this checkout.
     }
-    if (prev.quick === quick) return null;
+    const save = (next: typeof prev) => {
+      fs.mkdirSync(path.dirname(statePath), { recursive: true });
+      fs.writeFileSync(statePath, JSON.stringify(next) + "\n");
+    };
+    if (prev.quick === quick && !prev.pending) return null;
+    // A measurement still running for this same worktree: nothing new to say yet,
+    // and listing the branch's files would cost more git calls than the answer.
+    if (prev.quick === quick && prev.pending && !measuredSince(projectPath, prev.pending.at)) {
+      if (Date.now() - prev.pending.at < MEASURE_GRACE_MS) return null;
+    }
     const files = branchFiles(projectPath);
     const key = `${branch}\n${files.join("\n")}`;
-    const remember = (extra: { change?: string; level?: number }) => {
-      fs.mkdirSync(path.dirname(statePath), { recursive: true });
-      fs.writeFileSync(statePath, JSON.stringify({ ...prev, quick, key, ...extra }) + "\n");
-    };
-    if (files.length === 0 || prev.key === key) {
-      remember({});
+    if (files.length === 0 || (prev.key === key && !prev.pending)) {
+      save({ ...prev, quick, key });
+      return null;
+    }
+    // Measuring a large diff takes seconds — longer than the hook may run —
+    // so it happens in the background and the hint follows on a later call.
+    if (!cachedMeasure(projectPath, files)) {
+      const fresh = prev.pending?.key === key && Date.now() - prev.pending.at < MEASURE_GRACE_MS;
+      if (!fresh) measureInBackground(projectPath);
+      save({ ...prev, quick, pending: fresh ? prev.pending : { key, at: Date.now() } });
       return null;
     }
 
@@ -667,10 +755,15 @@ export function docHint(projectPath: string): string | null {
       if ((proposal.level ?? 0) > 0) scaffoldMeasured(projectPath, change, files, proposal);
     }
     const level = fs.existsSync(changeDir) ? confirmedLevel(projectPath, change) : 0;
-    remember({ change, level });
-
     const pending = level > 0 ? pendingArtifacts(projectPath, change) : [];
-    if (pending.length === 0 || (prev.change === change && prev.level === level)) return null;
+    const told = prev.told?.change === change && prev.told.level === level;
+    if (pending.length === 0 || told) {
+      save({ quick, key, ...(prev.told ? { told: prev.told } : {}) });
+      return null;
+    }
+    // "Told" is recorded only with the hint actually returned, so a level is
+    // never marked as told by a call that said nothing.
+    save({ quick, key, told: { change, level } });
     const why = readCeremonyRecord(projectPath, change)?.rationale ?? "";
     return (
       `speclaw: this change measures level ${level}${why ? ` (${why})` : ""}. ` +
@@ -681,6 +774,18 @@ export function docHint(projectPath: string): string | null {
     return null;
   }
 }
+
+/** Whether the level cache was written at or after `at` (epoch ms). */
+function measuredSince(projectPath: string, at: number): boolean {
+  try {
+    return fs.statSync(path.join(projectPath, LEVEL_CACHE)).mtimeMs >= at;
+  } catch {
+    return false;
+  }
+}
+
+/** How long a started background measurement is awaited before it is started again. */
+const MEASURE_GRACE_MS = 2 * 60 * 1000;
 
 /** Outcome of {@link shipOnStop}: why it skipped, or the ship result. */
 export type ShipOnStopResult =

@@ -11,6 +11,7 @@ import { confirmedLevel } from "../../src/modules/lawbook/levels.js";
 import {
   changeNameForBranch,
   docHint,
+  measureBranchDiff,
   pendingArtifacts,
   detectGates,
   readShipConfig,
@@ -390,9 +391,13 @@ test("docHint tells a level 1+ change what it owes once, while the agent still w
   const root = gitFixture(t);
   git(root, "checkout", "-qb", "feat/hinted");
   fs.writeFileSync(path.join(root, "a.js"), "export const a = 15;\n");
+  assert.equal(docHint(root), null, "unmeasured: the hook never waits");
+  measureBranchDiff(root);
   assert.equal(docHint(root), null, "level 0 owes nothing");
 
   spread(root, 5, 3);
+  assert.equal(docHint(root), null, "a new file set is measured in the background first");
+  measureBranchDiff(root); // what the background job does
   const hint = docHint(root) ?? "";
   assert.match(hint, /measures level [1-3]/);
   assert.match(hint, /tasks\.md/);
@@ -451,4 +456,37 @@ test("a commit body with $-patterns lands in the record literally", (t) => {
     fs.readFileSync(path.join(root, r.archivedTo, "record.md"), "utf8"),
     /keep \$& and \$' literal/,
   );
+});
+
+test("the edit hook's background job measures the diff without the hook waiting", async (t) => {
+  const root = gitFixture(t);
+  git(root, "checkout", "-qb", "feat/background");
+  spread(root, 5, 3);
+  const start = Date.now();
+  assert.equal(docHint(root), null);
+  // Well under the hook's 5 s timeout, with room for a slow CI machine.
+  assert.ok(Date.now() - start < 4000, "the hook call returns at once");
+  const cache = path.join(root, ".speclaw", "level-cache.json");
+  for (let i = 0; i < 150 && !fs.existsSync(cache); i++) {
+    await new Promise((r) => setTimeout(r, 200));
+  }
+  assert.ok(fs.existsSync(cache), "the detached `speclaw measure-diff` wrote the cache");
+  assert.match(docHint(root) ?? "", /measures level [1-3]/);
+});
+
+test("ship reuses the cached measurement of the same file set", (t) => {
+  const root = gitFixture(t);
+  git(root, "checkout", "-qb", "feat/cached");
+  spread(root, 5, 3);
+  measureBranchDiff(root);
+  const cache = path.join(root, ".speclaw", "level-cache.json");
+  const c = JSON.parse(fs.readFileSync(cache, "utf8")) as {
+    proposal: { level: number; rationale: string };
+  };
+  // A different level than these files measure proves the stop did not re-measure.
+  c.proposal.level = 3;
+  c.proposal.rationale = "cached";
+  fs.writeFileSync(cache, JSON.stringify(c));
+  shipChange(root, "cached", { gates: [PASS] });
+  assert.equal(confirmedLevel(root, "cached"), 3);
 });
