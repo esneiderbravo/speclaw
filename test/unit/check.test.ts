@@ -2,10 +2,11 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
-import { tmpRepo, read, has } from "../helpers/env.js";
+import { tmpRepo, read, has, write } from "../helpers/env.js";
 import { checkAction, clearLawCache } from "../../src/modules/foundation/check.js";
 import { writeLawManifest, type Law } from "../../src/modules/foundation/laws.js";
 import { compassNudge } from "../../src/modules/foundation/compass-nudge.js";
+import { writeIndexStats } from "../../src/shared/index-stats.js";
 import {
   COMPASS_CALL_LOG,
   readCompassCalls,
@@ -502,4 +503,42 @@ test("a directory with a dot in its name is a directory, not a file extension", 
   const missing = bare(t);
   assert.equal(post(missing, "Grep", { path: "notes.v1.2", pattern: "x" }).nudge, undefined);
   assert.ok(post(missing, "Grep", { path: "lib/gone", pattern: "x" }).nudge);
+});
+
+test("Bash reads of indexed code nudge like Read/Grep; writes and non-code stay silent", (t) => {
+  const fresh = () => {
+    const root = bare(t);
+    write(root, "src/ship.ts", "export const a = 1;\n");
+    write(root, "notes.txt", "x\n");
+    return root;
+  };
+  const bash = (root: string, command: string) => post(root, "Bash", { command }).nudge;
+
+  assert.match(bash(fresh(), "cat src/ship.ts") ?? "", /compass_explore ship/);
+  assert.match(bash(fresh(), "sed -n '1,40p' src/ship.ts | head") ?? "", /compass_explore ship/);
+  assert.match(bash(fresh(), "cd x && rg -n shipChange src") ?? "", /compass_find "shipChange"/);
+  assert.match(bash(fresh(), "grep -rn shipChange") ?? "", /compass_find "shipChange"/);
+  assert.match(bash(fresh(), "git grep -n shipChange") ?? "", /compass_find "shipChange"/);
+
+  assert.equal(bash(fresh(), "cat > src/new.ts <<'EOF'\nexport {};\nEOF"), undefined);
+  assert.equal(bash(fresh(), "cat notes.txt"), undefined);
+  assert.equal(bash(fresh(), "npm test"), undefined);
+  assert.equal(bash(fresh(), "cat src/missing.ts"), undefined);
+});
+
+test("the nudge stays silent in a repo too small for a graph query to beat a read", (t) => {
+  const small = bare(t);
+  writeIndexStats(small, { files: 3, nodes: 9 });
+  assert.equal(post(small, "Read", { file_path: "src/server.ts" }).nudge, undefined);
+
+  const large = bare(t);
+  writeIndexStats(large, { files: 400, nodes: 2000 });
+  assert.ok(post(large, "Read", { file_path: "src/server.ts" }).nudge);
+});
+
+test("Bash output filters and in-place edits are not code reads", (t) => {
+  const root = bare(t);
+  write(root, "src/ship.ts", "export const a = 1;\n");
+  assert.equal(post(root, "Bash", { command: "npm test 2>&1 | grep -n fail" }).nudge, undefined);
+  assert.equal(post(root, "Bash", { command: "sed -i '' 's/1/2/' src/ship.ts" }).nudge, undefined);
 });

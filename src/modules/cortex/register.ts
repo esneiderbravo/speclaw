@@ -41,7 +41,7 @@ export function registerCortex(server: McpServer, opts: RegisterOpts = {}): void
 
   add(
     "cortex",
-    "Cortex multi-agent loop: status with summary, start, advance, rework, brief for a change.",
+    "Only when work splits into 3+ large independent parts: the multi-agent loop — start, brief, advance, rework, status.",
     {
       projectPath: z.string(),
       change: z.string(),

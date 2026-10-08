@@ -30,7 +30,11 @@ export interface SpeclawHookInput {
       pattern: string;
       glob: string;
       type: string;
+      /** Bash only: the command, for the nudge's shell-read detection. */
+      command: string;
     };
+    /** `doc`: the documentation-hint group, never a law evaluation. */
+    speclaw_hint?: "doc";
   };
 }
 
@@ -128,9 +132,9 @@ export const SHIP_ON_STOP_MARKER = "speclaw ship-on-stop";
 
 /**
  * The POSIX `sh` command the `Stop` hook runs: when the agent finishes a turn
- * with new changes on a feature branch, speclaw records the change, runs the
- * gates once, writes the report from their real output, and archives level-0
- * work — with no agent turn. Guarded on `lawbook/` instead of the index. Its
+ * with new changes on a feature branch, speclaw sizes the change from its diff,
+ * returns the artifacts that level owes, runs the gates once, writes the report
+ * from their real output, and archives level-0 work — with no agent turn. Guarded on `lawbook/` instead of the index. Its
  * stderr is kept so a failing gate reaches the agent (exit 2).
  */
 export const SHIP_ON_STOP_COMMAND = speclawCommand("ship-on-stop");
@@ -185,6 +189,7 @@ const SPECLAW_HOOK_INPUT: SpeclawHookInput = {
       pattern: "${tool_input.pattern}",
       glob: "${tool_input.glob}",
       type: "${tool_input.type}",
+      command: "${tool_input.command}",
     },
   },
 };
@@ -198,6 +203,16 @@ const SPECLAW_HOOK: SpeclawHook = {
   input: SPECLAW_HOOK_INPUT,
 };
 
+/**
+ * The documentation-hint hook: `speclaw_check` with `speclaw_hint: "doc"`, so
+ * an edit tells the agent what its change's level owes while it still works,
+ * without evaluating any law.
+ */
+const DOC_HINT_HOOK: SpeclawHook = {
+  ...SPECLAW_HOOK,
+  input: { ...SPECLAW_HOOK_INPUT, payload: { ...SPECLAW_HOOK_INPUT.payload, speclaw_hint: "doc" } },
+};
+
 /** Tool-name matcher for the file-mutating tools the `path` backend can evaluate. */
 const MUTATION_MATCHER = "Write|Edit|MultiEdit|NotebookEdit";
 
@@ -206,7 +221,7 @@ const MUTATION_MATCHER = "Write|Edit|MultiEdit|NotebookEdit";
  * Installed on `PostToolUse` only: there the result is context the agent reads
  * and the event cannot gate the tool; a `PreToolUse` "allow" would auto-approve.
  */
-export const NUDGE_MATCHER = "Read|Grep|Glob";
+export const NUDGE_MATCHER = "Read|Grep|Glob|Bash";
 
 /**
  * True when a hook object is one speclaw owns (safe to replace on merge): an
@@ -255,9 +270,10 @@ export interface CompiledHooks {
  * Compile a law manifest into the hook groups speclaw contributes, one per event
  * the laws demand: `PreToolUse` when any `bloqueo` law exists, `PostToolUse` for
  * `feedback`, `Stop` for `gate`, and `InstructionsLoaded` whenever any law exists
- * (the context-coverage audit). Two groups are always emitted, even with no
- * laws: one `PostToolUse` group matching `Read|Grep|Glob` for the Compass-first
- * nudge, a separate `PostToolUse` group matching the mutating tools whose
+ * (the context-coverage audit). Groups always emitted, even with no laws: one
+ * `PostToolUse` group matching `Read|Grep|Glob|Bash` for the Compass-first
+ * nudge (Bash also carries the documentation hint), one matching the mutating
+ * tools for the documentation hint, a separate `PostToolUse` group matching the mutating tools whose
  * `command` hook re-indexes the edited file in the background, and one
  * `SessionStart` group whose `command` hook refreshes the index silently when a
  * session starts. A law whose scope contains a malformed glob is
@@ -286,6 +302,8 @@ export function compileHooks(manifest: LawManifest): CompiledHooks {
   byEvent.PostToolUse = [{ matcher: NUDGE_MATCHER, hooks: [{ ...SPECLAW_HOOK }] }];
   if (hasFeedback)
     byEvent.PostToolUse.unshift({ matcher: MUTATION_MATCHER, hooks: [{ ...SPECLAW_HOOK }] });
+  // Always present: edits learn what their change's level owes in the same turn.
+  byEvent.PostToolUse.push({ matcher: MUTATION_MATCHER, hooks: [{ ...DOC_HINT_HOOK }] });
   // Covers: req~edit-reindex-hook~1
   // Its own group, never folded into the feedback `mcp_tool` group, and only
   // the keys the agent's hook schema defines (no `async`).

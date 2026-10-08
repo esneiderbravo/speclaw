@@ -48,21 +48,22 @@ export function registerSpec(server: McpServer, opts: RegisterOpts = {}): void {
     description: string,
     inputSchema: Shape,
     handler: ToolSpec<Shape>["handler"],
+    alwaysLoad = false,
   ) => {
     if (!shouldExpose(name, minimal)) return;
-    defineTool(server, { name, description, inputSchema, handler });
+    defineTool(server, { name, description, inputSchema, handler, alwaysLoad });
   };
 
   add(
     "lawbook_change",
-    "Lawbook lifecycle: init, list, draft, validate, sync, archive, level, coverage, drift.",
+    "Specs: draft before multi-module or public-API work, validate specs you write; level, sync, archive, list, coverage, drift.",
     lawbookChangeSchema,
     async (args) => text(handleLawbookChange(args)),
   );
 
   add(
     "lawbook_investigate",
-    "Rank bug origins from the graph. Pass stackTrace or symptom — evidence, not verdict.",
+    "Use first on a bug, failing test, or stack trace: ranks likely origins from the graph.",
     {
       projectPath: z.string(),
       stackTrace: z.string().optional(),
@@ -71,6 +72,8 @@ export function registerSpec(server: McpServer, opts: RegisterOpts = {}): void {
       maxSuspects: z.number().int().min(1).max(25).optional(),
     },
     async (args) => text(formatInvestigateResult(await investigate(args))),
+    // Bugs are the commonest task; deferred, agents read files to triage.
+    true,
   );
 
   if (minimal || !aliasesEnabled()) return;

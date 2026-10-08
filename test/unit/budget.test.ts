@@ -63,8 +63,9 @@ test("minimal profile registers fewer tools and stays under minimal ceilings", (
   const full = collectRegisteredTools(false);
   const mini = collectRegisteredTools(true);
   assert.ok(mini.length < full.length);
-  // minimal keeps discovery + law loop (+ cortex); omits setup/index/investigate
-  assert.equal(mini.length, 5);
+  // minimal keeps discovery, the hooks' speclaw_check, investigate, and cortex;
+  // omits only setup and index
+  assert.equal(mini.length, 7);
   const actual = measureBudget({
     projectPath: ROOT,
     packagePath: ROOT,
