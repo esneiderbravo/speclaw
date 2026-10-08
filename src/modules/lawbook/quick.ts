@@ -17,11 +17,13 @@ import { scaffoldChange } from "./scaffold-change.js";
  * @param projectPath - Project root with `lawbook/`.
  * @param name - Change folder name (kebab-case).
  * @param targets - Optional paths/symbols used to propose the level (default empty → score 0).
+ * @param measured - A proposal already measured from `targets`, and who confirmed the level.
  */
 export function scaffoldQuick(
   projectPath: string,
   name: string,
   targets: CeremonyTargets = { paths: [], symbols: [] },
+  measured: { proposal?: CeremonyProposal; confirmedBy?: CeremonyRecord["confirmedBy"] } = {},
 ): { change: string; proposal: CeremonyProposal; record: CeremonyRecord; dir: string } {
   // quick always records level 0; if measurement says higher, still allow but note it.
   const quickRationale = (proposal: CeremonyProposal): string =>
@@ -32,6 +34,8 @@ export function scaffoldQuick(
         : proposal.rationale;
   const r = scaffoldChange(projectPath, name, {
     targets,
+    proposal: measured.proposal,
+    confirmedBy: measured.confirmedBy,
     level: 0,
     recordProposal: (proposal) => ({ ...proposal, rationale: quickRationale(proposal) }),
     reason: (proposal) =>
@@ -40,7 +44,7 @@ export function scaffoldQuick(
     artifacts: ({ proposal }) => ({
       "record.md": `# ${name}
 
-**Level:** 0 (proposed: ${proposal.level ?? "n/a"}, confirmed by: human)
+**Level:** 0 (proposed: ${proposal.level ?? "n/a"}, confirmed by: ${measured.confirmedBy ?? "human"})
 **Why:** ${quickRationale(proposal)}
 
 ## What changes

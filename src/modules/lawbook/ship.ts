@@ -4,9 +4,20 @@ import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { changedFiles, isGitRepo, mergeBase, worktreeChangedFiles } from "../../shared/git.js";
 import { handleHarness, readHarness } from "../cortex/harness.js";
-import { specArchive, specArchivePreconditions } from "./engine.js";
-import { confirmedLevel } from "./levels.js";
+import { deltaSpecFiles, specArchive, specArchivePreconditions } from "./engine.js";
+import {
+  artifactNeeds,
+  confirmedLevel,
+  gatherSignals,
+  loadCeremonyConfig,
+  promoteCeremonyLevel,
+  proposeLevel,
+  readCeremonyRecord,
+  readChangeType,
+  type CeremonyProposal,
+} from "./levels.js";
 import { scaffoldQuick } from "./quick.js";
+import { CHANGE_NAME_RE, isPlaceholderDelta, scaffoldFeature } from "./scaffold-change.js";
 
 /** One quality gate run by {@link shipChange}. */
 export interface ShipGate {
@@ -34,7 +45,13 @@ export interface ShipResult {
   gatesPassed: boolean;
   gates: ShipGate[];
   files: string[];
-  report: string;
+  /** Report path; null when ship stopped on `pending` artifacts before the gates. */
+  report: string | null;
+  /**
+   * Artifacts the change's level requires that are missing or still a stub.
+   * When non-empty, no gate ran: the agent writes them and ships again.
+   */
+  pending: string[];
   /** Archive destination; null when not archived (see `next`). */
   archivedTo: string | null;
   /** What still has to happen, e.g. human review on the PR for level 1+. */
@@ -43,7 +60,10 @@ export interface ShipResult {
 }
 
 export interface ShipOptions {
-  /** 1–5 line summary written into record.md; defaults to the changed-file list. */
+  /**
+   * 1–5 line what-and-why written into record.md; defaults to the branch's
+   * commit messages, else at level 0 the changed-file list (level 1+ asks the agent).
+   */
   summary?: string;
   /** Gate commands; default: `ship.gates` in lawbook/config.yaml, else package.json scripts. */
   gates?: string[];
@@ -216,13 +236,211 @@ function findArchived(projectPath: string, name: string): string | null {
   return hit ? path.join("lawbook", "changes", "archive", hit) : null;
 }
 
-function fillRecord(recordPath: string, summary: string): void {
+const RECORD_STUB = "<!-- 2–5 lines: what and why. -->";
+
+function fillRecord(recordPath: string, summary: string | undefined): void {
   if (!fs.existsSync(recordPath)) return;
-  const body = fs
-    .readFileSync(recordPath, "utf8")
-    .replace("<!-- 2–5 lines: what and why. -->", summary)
-    .replace(/^- \[ \] /gm, "- [x] ");
-  fs.writeFileSync(recordPath, body);
+  let body = fs.readFileSync(recordPath, "utf8");
+  // A function replacer: `$&` or `$'` in a commit body must stay literal.
+  if (summary) body = body.replace(RECORD_STUB, () => summary);
+  fs.writeFileSync(recordPath, body.replace(/^- \[ \] /gm, "- [x] "));
+}
+
+/**
+ * The branch's own commit messages (subjects and bodies, trailers dropped),
+ * skipping commits that only touched ship's output; empty when there are none.
+ * A Conventional Commit body is the change's why, so it stands in for one.
+ */
+function commitSummary(projectPath: string): string {
+  const base = mergeBase(projectPath, "main") ?? mergeBase(projectPath, "master");
+  if (!base) return "";
+  return git(projectPath, [
+    "log",
+    "--format=%B",
+    `${base}..HEAD`,
+    "--",
+    ".",
+    ":(exclude)lawbook/changes",
+    ":(exclude).speclaw",
+  ])
+    .split("\n")
+    .filter((l) => !/^[\w-]+-by:/i.test(l))
+    .join("\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim()
+    .split("\n")
+    .slice(0, COMMIT_SUMMARY_LINES)
+    .join("\n");
+}
+
+/** A record's why is a few lines; a long branch history keeps only its start. */
+const COMMIT_SUMMARY_LINES = 15;
+
+/** A manifest whose only diff against `base` is its `"version"` lines: a release bump. */
+function isVersionBump(projectPath: string, base: string | null, file: string): boolean {
+  if (!base || !/(^|\/)package(-lock)?\.json$/.test(file)) return false;
+  const lines = git(projectPath, ["diff", "-U0", base, "--", file])
+    .split("\n")
+    .filter((l) => /^[+-](?![+-]{2})/.test(l));
+  return lines.length > 0 && lines.every((l) => /^[+-]\s*"version"\s*:/.test(l));
+}
+
+/**
+ * Propose a ceremony level from the branch diff itself. A release bump of the
+ * manifests is not a global change, so it does not raise the level.
+ */
+function measureDiff(projectPath: string, files: string[]): CeremonyProposal {
+  const base = mergeBase(projectPath, "main") ?? mergeBase(projectPath, "master");
+  const paths = files.filter((f) => !isVersionBump(projectPath, base, f));
+  const { thresholds } = loadCeremonyConfig(projectPath);
+  return proposeLevel(gatherSignals(projectPath, { paths, symbols: [] }, thresholds), thresholds);
+}
+
+/**
+ * Create the change at the level its diff measures: level 0 gets a record,
+ * level 1+ the feature stubs that level requires. The level is recorded as
+ * `measured`, so a later, larger diff raises it.
+ */
+function scaffoldMeasured(
+  projectPath: string,
+  name: string,
+  files: string[],
+  measured?: CeremonyProposal,
+): void {
+  const proposal = measured ?? measureDiff(projectPath, files);
+  const targets = { paths: files, symbols: [] };
+  const level = proposal.level ?? 0;
+  if (level > 0 && CHANGE_NAME_RE.test(name)) {
+    scaffoldFeature(projectPath, name, { level, targets, proposal, confirmedBy: "measured" });
+  } else {
+    scaffoldQuick(projectPath, name, targets, { proposal, confirmedBy: "measured" });
+  }
+}
+
+/** Raise a measured level when the branch diff has grown past it; a human-set level stands. */
+function remeasure(projectPath: string, name: string, files: string[]): void {
+  const rec = readCeremonyRecord(projectPath, name);
+  if (rec?.confirmedBy !== "measured") return;
+  const proposal = measureDiff(projectPath, files);
+  if (proposal.level !== null && proposal.level > rec.confirmedLevel) {
+    promoteCeremonyLevel(projectPath, name, proposal.level, "the branch diff grew", proposal);
+  }
+}
+
+/**
+ * Reopen a change archived on this branch at a measured level the diff has
+ * since outgrown (work shipped at a mid-task stop, then grew): move it back
+ * under `lawbook/changes/`, drop its finished harness, and raise its level. An
+ * archive that already exists at the merge base belongs to merged work and stays.
+ *
+ * @returns Whether the change was reopened.
+ */
+function reopenIfGrown(
+  projectPath: string,
+  name: string,
+  archivedRel: string,
+  files: string[],
+): boolean {
+  const archivedDir = path.join(projectPath, archivedRel);
+  let rec: { confirmedBy?: string; confirmedLevel?: number } = {};
+  try {
+    rec = JSON.parse(fs.readFileSync(path.join(archivedDir, "change.json"), "utf8")) as typeof rec;
+  } catch {
+    return false;
+  }
+  if (rec.confirmedBy !== "measured" || rec.confirmedLevel === undefined) return false;
+  const base = mergeBase(projectPath, "main") ?? mergeBase(projectPath, "master");
+  if (!base) return false;
+  // git object paths are POSIX on every platform.
+  const objectPath = `${archivedRel.split(path.sep).join("/")}/change.json`;
+  const atBase = spawnSync("git", ["cat-file", "-e", `${base}:${objectPath}`], {
+    cwd: projectPath,
+  });
+  if (atBase.status === 0) return false;
+  const proposal = measureDiff(projectPath, files);
+  if (proposal.level === null || proposal.level <= rec.confirmedLevel) return false;
+  const changeDir = path.join(projectPath, "lawbook", "changes", name);
+  fs.renameSync(archivedDir, changeDir);
+  fs.rmSync(path.join(changeDir, "harness.json"), { force: true });
+  promoteCeremonyLevel(projectPath, name, proposal.level, "the branch diff grew", proposal);
+  return true;
+}
+
+/**
+ * Text a scaffold, a promotion, or ship itself leaves in an artifact until
+ * someone writes it. Task stubs match whole generated lines only, so a real
+ * task that starts the same way ("Make the hook idempotent") is never a stub.
+ */
+const STUBS: Record<string, RegExp[]> = {
+  // At level 1+ the level-0 file list ship filled in is not a why.
+  "record.md": [/<!-- 2–5 lines: what and why\. -->/, /^Changed \d+ file\(s\): /m],
+  "proposal.md": [
+    /<!-- The problem and who it affects\. -->/,
+    /\(promoted — fill in why\)/,
+    // A promotion seeds Why from the level rationale and What with this line.
+    /\(promoted from level \d\)/,
+  ],
+  "design.md": [/<!-- Module boundaries, data flow, and decisions\. -->/, /\(promoted — fill in\)/],
+  "tasks.md": [
+    /^\s*- \[[ xX]\] (1\.1 Implement the change|Implement|Make the fix|Make the change|Add or update a regression test|Add or update tests|Record evidence under reports\/|Write discipline report under reports\/)\s*$/m,
+  ],
+};
+
+/**
+ * Artifacts the change's confirmed level requires that are missing or still a
+ * scaffold stub, as instructions the agent can act on. Level 0 owes nothing:
+ * its record falls back to the commits or the file list, so it costs no turn. Bug-shaped changes keep
+ * their own checks (`bugfix.md`) and are not judged here.
+ *
+ * @param projectPath - Project root with `lawbook/`.
+ * @param name - Change name.
+ * @returns One instruction per missing artifact; empty when the change is documented.
+ */
+export function pendingArtifacts(projectPath: string, name: string): string[] {
+  const dir = path.join(projectPath, "lawbook", "changes", name);
+  if (!fs.existsSync(dir) || readChangeType(projectPath, name) === "bug") return [];
+  const level = confirmedLevel(projectPath, name);
+  const needs = artifactNeeds(level, "feature");
+  const rel = (f: string) => path.join("lawbook", "changes", name, f);
+  const state = (f: string): "missing" | "stub" | "written" => {
+    const abs = path.join(dir, f);
+    if (!fs.existsSync(abs)) return "missing";
+    const text = fs.readFileSync(abs, "utf8");
+    return (STUBS[f] ?? []).some((m) => m.test(text)) ? "stub" : "written";
+  };
+  const out: string[] = [];
+  // Level 0 never waits on prose: the record falls back to commits or the file list.
+  if (needs.record && level > 0 && state("record.md") !== "written") {
+    out.push(`${rel("record.md")}: write what changed and why (2–5 lines) under "What changes"`);
+  }
+  if (needs.proposal && state("proposal.md") !== "written") {
+    out.push(`${rel("proposal.md")}: write why, what changes, and the impact`);
+  }
+  const design = state("design.md");
+  if (needs.design && !needs.designOptionalWithJustification && design !== "written") {
+    out.push(`${rel("design.md")}: write the approach — boundaries, data flow, decisions`);
+  } else if (design === "stub") {
+    out.push(`${rel("design.md")}: write the approach, or delete it (optional at level 2)`);
+  }
+  if (needs.tasksFile && state("tasks.md") !== "written") {
+    out.push(`${rel("tasks.md")}: list the tasks this change did, checked (- [x])`);
+  }
+  if (needs.deltaSpecs) {
+    const specs = deltaSpecFiles(dir);
+    if (specs.length === 0) {
+      out.push(
+        `${rel("specs/<capability>/spec.md")}: add the full intended spec of the capability this changes`,
+      );
+    }
+    for (const f of specs) {
+      if (isPlaceholderDelta(fs.readFileSync(f, "utf8"))) {
+        out.push(
+          `${path.relative(projectPath, f)}: replace the placeholder with the capability's full intended spec (or move it to the capability it changes)`,
+        );
+      }
+    }
+  }
+  return out;
 }
 
 /**
@@ -253,12 +471,13 @@ function recordGateVerdict(projectPath: string, change: string): void {
 }
 
 /**
- * Fast path for finished work, in one call: scaffold a level-0 record when the
- * change does not exist, run the project's gates once, and write a discipline
- * report from their real output. At level 0 passing gates are the whole
- * verification, so the change is archived. At level 1+ ship stops after the
- * evidence: review is a human (or reviewer-role) decision taken on the PR, and
- * the archive follows it.
+ * Fast path for finished work, in one call: create the change at the level its
+ * branch diff measures (raising a measured level when the diff grew), refuse
+ * to run the gates while an artifact that level requires is missing or still a
+ * stub, then run the project's gates once and write a discipline report from
+ * their real output. At level 0 passing gates are the whole verification, so
+ * the change is archived. At level 1+ ship stops after the evidence: review is
+ * a human (or reviewer-role) decision taken on the PR, and the archive follows it.
  *
  * @param projectPath - Project root with `lawbook/`.
  * @param name - Change name (kebab-case).
@@ -273,17 +492,47 @@ export function shipChange(projectPath: string, name: string, opts: ShipOptions 
   const changeDir = path.join(projectPath, "lawbook", "changes", name);
   const files = branchFiles(projectPath);
 
-  const archived = findArchived(projectPath, name);
-  if (!fs.existsSync(changeDir) && !archived) {
-    scaffoldQuick(projectPath, name, { paths: [], symbols: [] });
+  let archived = findArchived(projectPath, name);
+  if (archived && !fs.existsSync(changeDir) && reopenIfGrown(projectPath, name, archived, files)) {
+    archived = null;
   }
-  const summary =
-    opts.summary ??
-    (files.length
-      ? `Changed ${files.length} file(s): ${files.slice(0, 8).join(", ")}${files.length > 8 ? ", …" : ""}`
-      : "No file changes detected.");
-  fillRecord(path.join(changeDir, "record.md"), summary);
+  if (!fs.existsSync(changeDir) && !archived) scaffoldMeasured(projectPath, name, files);
+  else if (fs.existsSync(changeDir)) remeasure(projectPath, name, files);
+  const commits = isGitRepo(projectPath) ? commitSummary(projectPath) : "";
+  const fileList = files.length
+    ? `Changed ${files.length} file(s): ${files.slice(0, 8).join(", ")}${files.length > 8 ? ", …" : ""}`
+    : "No file changes detected.";
+  fillRecord(
+    path.join(changeDir, "record.md"),
+    opts.summary ?? (commits || (confirmedLevel(projectPath, name) === 0 ? fileList : "")),
+  );
+  const pending = pendingArtifacts(projectPath, name);
   const t1 = Date.now();
+  if (pending.length) {
+    const level = confirmedLevel(projectPath, name);
+    const why = readCeremonyRecord(projectPath, name)?.rationale ?? "";
+    return {
+      change: name,
+      gatesPassed: false,
+      gates: [],
+      files,
+      report: null,
+      pending,
+      archivedTo: null,
+      next: [
+        `level ${level}${why ? ` (${why})` : ""}: document the change, then stop again — the gates run once it is written`,
+        ...pending,
+      ],
+      timings: {
+        scaffold: t1 - t0,
+        gates: 0,
+        report: 0,
+        archive: 0,
+        overhead: t1 - t0,
+        total: t1 - t0,
+      },
+    };
+  }
 
   const commands = opts.gates ?? cfg.gates ?? detectGates(projectPath);
   const gates: ShipGate[] = [];
@@ -335,6 +584,7 @@ export function shipChange(projectPath: string, name: string, opts: ShipOptions 
     gates,
     files,
     report: reportRel,
+    pending,
     archivedTo,
     next,
     timings: {
@@ -346,6 +596,90 @@ export function shipChange(projectPath: string, name: string, opts: ShipOptions 
       total: t4 - t0,
     },
   };
+}
+
+/** Where {@link docHint} remembers what it last measured and told. */
+const DOC_HINT_STATE = path.join(".speclaw", "doc-hint.json");
+
+/** The change the hook would ship on this branch: the one last shipped here, else the branch's. */
+function branchChange(projectPath: string, branch: string): string {
+  const marker = readMarker(projectPath);
+  return marker && marker.branch === branch && marker.change
+    ? marker.change
+    : changeNameForBranch(branch);
+}
+
+/**
+ * The documentation a change owes, told while the agent is still working so it
+ * writes it in the same turn as the code instead of after a blocked stop. Runs
+ * from the `PostToolUse` hook: it re-measures only when the set of changed
+ * files changed, creates the change once the diff measures level 1 or more,
+ * and speaks once per change and level. Never throws; null means say nothing.
+ *
+ * @param projectPath - Project root.
+ * @returns The hint for the agent, or null.
+ */
+export function docHint(projectPath: string): string | null {
+  try {
+    if (!fs.existsSync(path.join(projectPath, "lawbook"))) return null;
+    // One git call answers "anything new?" on most calls (this runs after every
+    // edit and Bash call): branch, HEAD, and the worktree outside ship's output.
+    const status = git(projectPath, [
+      "-c",
+      "core.quotePath=false",
+      "status",
+      "--porcelain=v2",
+      "--branch",
+      "--untracked-files=all",
+    ]);
+    const branch = /^# branch\.head (.+)$/m.exec(status)?.[1] ?? "";
+    if (!branch || ["main", "master", "(detached)"].includes(branch)) return null;
+    const quick = status
+      .split("\n")
+      .filter((l) => !l.includes(" lawbook/changes/") && !l.includes(" .speclaw/"))
+      .join("\n");
+    const statePath = path.join(projectPath, DOC_HINT_STATE);
+    let prev: { quick?: string; key?: string; change?: string; level?: number } = {};
+    try {
+      prev = JSON.parse(fs.readFileSync(statePath, "utf8")) as typeof prev;
+    } catch {
+      // First hint on this checkout.
+    }
+    if (prev.quick === quick) return null;
+    const files = branchFiles(projectPath);
+    const key = `${branch}\n${files.join("\n")}`;
+    const remember = (extra: { change?: string; level?: number }) => {
+      fs.mkdirSync(path.dirname(statePath), { recursive: true });
+      fs.writeFileSync(statePath, JSON.stringify({ ...prev, quick, key, ...extra }) + "\n");
+    };
+    if (files.length === 0 || prev.key === key) {
+      remember({});
+      return null;
+    }
+
+    const change = branchChange(projectPath, branch);
+    const changeDir = path.join(projectPath, "lawbook", "changes", change);
+    const archived = findArchived(projectPath, change);
+    if (fs.existsSync(changeDir)) remeasure(projectPath, change, files);
+    else if (archived) reopenIfGrown(projectPath, change, archived, files);
+    else {
+      const proposal = measureDiff(projectPath, files);
+      if ((proposal.level ?? 0) > 0) scaffoldMeasured(projectPath, change, files, proposal);
+    }
+    const level = fs.existsSync(changeDir) ? confirmedLevel(projectPath, change) : 0;
+    remember({ change, level });
+
+    const pending = level > 0 ? pendingArtifacts(projectPath, change) : [];
+    if (pending.length === 0 || (prev.change === change && prev.level === level)) return null;
+    const why = readCeremonyRecord(projectPath, change)?.rationale ?? "";
+    return (
+      `speclaw: this change measures level ${level}${why ? ` (${why})` : ""}. ` +
+      `In this same turn, before you stop, write briefly and truthfully:\n- ${pending.join("\n- ")}\n` +
+      `The Stop hook then runs the gates once.`
+    );
+  } catch {
+    return null;
+  }
 }
 
 /** Outcome of {@link shipOnStop}: why it skipped, or the ship result. */
@@ -473,9 +807,6 @@ export function shipOnStop(projectPath: string): ShipOnStopResult {
   }
   // A change shipped by name on this branch keeps receiving the branch's later
   // work; the branch name would point at another (possibly archived) change.
-  const change =
-    marker && marker.branch === branch && marker.change
-      ? marker.change
-      : changeNameForBranch(branch);
+  const change = branchChange(projectPath, branch);
   return { skipped: null, change, result: shipChange(projectPath, change) };
 }
