@@ -1,0 +1,64 @@
+{
+  "version": 1,
+  "change": "stop-hook-lawbook-output",
+  "stage": "done",
+  "level": 2,
+  "iteration": 0,
+  "maxRework": 3,
+  "verdicts": {
+    "review": "PASS",
+    "test": "PASS"
+  },
+  "openQuestions": [],
+  "history": [
+    {
+      "at": "2026-10-08T19:48:52.935Z",
+      "from": "exploring",
+      "to": "exploring",
+      "op": "start",
+      "note": "level 2 measured: global files package.json + workflows"
+    },
+    {
+      "at": "2026-10-08T19:48:52.972Z",
+      "from": "exploring",
+      "to": "planning",
+      "op": "advance",
+      "note": "implemented; npm test 1058/1058 in 43 s"
+    },
+    {
+      "at": "2026-10-08T19:48:53.011Z",
+      "from": "planning",
+      "to": "implementing",
+      "op": "advance",
+      "note": "implemented; npm test 1058/1058 in 43 s"
+    },
+    {
+      "at": "2026-10-08T19:48:53.050Z",
+      "from": "implementing",
+      "to": "reviewing",
+      "op": "advance",
+      "note": "implemented; npm test 1058/1058 in 43 s"
+    },
+    {
+      "at": "2026-10-08T19:48:53.087Z",
+      "from": "reviewing",
+      "to": "testing",
+      "op": "advance",
+      "note": "Review PASS: reports/review.md"
+    },
+    {
+      "at": "2026-10-08T19:48:53.124Z",
+      "from": "testing",
+      "to": "archiving",
+      "op": "advance",
+      "note": "gates via ship: reports/change.md"
+    },
+    {
+      "at": "2026-10-08T19:48:53.284Z",
+      "from": "archiving",
+      "to": "done",
+      "op": "advance",
+      "note": "archived by lawbook archive"
+    }
+  ]
+}

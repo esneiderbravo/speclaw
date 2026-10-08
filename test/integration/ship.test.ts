@@ -638,3 +638,23 @@ test("without a Compass index the stop runs the full suite and says why", (t) =>
   assert.equal(r.gates[0]!.command, "npm test", JSON.stringify(r.next));
   assert.match(r.gates[0]!.scope ?? "", /^full suite: .*index/i);
 });
+
+test("an archive's promoted specs and sealed anchors are not new work for the Stop hook", (t) => {
+  const root = gitFixture(t);
+  git(root, "checkout", "-qb", "fix/widget");
+  fs.writeFileSync(path.join(root, "a.js"), "export const a = 2;\n");
+  const first = shipOnStop(root);
+  assert.equal(first.skipped, null);
+  fs.mkdirSync(path.join(root, "lawbook", "specs", "widget"), { recursive: true });
+  fs.writeFileSync(path.join(root, "lawbook", "specs", "widget", "spec.md"), "# widget\n");
+  fs.mkdirSync(path.join(root, "lawbook", "anchors"), { recursive: true });
+  fs.writeFileSync(path.join(root, "lawbook", "anchors", "widget.json"), "{}\n");
+  assert.equal(shipOnStop(root).skipped, "unchanged-since-last-ship", "uncommitted");
+  git(root, "add", "-A");
+  git(root, "commit", "-qm", "archive");
+  assert.equal(
+    shipOnStop(root).skipped,
+    "unchanged-since-last-ship",
+    "committed, as an archive is",
+  );
+});
