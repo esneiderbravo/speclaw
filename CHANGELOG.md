@@ -7,6 +7,22 @@ All notable changes to this project are documented here. Speclaw follows
 
 ## [2.0.23] — 2026-10-08
 
+### Changed
+
+- The `Stop` hook runs the gates once, on what the diff reaches: its test gate
+  (`npm test`, `npm run test`, or the pnpm/yarn equivalent) runs only the test
+  files the branch diff reaches and the report names that scope; the full suite
+  runs in CI. It falls back to the full suite with no Compass index, a global
+  file, or changed code no test reaches; `ship.tests: full` in
+  `lawbook/config.yaml` keeps the full suite at the stop.
+- Generated `CLAUDE.md`, `AGENTS.md` and testing standards tell the agent to run
+  only the tests covering its change and leave the gates to the hook; they used
+  to tell it to run the full gates too, so the suite ran twice.
+- A diff of at most one source file and ten lines (tests and docs aside), with no
+  public API or global file, measures level 0 however central the code it
+  touches. In real agent runs these changes took speclaw from 1.37–1.80× an
+  agent alone to 0.65–1.24×, with the same quality.
+
 ### Fixed
 
 - `lawbook_change` accepts the arguments agents actually send: `archive`

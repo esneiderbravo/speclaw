@@ -624,3 +624,17 @@ test("a project that asks for the full suite gets it at the stop", async (t) => 
   assert.equal(r.gates[0]!.command, "npm test", JSON.stringify(r.next));
   assert.equal(r.gates[0]!.scope, undefined);
 });
+
+test("without a Compass index the stop runs the full suite and says why", (t) => {
+  const root = gitFixture(t);
+  fs.writeFileSync(path.join(root, "package.json"), JSON.stringify(RUNNER));
+  fs.mkdirSync(path.join(root, "test"), { recursive: true });
+  fs.writeFileSync(path.join(root, "test", "a.test.js"), "import '../a.js';\n");
+  git(root, "add", "-A");
+  git(root, "commit", "-qm", "runner");
+  git(root, "checkout", "-qb", "fix/no-index");
+  fs.writeFileSync(path.join(root, "a.js"), "export const a = 2;\n");
+  const r = shipChange(root, "no-index", { gates: ["npm test"], summary: "a" });
+  assert.equal(r.gates[0]!.command, "npm test", JSON.stringify(r.next));
+  assert.match(r.gates[0]!.scope ?? "", /^full suite: .*index/i);
+});
