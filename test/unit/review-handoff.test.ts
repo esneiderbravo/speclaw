@@ -1,4 +1,5 @@
 import { test } from "node:test";
+import { RETIRED_NAMES } from "../../src/shared/tool-catalog.js";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import { spawnSync } from "node:child_process";
@@ -23,17 +24,6 @@ const ASSETS = path.resolve(
 );
 const reviewerAsset = fs.readFileSync(path.join(ASSETS, "agents/reviewer.md"), "utf8");
 
-const DEPRECATED_TOOLS = [
-  "compass_search",
-  "compass_recall",
-  "compass_impact",
-  "compass_trace",
-  "compass_affected_tests",
-  "compass_hotspots",
-  "lawbook_archive",
-  "lawbook_validate",
-];
-
 test("the reviewer agent lists every defect class the harness prompt checks", () => {
   for (const item of REVIEW_CHECKLIST) assert.ok(reviewerAsset.includes(item), item);
   assert.match(reviewerAsset, /compass_diff_context/);
@@ -50,7 +40,7 @@ test("the reviewer agent lists every defect class the harness prompt checks", ()
 test("the reviewer agent stays agent-agnostic and uses canonical tools only", () => {
   const frontmatter = reviewerAsset.split("---")[1] ?? "";
   assert.doesNotMatch(frontmatter, /^model:/m);
-  for (const name of DEPRECATED_TOOLS) assert.ok(!reviewerAsset.includes(name), name);
+  for (const name of RETIRED_NAMES) assert.ok(!reviewerAsset.includes(name), name);
 });
 
 test("renderReviewPrompt scopes the review to the diff with the fixed format", () => {
@@ -61,7 +51,7 @@ test("renderReviewPrompt scopes the review to the diff with the fixed format", (
   assert.match(prompt, new RegExp(`at most ${REVIEW_MAX_LINES} lines`));
   assert.match(prompt, /lawbook\/changes\/feat\/reports\/review\.md/);
   for (const item of REVIEW_CHECKLIST) assert.ok(prompt.includes(item), item);
-  for (const name of DEPRECATED_TOOLS) assert.ok(!prompt.includes(name), name);
+  for (const name of RETIRED_NAMES) assert.ok(!prompt.includes(name), name);
 
   const noBase = renderReviewPrompt("feat", null, []);
   assert.match(noBase, /No merge base was found/);

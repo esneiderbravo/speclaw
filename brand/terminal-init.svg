@@ -43,5 +43,5 @@
   <text x="57.6" y="462"><tspan class="cr b">You're set — one last step</tspan></text>
   <text x="36" y="500" class="mu">Copy this and paste it into your agent:</text>
   <text x="36" y="536" class="cr">Complete speclaw's foundation, then drive changes with Cortex</text>
-  <text x="36" y="564" class="cr">(/lawbook/cortex). Start with speclaw_setup / init_project.</text>
+  <text x="36" y="564" class="cr">(/lawbook/cortex). Start with speclaw_setup.</text>
 </svg>
