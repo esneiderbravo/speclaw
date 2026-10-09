@@ -15,8 +15,8 @@ export type CanonicalTool = (typeof CANONICAL_TOOLS)[number];
 
 export const MAX_CANONICAL_TOOLS = 9;
 
-/** Retired MCP names → canonical replacement hint for deprecation notices. */
-export const ALIAS_TARGETS: Record<string, string> = {
+/** Removed MCP names → canonical replacement, for doctor's stale-reference scan. */
+export const RETIRED_TOOLS: Record<string, string> = {
   compass_search: "compass_find (mode: exact)",
   compass_recall: "compass_find (mode: concept)",
   compass_impact: 'compass_explore (include: ["blast_radius"])',
@@ -39,21 +39,9 @@ export const ALIAS_TARGETS: Record<string, string> = {
   list_packs: 'speclaw_setup (action: "list-packs")',
 };
 
-export const ALIAS_NAMES = Object.keys(ALIAS_TARGETS);
-
-const ALIAS_SET = new Set(ALIAS_NAMES);
+export const RETIRED_NAMES = Object.keys(RETIRED_TOOLS);
 
 /** True when `name` is one of the nine canonical tools. */
 export function isCanonicalTool(name: string): name is CanonicalTool {
   return (CANONICAL_TOOLS as readonly string[]).includes(name);
-}
-
-/** True when `name` is a deprecated alias (not counted in the canonical limit). */
-export function isAliasTool(name: string): boolean {
-  return ALIAS_SET.has(name);
-}
-
-/** Whether deprecated aliases should register for this process. */
-export function aliasesEnabled(): boolean {
-  return process.env.SPECLAW_NO_ALIASES !== "1";
 }

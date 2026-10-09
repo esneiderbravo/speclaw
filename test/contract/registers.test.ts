@@ -8,16 +8,13 @@ import { registerCompass } from "../../src/modules/compass/register.js";
 import { registerCortex } from "../../src/modules/cortex/register.js";
 import { registerSpec } from "../../src/modules/lawbook/register.js";
 import { registerTools } from "../../src/modules/tools/register.js";
-import { CANONICAL_TOOLS } from "../../src/shared/tool-catalog.js";
+import { CANONICAL_TOOLS, RETIRED_NAMES } from "../../src/shared/tool-catalog.js";
 import { estimateTokens, OUTPUT_BUDGET } from "../../src/shared/output-budget.js";
 
 function captureCanonical(
   register: (server: import("@modelcontextprotocol/sdk/server/mcp.js").McpServer) => void,
 ) {
-  process.env.SPECLAW_NO_ALIASES = "1";
-  const tools = captureTools(register);
-  delete process.env.SPECLAW_NO_ALIASES;
-  return tools;
+  return captureTools(register);
 }
 
 test("canonical MCP tools match the consolidated surface", () => {
@@ -187,15 +184,21 @@ test("compass handlers wrap their results as MCP text", async (t) => {
   );
 });
 
-test("deprecated alias delegates to canonical surface", async (t) => {
-  const root = tmpRepo(t);
-  seedSampleRepo(root);
-  delete process.env.SPECLAW_NO_ALIASES;
-  const tools = captureTools(registerCompass);
-  await tools.get("compass_index")!.handler({ projectPath: root });
-  const res = await tools.get("compass_search")!.handler({ projectPath: root, query: "alpha" });
-  assert.ok(isTextResult(res));
-  assert.match((res as { content: { text: string }[] }).content[0]!.text, /\[deprecated\]/);
+test("retired tool names are not registered", () => {
+  const tools = new Map([
+    ...captureTools(registerCompass),
+    ...captureTools(registerSpec),
+    ...captureTools(registerFoundation),
+  ]);
+  for (const name of RETIRED_NAMES) assert.equal(tools.has(name), false, name);
+});
+
+test("lawbook_change rejects the removed harness action", () => {
+  const change = schemaOf(captureTools(registerSpec).get("lawbook_change")!);
+  assert.throws(
+    () => change.parse({ projectPath: "/x", action: "harness", harnessOp: "status" }),
+    /action/,
+  );
 });
 
 /** A ~110-line function whose source renders between the brief and full ceilings. */

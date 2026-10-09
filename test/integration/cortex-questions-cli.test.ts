@@ -27,10 +27,7 @@ function harness(root: string): { stage: string; openQuestions: string[] } {
 // Covers: req~harness-state~1
 test("cortex advance records each repeated --question as one open question", { skip }, (t) => {
   const flags = ["--pause-questions", "--question", "a", "--question", "b, c"];
-  for (const cmd of [
-    ["cortex", "advance", "--change", "demo"],
-    ["lawbook", "harness", "advance", "--change", "demo"],
-  ]) {
+  for (const cmd of [["cortex", "advance", "--change", "demo"]]) {
     const root = tmpRepo(t);
     seedPlanning(root);
     const r = runCli([...cmd, ...flags], { cwd: root });
@@ -49,10 +46,7 @@ test("advance --pause-questions from implementing exits non-zero", { skip }, (t)
   assert.equal(toImpl.code, 0, toImpl.stderr);
   assert.equal(harness(root).stage, "implementing");
   const before = read(root, "lawbook/changes/demo/harness.json");
-  for (const cmd of [
-    ["cortex", "advance", "--change", "demo"],
-    ["lawbook", "harness", "advance", "--change", "demo"],
-  ]) {
+  for (const cmd of [["cortex", "advance", "--change", "demo"]]) {
     const r = runCli([...cmd, "--pause-questions", "--question", "q1"], { cwd: root });
     assert.notEqual(r.code, 0, `${cmd.join(" ")}: ${r.stdout}`);
     assert.match(r.stderr + r.stdout, /planning/);

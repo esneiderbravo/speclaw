@@ -6,6 +6,7 @@ import { createHash } from "node:crypto";
 import { changedFiles, isGitRepo, mergeBase, worktreeChangedFiles } from "../../shared/git.js";
 import { isTestPath, loadAffectedConfig, matchesAny } from "../compass/affected-config.js";
 import { affectedTests } from "../compass/affected.js";
+import { readGreenRuns, reuseGreenRuns } from "../../shared/test-runs.js";
 import { COMPASS_DOC, stripCompassMapBlock } from "../../shared/compass-map.js";
 import { handleHarness, readHarness } from "../cortex/harness.js";
 import { deltaSpecFiles, specArchive, specArchivePreconditions, specList } from "./engine.js";
@@ -185,6 +186,66 @@ function scopedTestGate(
   } catch (e) {
     return full(e instanceof Error ? e.message : String(e));
   }
+}
+
+/** Newest mtime among the changed files that still exist (epoch ms). */
+function lastEditMs(projectPath: string, files: string[]): number {
+  let newest = 0;
+  for (const f of files) {
+    try {
+      newest = Math.max(newest, fs.statSync(path.join(projectPath, f)).mtimeMs);
+    } catch {
+      /* deleted */
+    }
+  }
+  return newest;
+}
+
+/** A plain whole-suite command, its pipe and redirects dropped (`npm test 2>&1 | tail`). */
+function isWholeSuite(command: string): boolean {
+  return TEST_GATE_RE.test(
+    command
+      .split("|")[0]
+      .replace(/\s\d?>&?\s*\S+/g, "")
+      .trim(),
+  );
+}
+
+/**
+ * The test gate after the agent's own green runs: the files a run already
+ * passed on the current code are not run again (same tests, same code, same
+ * compile step — the evidence is identical), and the report cites that run.
+ */
+function testGateAfterReuse(
+  projectPath: string,
+  planned: string,
+  files: string[],
+): { command: string | null; note: string; tail: string } | null {
+  const runs = readGreenRuns(projectPath);
+  if (!runs.length) return null;
+  const amp = planned.lastIndexOf("&&");
+  const testFiles = planned
+    .slice(amp === -1 ? 0 : amp + 2)
+    .split(/\s+/)
+    .filter((t) => t && !t.startsWith("-") && isTestPath(t));
+  const edited = lastEditMs(projectPath, files);
+  if (!testFiles.length) {
+    if (!isWholeSuite(planned)) return null;
+    const run = runs.filter((r) => Date.parse(r.at) > edited && isWholeSuite(r.command)).pop();
+    if (!run) return null;
+    return {
+      command: null,
+      note: `reused the agent's green whole-suite run at ${run.at} (\`${run.command}\`)`,
+      tail: run.tail,
+    };
+  }
+  const reuse = reuseGreenRuns(runs, planned, testFiles, edited, isWholeSuite);
+  if (!reuse) return null;
+  return {
+    command: reuse.command,
+    note: `${reuse.covered.length} of ${testFiles.length} test file(s) reused from the agent's green run at ${reuse.run.at} (\`${reuse.run.command}\`)`,
+    tail: reuse.run.tail,
+  };
 }
 
 function runGate(projectPath: string, command: string): ShipGate {
@@ -918,8 +979,23 @@ export function shipChange(projectPath: string, name: string, opts: ShipOptions 
       if (gates[gates.length - 1].exitCode !== 0) break;
       continue;
     }
-    const g = runGate(projectPath, scoped?.command ?? command);
-    gates.push(scoped ? { ...g, scope: scoped.scope } : g);
+    const planned = scoped?.command ?? command;
+    const reused = TEST_GATE_RE.test(command.trim())
+      ? testGateAfterReuse(projectPath, planned, files)
+      : null;
+    if (reused && reused.command === null) {
+      gates.push({
+        command: planned,
+        exitCode: 0,
+        durationMs: 0,
+        tail: reused.tail,
+        scope: scoped ? `${scoped.scope}; ${reused.note}` : reused.note,
+      });
+      continue;
+    }
+    const g = runGate(projectPath, reused?.command ?? planned);
+    const scope = [scoped?.scope, reused?.note].filter(Boolean).join("; ");
+    gates.push(scope ? { ...g, scope } : g);
     if (g.exitCode !== 0) break;
   }
   const gatesPassed = gates.every((g) => g.exitCode === 0);

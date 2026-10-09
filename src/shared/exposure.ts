@@ -8,7 +8,6 @@ import { readManifest } from "./manifest.js";
  * discovery + law loop: compass_explore/find/diff_context, lawbook_change,
  * lawbook_investigate, cortex, and speclaw_check — the tool every installed
  * hook calls, so omitting it silently disables the laws and the Compass nudge.
- * Deprecated aliases are never registered in minimal mode.
  */
 export const MINIMAL_OMIT = new Set<string>(["compass_index", "speclaw_setup"]);
 

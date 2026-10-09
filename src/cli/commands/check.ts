@@ -1,6 +1,6 @@
 import { Flags } from "../lib/args.js";
 import { ui, c } from "../lib/ui.js";
-import { checkAction, CheckEvent } from "../../modules/foundation/check.js";
+import { checkAction, CheckEvent, isContextEvent } from "../../modules/foundation/check.js";
 import { hasBackend, readLawManifest } from "../../modules/foundation/laws.js";
 
 /** Read all of stdin as UTF-8 text (used for `--hook-payload -`). */
@@ -41,9 +41,10 @@ export async function runCheck(flags: Flags): Promise<void> {
     const event = (payload.hook_event_name ?? payload.event ?? "PreToolUse") as CheckEvent;
     const toolName = (payload.tool_name ?? payload.toolName) as string | undefined;
     const result = checkAction({ projectPath: cwd, event, toolName, payload });
-    if (event === "PostToolUse") {
-      // PostToolUse (feedback laws, the Compass-first nudge) carries context
-      // only and never a permission decision. Other events keep their output.
+    if (isContextEvent(event)) {
+      // PostToolUse (feedback laws, the nudges) and PostToolUseFailure (the
+      // test-run nudge) carry context only and never a permission decision.
+      // Other events keep their output.
       if (result.hookSpecificOutput) {
         console.log(JSON.stringify({ hookSpecificOutput: result.hookSpecificOutput }));
       }

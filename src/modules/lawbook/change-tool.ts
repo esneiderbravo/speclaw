@@ -6,8 +6,6 @@ import { scaffoldBugfix } from "./bugfix.js";
 import { scaffoldFeature } from "./scaffold-change.js";
 import { buildCoverageReport, loadCoverageConfig, renderCoverageAgent } from "./coverage.js";
 import { buildDriftReport, renderDriftAgent } from "./drift.js";
-import { handleHarness, harnessOps } from "../cortex/harness.js";
-import { fitStatusResult } from "../cortex/status.js";
 
 export const lawbookChangeActions = [
   "init",
@@ -19,7 +17,6 @@ export const lawbookChangeActions = [
   "level",
   "coverage",
   "drift",
-  "harness",
   "ship",
 ] as const;
 
@@ -62,10 +59,6 @@ export const lawbookChangeSchema = {
   capability: z.string().optional(),
   includeReverse: z.boolean().optional(),
   maxItems: z.number().int().min(1).max(50).optional(),
-  harnessOp: z.enum(harnessOps).optional(),
-  verdict: z.enum(["PASS", "FAIL"]).optional(),
-  openQuestions: z.array(z.string()).optional(),
-  pauseForQuestions: z.boolean().optional(),
   note: z.string().optional(),
   bug: z.boolean().optional(),
 };
@@ -86,10 +79,6 @@ type ChangeArgs = {
   capability?: string;
   includeReverse?: boolean;
   maxItems?: number;
-  harnessOp?: (typeof harnessOps)[number];
-  verdict?: "PASS" | "FAIL";
-  openQuestions?: string[];
-  pauseForQuestions?: boolean;
   note?: string;
   bug?: boolean;
 };
@@ -178,23 +167,6 @@ export function handleLawbookChange(args: ChangeArgs): unknown {
       });
       if (args.json) return report;
       return renderDriftAgent(report, args.maxItems ?? 10);
-    }
-    case "harness": {
-      // Deprecated alias — prefer MCP tool `cortex` / `speclaw cortex`.
-      if (!args.harnessOp) {
-        throw new Error(`lawbook_change: action 'harness' requires 'harnessOp'`);
-      }
-      const result = handleHarness({
-        projectPath: args.projectPath,
-        change: targetChange(args),
-        harnessOp: args.harnessOp,
-        verdict: args.verdict ?? null,
-        openQuestions: args.openQuestions,
-        pauseForQuestions: args.pauseForQuestions,
-        note: args.note ?? args.reason,
-      });
-      // MCP-only path: fit `status` to the output budget like the `cortex` tool.
-      return args.harnessOp === "status" && "summary" in result ? fitStatusResult(result) : result;
     }
     default:
       throw new Error(`lawbook_change: unknown action '${String(args.action)}'`);

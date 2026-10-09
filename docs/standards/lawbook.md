@@ -18,7 +18,9 @@ and ceremony; Cortex owns the multi-agent loop.
    for the confirmed ceremony level; questions go to the human via the
    coordinator.
 3. **build** (implementer) — implement tasks; hand off before final gates.
-4. **review** (reviewer) — `reports/review.md` PASS/FAIL (skipped at level 0).
+4. **review** (reviewer) — scoped to the diff: starts from the exported diff
+   and `compass_diff_context`, checks a fixed list of defect classes, writes a
+   `reports/review.md` of at most 40 lines with PASS/FAIL (skipped at level 0).
 5. **test** (tester) — quality gates, manual verification, discipline reports.
 6. **sync** / **archive** (archiver) — reconcile, sync when needed, archive
    within the same PR. Gated on Cortex verdicts plus tasks/reports/sync.

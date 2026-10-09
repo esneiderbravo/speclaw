@@ -113,16 +113,11 @@ test("compass_index and nudge entries are not evidence", (t) => {
   assert.equal(countEvidence(readCompassCalls(root)), 0);
   assert.equal(isEvidenceTool("compass_index"), false);
   assert.equal(isEvidenceTool(NUDGE_ENTRY), false);
-  for (const tool of [
-    "compass_explore",
-    "compass_find",
-    "compass_diff_context",
-    "compass_impact",
-    "compass_trace",
-    "compass_search",
-    "compass_recall",
-  ]) {
+  for (const tool of ["compass_explore", "compass_find", "compass_diff_context"]) {
     assert.equal(isEvidenceTool(tool), true, tool);
+  }
+  for (const retired of ["compass_impact", "compass_trace", "compass_search", "compass_recall"]) {
+    assert.equal(isEvidenceTool(retired), false, retired);
   }
   recordCompassCall(root, "compass_diff_context");
   assert.equal(countEvidence(readCompassCalls(root)), 1);
@@ -136,14 +131,14 @@ test("a write failure never throws", (t) => {
   assert.deepEqual(readCompassCalls(root), []);
 });
 
-test("MCP compass_explore, compass_index, and an alias each record their tool name", async (t) => {
+test("MCP compass_explore, compass_index, and compass_find each record their tool name", async (t) => {
   const root = tmpRepo(t);
   const tools = captureTools(registerCompass);
   // No index exists: the handlers may fail, but the call is logged first.
   for (const [name, args] of [
     ["compass_explore", { projectPath: root, node: "alpha" }],
     ["compass_index", { projectPath: root, action: "status" }],
-    ["compass_search", { projectPath: root, query: "alpha" }],
+    ["compass_find", { projectPath: root, query: "alpha", mode: "exact" }],
   ] as const) {
     try {
       await tools.get(name)!.handler(args);
@@ -154,7 +149,7 @@ test("MCP compass_explore, compass_index, and an alias each record their tool na
   const calls = readCompassCalls(root);
   assert.deepEqual(
     calls.map((c) => c.tool),
-    ["compass_explore", "compass_index", "compass_search"],
+    ["compass_explore", "compass_index", "compass_find"],
   );
   for (const c of calls) assert.match(c.at, /^\d{4}-\d{2}-\d{2}T/);
 });

@@ -1,6 +1,5 @@
 /**
- * MCP response of `compass_find` (and its `compass_search` / `compass_recall`
- * aliases): compact hits and one JSON document capped as a whole at the
+ * MCP response of `compass_find`: compact hits and one JSON document capped as a whole at the
  * caller's token budget. The CLI keeps printing `HybridSearchResult` as is.
  */
 
@@ -57,18 +56,17 @@ function renderHits(hits: HybridHit[], count: number): string {
 }
 
 /**
- * Serialise `response` behind `prefix`, writing `tokens` last so it equals the
- * estimate of the whole emitted text (at most a few passes until the digit
- * count is stable).
+ * Serialise `response`, writing `tokens` last so it equals the estimate of the
+ * whole emitted text (at most a few passes until the digit count is stable).
  */
-function emit(prefix: string, response: FindResponse): string {
+function emit(response: FindResponse): string {
   response.tokens = 0;
-  let out = prefix + JSON.stringify(response);
+  let out = JSON.stringify(response);
   for (let i = 0; i < 4; i++) {
     const t = estimateTokens(out);
     if (t === response.tokens) break;
     response.tokens = t;
-    out = prefix + JSON.stringify(response);
+    out = JSON.stringify(response);
   }
   return out;
 }
@@ -110,13 +108,10 @@ function largestFitting(len: number, fitsAt: (k: number) => boolean): number {
  * anything, so the cap holds and the text parses as JSON for any input.
  *
  * @param result - Output of {@link findSymbols}.
- * @param opts - `prefix` is emitted before the JSON (alias deprecation notice)
- *   and counts toward the cap and `tokens`.
  * @returns The text to pass to `text(str, { maxTokens: result.cap })`.
  */
 // Covers: req~find-response-budget~1
-export function formatFindResponse(result: FindResult, opts: { prefix?: string } = {}): string {
-  const prefix = opts.prefix ?? "";
+export function formatFindResponse(result: FindResult): string {
   const cap = result.cap;
   let count = result.hits.length;
   let rendered = result.rendered;
@@ -154,7 +149,7 @@ export function formatFindResponse(result: FindResult, opts: { prefix?: string }
     ...(truncated ? { truncated: true as const } : {}),
   });
   const fits = (): string | null => {
-    const out = emit(prefix, build());
+    const out = emit(build());
     return estimateTokens(out) <= cap ? out : null;
   };
 
@@ -189,7 +184,7 @@ export function formatFindResponse(result: FindResult, opts: { prefix?: string }
   if (!out && rendered) {
     truncated = true;
     rendered = "";
-    const room = (cap - estimateTokens(emit(prefix, build()))) * 4 - 8;
+    const room = (cap - estimateTokens(emit(build()))) * 4 - 8;
     rendered = shortenRendered(renderHits(result.hits, count), room);
     out = fits();
     if (!out) {
@@ -203,12 +198,12 @@ export function formatFindResponse(result: FindResult, opts: { prefix?: string }
     truncated = true;
     out = fits();
   }
-  // 5. Last resort (a prefix or single hit larger than the cap): drop the hit.
+  // 5. Last resort (a single hit larger than the cap): drop the hit.
   if (!out && count > 0) {
     count = 0;
     rendered = "";
     truncated = true;
     out = fits();
   }
-  return out ?? emit(prefix, build());
+  return out ?? emit(build());
 }

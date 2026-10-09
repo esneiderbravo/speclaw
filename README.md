@@ -172,7 +172,7 @@ Cortex runs the loop. Cheat sheet: [`docs/cortex.md`](docs/cortex.md).
 | **implementer** | implementing | Code + tests; stops at hand-off (no final gates, no archive) |
 | **reviewer** | reviewing | `reports/review.md` PASS/FAIL; no code patches (skipped at level 0) |
 | **tester** | testing | Quality gates, manual verification, discipline reports |
-| **archiver** | archiving | Sync + `lawbook_archive` **in the same PR** |
+| **archiver** | archiving | Sync + `lawbook_change` action `archive` **in the same PR** |
 
 State lives in `lawbook/changes/<name>/harness.json`. Archive is gated on
 harness verdicts (test PASS; review PASS when level ≥ 1) plus tasks, reports,
@@ -204,7 +204,7 @@ requirement **coverage**, sealed **drift** anchors, bugfix + investigate.
 > [!NOTE]
 > **Delta specs are normative and testable.** Requirements use `SHALL`/`MUST`
 > under `### Requirement:` headers (EARS-friendly), each with `#### Scenario:`
-> blocks. `lawbook_validate` checks structure; `speclaw coverage` tracks
+> blocks. `lawbook_change` action `validate` checks structure; `speclaw coverage` tracks
 > `req~…~N` → impl/test via `// Covers:` comments.
 
 The workspace is committed under `lawbook/`: `specs/`, `changes/` (with
@@ -254,7 +254,10 @@ contacts the registry, and always exits 0), and one separate `PostToolUse`
 command hook for `Write|Edit|MultiEdit|NotebookEdit` that hands each edited
 file to `speclaw reindex-file`, which re-indexes it in a detached background
 process (silent, always exit 0; PageRank and the compact map catch up on the
-next full run). The compiled law manifest lives in `.speclaw/laws-manifest.json`
+next full run). The `PostToolUse` and `PostToolUseFailure` hooks on `Bash` watch test runs: a
+failing `npm test` / `pytest` / `go test` / … points the agent at
+`lawbook_investigate` with the failing output as `stackTrace` (once per failure
+signature). The compiled law manifest lives in `.speclaw/laws-manifest.json`
 (gitignored) and is **adapted to the target tree** on `init`/`update` — speclaw's
 own architecture laws are seeded only when those paths exist, and the cycle law
 follows `apps/*/src`, `packages/*/src`, or `src/` rather than copying

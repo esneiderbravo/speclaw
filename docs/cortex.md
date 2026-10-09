@@ -68,9 +68,9 @@ Lawbook owns **specs, ceremony, coverage, and drift**. Cortex owns the
 | exploring | explorer | Compass-first investigation; a complete brief for the planner; writes nothing under `lawbook/` / `src/` |
 | planning / questions | planner | Ceremony level + change artifacts from that brief; Compass only for a gap the brief names; questions always go to the human |
 | implementing | implementer | Code + tests + task checkboxes; stops before final gates |
-| reviewing | reviewer | `reports/review.md` PASS/FAIL; no code patches (skipped at level 0) |
+| reviewing | reviewer | Diff-scoped review (`brief` exports the diff and a ready prompt; `compass_diff_context` first; defect checklist) → `reports/review.md` ≤ 40 lines, PASS/FAIL; no code patches (skipped at level 0) |
 | testing | tester | Quality gates, manual verification, discipline reports |
-| archiving | archiver | Sync + `lawbook_archive` in the same PR |
+| archiving | archiver | Sync + `lawbook_change` action `archive` in the same PR |
 
 Max **3** review/test → implement reworks; then the coordinator asks the human.
 
@@ -90,7 +90,7 @@ records the questions. From any other stage it is rejected with
 `harness.json` stays byte-identical, and the CLI exits 1 — nothing advances
 and no question is dropped.
 
-**Archive completes the harness.** `lawbook_archive` / `speclaw lawbook archive`
+**Archive completes the harness.** `lawbook_change` action `archive` / `speclaw lawbook archive`
 moves the harness from `archiving` to `done` (one `history[]` entry) just before
 it moves the change to `lawbook/changes/archive/<date>-<name>/`, restores the old
 `harness.json` if the move fails, and reports `harnessCompleted` in its result.
@@ -107,8 +107,7 @@ Leaving **`exploring`** or **`implementing`** with `advance` checks the Compass
 call log (`.speclaw/compass-calls.jsonl`, see
 [`compass.md`](compass.md#compass-first-enforcement)) for **evidence calls**
 since the current stage started: `compass_explore`, `compass_find`,
-`compass_diff_context`, or the aliases `compass_impact`, `compass_trace`,
-`compass_search`, `compass_recall`. `compass_index` does not count.
+or `compass_diff_context`. `compass_index` does not count.
 
 The window starts at the newest `harness.json` history entry that entered the
 current stage, so a `rework` back to `implementing` starts a fresh window.
@@ -181,7 +180,7 @@ is always answered.
 | `start` | Create harness at `exploring` for a change |
 | `advance` | Legal one-step transition (PASS verdict required leaving review/test) |
 | `rework` | FAIL from reviewing/testing → implementing (counts toward max rework) |
-| `brief` | Stage + role + skill hints + suggested next ops (handoff for Task spawn) |
+| `brief` | Stage + role + skill hints + suggested next ops (handoff for Task spawn); at `reviewing` also `review` — the diff exported to `.speclaw/review/<change>.diff`, its files, and the reviewer prompt |
 
 Same surface on the CLI: `speclaw cortex <action> --change <name> […]`.
 `speclaw cortex status` also writes `summary.line` to stderr (stdout stays the
@@ -193,10 +192,6 @@ always complete, and when the JSON would be too long the oldest
 `state.history` entries are dropped (newest kept) and counted in
 `historyOmitted`. If even an empty history does not fit, `state` is `null`
 with `stateOmitted: true`. The CLI and `harness.json` keep the full history.
-
-`lawbook_change` action `harness` and `speclaw lawbook harness` remain as
-deprecated aliases for one release. Their `status` also returns `summary`
-(fitted the same way on MCP); the alias CLI prints no stderr line.
 
 ## Entry points
 

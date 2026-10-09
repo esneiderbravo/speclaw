@@ -94,17 +94,6 @@ test("archive with neither date nor change archives the only active change and s
   await client.close();
 });
 
-test("the deprecated lawbook_archive alias no longer demands a date", async (t) => {
-  const root = tmpRepo(t);
-  specInit(root);
-  seedReady(root, "widget");
-  const client = await connect();
-  const r = await call(client, "lawbook_archive", { projectPath: root, change: "widget" });
-  assert.equal(r.isError, false, r.text);
-  assert.ok(!has(root, "lawbook/changes/widget"));
-  await client.close();
-});
-
 test("`create` and `name` draft a change; a comma-separated `paths` is a list", async (t) => {
   const root = tmpRepo(t);
   specInit(root);

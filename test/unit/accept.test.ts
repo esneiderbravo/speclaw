@@ -51,14 +51,12 @@ test("CLI laws accept without TTY exits non-zero and leaves lock unchanged", (t)
 });
 
 test("no MCP tool mutates speclaw.lock", () => {
-  process.env.SPECLAW_NO_ALIASES = "1";
   const names = [
     ...captureTools(registerFoundation).keys(),
     ...captureTools(registerCompass).keys(),
     ...captureTools(registerSpec).keys(),
     ...captureTools(registerTools).keys(),
   ];
-  delete process.env.SPECLAW_NO_ALIASES;
   for (const n of names) {
     assert.ok(!/lock|accept|integrity/i.test(n), `unexpected integrity-mutating tool ${n}`);
   }

@@ -60,7 +60,6 @@ test("all registered tool descriptions are ≤ 25 words", () => {
 });
 
 test("minimal registration omits the omit-set", () => {
-  process.env.SPECLAW_NO_ALIASES = "1";
   const names = new Set(collectRegisteredTools(true).map((t) => t.name));
   assert.ok(!names.has("compass_index"));
   assert.ok(!names.has("speclaw_setup"));
@@ -69,7 +68,6 @@ test("minimal registration omits the omit-set", () => {
   assert.ok(names.has("lawbook_investigate"));
   assert.ok(names.has("compass_explore"));
   assert.ok(names.has("lawbook_change"));
-  delete process.env.SPECLAW_NO_ALIASES;
 });
 
 test("manifest persists minimal across write without the flag", (t) => {

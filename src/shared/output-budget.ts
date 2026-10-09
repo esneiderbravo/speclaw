@@ -109,7 +109,7 @@ export function budgetExploreShape(
         field,
         omitted,
         hint: full
-          ? "use compass_impact for the full list"
+          ? 'use compass_explore with include:["blast_radius"] for the full list'
           : 'use mode:"full" or narrow with include',
       });
     }

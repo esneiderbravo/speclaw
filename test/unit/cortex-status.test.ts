@@ -9,7 +9,6 @@ import {
 import { handleHarness, type HarnessStatusResult } from "../../src/modules/cortex/harness.js";
 import { fitStatusResult } from "../../src/modules/cortex/status.js";
 import { registerCortex } from "../../src/modules/cortex/register.js";
-import { registerSpec } from "../../src/modules/lawbook/register.js";
 import { captureTools, isTextResult } from "../helpers/contracts.js";
 import { applyTextBudget } from "../../src/shared/output-budget.js";
 import type { HarnessState } from "../../src/modules/cortex/types.js";
@@ -258,18 +257,6 @@ test("MCP cortex status keeps the full summary and valid JSON on a long history"
     harnessOp: "status",
   }) as HarnessStatusResult;
   assert.equal(status.state!.history.length, 30);
-
-  // The deprecated alias goes through the same fitting.
-  const alias = captureTools(registerSpec);
-  const aliasOut = await alias.get("lawbook_change")!.handler({
-    projectPath: root,
-    action: "harness",
-    harnessOp: "status",
-    change: "feat",
-  });
-  assert.ok(isTextResult(aliasOut));
-  const aliasParsed = JSON.parse(aliasOut.content[0]!.text) as { summary: { change: string } };
-  assert.equal(aliasParsed.summary.change, "feat");
 });
 
 test("fitStatusResult leaves a small result whole and summary-first", (t) => {

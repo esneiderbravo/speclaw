@@ -274,7 +274,7 @@ export function scaffold(
   );
 
   report.nextSteps = [
-    "Run the `lawbook_init` tool to set up the spec-driven workflow (creates lawbook/). No external CLI needed — it's built into speclaw.",
+    "Run the `lawbook_change` tool with action `init` to set up the spec-driven workflow (creates lawbook/). No external CLI needed — it's built into speclaw.",
     "Run the `compass_index` tool to build the local code graph (.speclaw/). No install, no LLM — it's built into speclaw. Re-run it after significant edits.",
     "Analyze the repo's real entrypoints and core flows, then fill in the 'Project-specific starting points' section of docs/compass.md (or pass compass_hints in the profile) so agents know where to start querying.",
     "Fill in the per-standard sections left as HTML comments in docs/standards/* (architecture module table, backend/frontend layer tables, versioning) by analyzing the real repo. These are the granular laws CLAUDE.md, AGENTS.md and the dev agents reference.",

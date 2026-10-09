@@ -20,10 +20,6 @@ export const EVIDENCE_TOOLS: ReadonlySet<string> = new Set([
   "compass_explore",
   "compass_find",
   "compass_diff_context",
-  "compass_impact",
-  "compass_trace",
-  "compass_search",
-  "compass_recall",
 ]);
 
 /** Tool name the Compass-first nudge records for its rate limit. */

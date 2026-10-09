@@ -104,16 +104,6 @@ test("nearest entries are dropped from the end once the context lists are empty"
   assert.deepEqual(body.degraded, ["no-embeddings"]);
 });
 
-test("the alias prefix counts toward the cap and tokens", () => {
-  const prefix = "[deprecated] compass_search → compass_find. Retiring in 3.0.0.\n\n";
-  const out = formatFindResponse(result({ hits: [hit(1)], mode: "exact", found: true }), {
-    prefix,
-  });
-  assert.ok(out.startsWith(prefix));
-  const body = JSON.parse(out.slice(prefix.length)) as { tokens: number };
-  assert.equal(body.tokens, estimateTokens(out));
-});
-
 test("focusIgnored, then focus, then terms are trimmed with their totals", () => {
   const paths = (tag: string) =>
     Array.from({ length: 200 }, (_, i) => `src/${tag}/deeply/nested/file-${i}.ts`);
@@ -177,11 +167,11 @@ test("a list that fits after trimming keeps its longest prefix", () => {
   assert.deepEqual(body.focus, focus.slice(0, body.focus.length));
 });
 
-test("a prefix larger than the bare envelope drops the last hit", () => {
-  const prefix = "x".repeat(256 * 4 - 140);
-  const out = formatFindResponse(result({ hits: [hit(1, null)], cap: 256 }), { prefix });
+test("a single hit larger than the cap is dropped", () => {
+  const big = { ...hit(1, null), file: `src/${"x".repeat(256 * 4)}.ts` };
+  const out = formatFindResponse(result({ hits: [big], cap: 256 }));
   assert.ok(estimateTokens(out) <= 256, String(estimateTokens(out)));
-  const body = JSON.parse(out.slice(prefix.length)) as { hits: unknown[]; truncated?: boolean };
+  const body = JSON.parse(out) as { hits: unknown[]; truncated?: boolean };
   assert.equal(body.hits.length, 0);
   assert.equal(body.truncated, true);
 });
