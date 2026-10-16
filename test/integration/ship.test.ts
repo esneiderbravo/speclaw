@@ -10,6 +10,7 @@ import { handleLevel, scaffoldQuick } from "../../src/modules/lawbook/quick.js";
 import { confirmedLevel } from "../../src/modules/lawbook/levels.js";
 import { buildIndex } from "../../src/modules/compass/indexer.js";
 import { recordGreenRun } from "../../src/shared/test-runs.js";
+import { recordCompassCall } from "../../src/shared/compass-calls.js";
 import {
   changeNameForBranch,
   docHint,
@@ -69,7 +70,9 @@ test("ship never records a review verdict and leaves level 1+ for the PR", (t) =
   assert.equal(r.gatesPassed, true);
   assert.equal(r.archivedTo, null);
   assert.match(r.next[0], /review happens there/);
-  assert.equal(readHarness(root, "feat-y"), null);
+  const open = readHarness(root, "feat-y");
+  assert.equal(open?.stage, "implementing", "ship records the work, not the review");
+  assert.equal(open?.verdicts.review, null);
 
   const zero = shipChange(root, "fix-z", { gates: [PASS], date: "2026-10-07", summary: "z" });
   assert.ok(zero.archivedTo);
@@ -78,6 +81,49 @@ test("ship never records a review verdict and leaves level 1+ for the PR", (t) =
   ) as { verdicts: { review: string | null; test: string | null } };
   assert.equal(harness.verdicts.review, null);
   assert.equal(harness.verdicts.test, "PASS");
+});
+
+test("ship times each harness stage from its evidence, not from the stop", (t) => {
+  const root = gitFixture(t);
+  // One clock for the whole test: under load the ship takes seconds.
+  const now = Date.now();
+  const ago = (min: number) => new Date(now - min * 60_000);
+  const env = (d: Date) => ({
+    ...process.env,
+    GIT_AUTHOR_DATE: d.toISOString(),
+    GIT_COMMITTER_DATE: d.toISOString(),
+  });
+  const run = (d: Date, ...args: string[]) => {
+    const r = spawnSync("git", args, { cwd: root, encoding: "utf8", env: env(d) });
+    assert.equal(r.status, 0, r.stderr);
+  };
+  // The reflog dates the branch; a lookup before it belongs to other work.
+  recordCompassCall(root, "compass_find", ago(240));
+  run(ago(180), "checkout", "-qb", "fix/timed");
+  recordCompassCall(root, "compass_explore", ago(150));
+  fs.writeFileSync(path.join(root, "a.js"), "export const a = 2;\n");
+  run(ago(120), "commit", "-qam", "fix: timed");
+
+  const r = shipChange(root, "timed", { gates: [PASS], date: "2026-10-07" });
+  assert.ok(r.archivedTo, JSON.stringify(r.next));
+  const harness = JSON.parse(
+    fs.readFileSync(path.join(root, r.archivedTo, "harness.json"), "utf8"),
+  ) as { history: Array<{ at: string; to: string }> };
+  const at = (to: string) => Date.parse(harness.history.find((h) => h.to === to)!.at);
+  const near = (ms: number, d: Date) => Math.abs(ms - d.getTime()) < 2000;
+  assert.deepEqual(
+    harness.history.map((h) => h.to),
+    ["exploring", "implementing", "testing", "archiving", "done"],
+  );
+  assert.ok(near(at("exploring"), ago(150)), "exploring starts at the branch's first lookup");
+  assert.ok(near(at("implementing"), ago(120)), "implementing starts at the first edit");
+  assert.ok(at("testing") - at("implementing") > 60 * 60_000, "testing starts with the gates");
+  const times = harness.history.map((h) => Date.parse(h.at));
+  assert.deepEqual(
+    times,
+    [...times].sort((a, b) => a - b),
+    "stage times never go back",
+  );
 });
 
 test("ship reads gates and discipline from config, else package.json scripts", (t) => {

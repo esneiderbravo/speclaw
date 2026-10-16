@@ -9,6 +9,8 @@ import { affectedTests } from "../compass/affected.js";
 import { readGreenRuns, reuseGreenRuns } from "../../shared/test-runs.js";
 import { COMPASS_DOC, stripCompassMapBlock } from "../../shared/compass-map.js";
 import { handleHarness, readHarness } from "../cortex/harness.js";
+import type { HarnessStage } from "../cortex/types.js";
+import { isEvidenceTool, readCompassCalls } from "../../shared/compass-calls.js";
 import { deltaSpecFiles, specArchive, specArchivePreconditions, specList } from "./engine.js";
 import {
   artifactNeeds,
@@ -854,29 +856,137 @@ export function pendingArtifacts(projectPath: string, name: string, files?: stri
   return out;
 }
 
-/**
- * Record the test verdict derived from gate exit codes. Ship never records a
- * review verdict: review belongs to a reviewer or the PR, never to the tool
- * that produced the change. Stage moves are plain transitions; the only
- * verdict written is the one at `testing`, and only from passing gates.
- */
-function recordGateVerdict(projectPath: string, change: string): void {
-  if (!readHarness(projectPath, change)) {
-    handleHarness({ projectPath, change, harnessOp: "start" });
+/** When the gates ran, in epoch ms: the stage times no other evidence carries. */
+interface GateWindow {
+  start: number;
+  end: number;
+}
+
+/** Oldest commit on the branch (author time, epoch ms), or null when there is none. */
+function oldestBranchCommitMs(projectPath: string): number | null {
+  const base = mergeBase(projectPath, "main") ?? mergeBase(projectPath, "master");
+  if (!base) return null;
+  const first = git(projectPath, ["log", "--reverse", "--format=%at", `${base}..HEAD`]).split(
+    "\n",
+  )[0];
+  return first ? Number(first) * 1000 : null;
+}
+
+/** When the branch was created, from its reflog (epoch ms), else its oldest commit. */
+function branchStartMs(projectPath: string): number | null {
+  const branch = currentBranch(projectPath);
+  if (branch && branch !== "HEAD") {
+    const log = git(projectPath, [
+      "reflog",
+      "show",
+      "--date=unix",
+      "--format=%gd",
+      `refs/heads/${branch}`,
+    ])
+      .trim()
+      .split("\n");
+    const m = /@\{(\d+)\}$/.exec(log[log.length - 1] ?? "");
+    if (m) return Number(m[1]) * 1000;
   }
-  for (let i = 0; i < 4; i++) {
+  return oldestBranchCommitMs(projectPath);
+}
+
+/**
+ * When each stage ship records began, read from the work's own evidence: the
+ * harness is written at the stop, so "now" would stamp every stage with the
+ * same second. Exploring starts at the first Compass lookup or edit since the
+ * branch was created; implementing at the first edit (oldest branch commit or
+ * oldest uncommitted file change); planning when the change's level was
+ * confirmed; testing and what follows from the gates' own run.
+ */
+function stageTimes(
+  projectPath: string,
+  change: string,
+  gates: GateWindow,
+): Partial<Record<HarnessStage, number>> {
+  const earliest = (xs: number[]): number | undefined => {
+    const finite = xs.filter(Number.isFinite);
+    return finite.length ? Math.min(...finite) : undefined;
+  };
+  // The call log is shared by every branch: only lookups since this one began count.
+  const start = branchStartMs(projectPath);
+  const compass =
+    start === null
+      ? []
+      : readCompassCalls(projectPath, { sinceMs: start })
+          .filter((c) => isEvidenceTool(c.tool))
+          .map((c) => Date.parse(c.at));
+  const uncommitted = [...worktreeChangedFiles(projectPath), ...untrackedFiles(projectPath)]
+    .filter((f) => !isOwnOutput(f))
+    .flatMap((f) => {
+      try {
+        return [fs.statSync(path.join(projectPath, f)).mtimeMs];
+      } catch {
+        return [];
+      }
+    });
+  const commit = oldestBranchCommitMs(projectPath);
+  const edit = earliest([...uncommitted, ...(commit === null ? [] : [commit])]);
+  const confirmed = Date.parse(readCeremonyRecord(projectPath, change)?.confirmedAt ?? "");
+  return {
+    exploring:
+      earliest([...compass, ...(edit === undefined ? [] : [edit])]) ?? start ?? gates.start,
+    planning: Number.isFinite(confirmed) ? confirmed : edit,
+    implementing: edit ?? gates.start,
+    testing: gates.start,
+    reviewing: gates.end,
+    archiving: gates.end,
+  };
+}
+
+/**
+ * Bring the harness up to `until`, stamping each stage with the time its
+ * evidence shows ({@link stageTimes}), never earlier than the entry before it.
+ * Ship never records a review verdict: review belongs to a reviewer or the PR,
+ * never to the tool that produced the change. Stage moves are plain
+ * transitions; the only verdict written is the one at `testing`, and only from
+ * passing gates. A harness already past `until` (or in a stage ship does not
+ * drive) is left as it is.
+ */
+function backfillHarness(
+  projectPath: string,
+  change: string,
+  until: HarnessStage,
+  gates: GateWindow,
+): void {
+  const times = stageTimes(projectPath, change, gates);
+  const ceiling = Math.max(Date.now(), gates.end);
+  const after = (stage: HarnessStage): string => {
+    const prev = readHarness(projectPath, change)?.history.at(-1)?.at;
+    const floor = prev ? Date.parse(prev) : -Infinity;
+    const ms = Math.min(Math.max(times[stage] ?? ceiling, floor), ceiling);
+    return new Date(ms).toISOString();
+  };
+  if (!readHarness(projectPath, change)) {
+    handleHarness({ projectPath, change, harnessOp: "start", at: after("exploring") });
+  }
+  const driven: HarnessStage[] = ["exploring", "planning", "implementing", "testing"];
+  for (let i = 0; i < 5; i++) {
     const state = readHarness(projectPath, change);
-    if (
-      !state ||
-      (state.stage !== "exploring" && state.stage !== "implementing" && state.stage !== "testing")
-    ) {
-      return;
-    }
+    if (!state || state.stage === until || !driven.includes(state.stage)) return;
+    const to: HarnessStage =
+      state.stage === "exploring"
+        ? state.level === 0
+          ? "implementing"
+          : "planning"
+        : state.stage === "planning"
+          ? "implementing"
+          : state.stage === "implementing"
+            ? state.level === 0
+              ? "testing"
+              : "reviewing"
+            : "archiving";
     handleHarness({
       projectPath,
       change,
       harnessOp: "advance",
       verdict: state.stage === "testing" ? "PASS" : undefined,
+      at: after(to),
     });
   }
 }
@@ -1028,11 +1138,18 @@ export function shipChange(projectPath: string, name: string, opts: ShipOptions 
     // Already archived on this branch: the refreshed report is the update.
     archivedTo = archived;
   } else if (level !== 0) {
+    // Review is the PR's: ship records the work up to implementing, timed by its evidence.
+    // Best effort: a record, so a strict Compass gate waits for the agent's own advance.
+    try {
+      backfillHarness(projectPath, name, "implementing", { start: t1, end: t2 });
+    } catch {
+      /* the harness stays as it was */
+    }
     next.push(
       `level ${level ?? "unconfirmed"}: open the PR — review happens there; archive after approval`,
     );
   } else if (!opts.noArchive) {
-    recordGateVerdict(projectPath, name);
+    backfillHarness(projectPath, name, "archiving", { start: t1, end: t2 });
     const pre = specArchivePreconditions(projectPath, name, { syncing: true });
     if (pre.length) next.push(...pre);
     else archivedTo = specArchive(projectPath, name, date).archivedTo;

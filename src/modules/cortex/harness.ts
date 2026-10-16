@@ -195,6 +195,8 @@ export type HarnessHandleArgs = {
   openQuestions?: string[];
   /** planning → questions; rejected (no write) from any other stage. */
   pauseForQuestions?: boolean;
+  /** History timestamp (ISO); defaults to now. Ship passes the time its evidence shows. */
+  at?: string;
 };
 
 /**
@@ -240,7 +242,7 @@ export function handleHarness(args: HarnessHandleArgs): HarnessAdvanceResult | H
       openQuestions: [],
       history: [
         {
-          at: nowIso(),
+          at: args.at ?? nowIso(),
           from: "exploring",
           to: "exploring",
           op: "start",
@@ -284,7 +286,7 @@ export function handleHarness(args: HarnessHandleArgs): HarnessAdvanceResult | H
         history: [
           ...current.history,
           {
-            at: nowIso(),
+            at: args.at ?? nowIso(),
             from: "planning",
             to: "questions",
             op: "advance",
@@ -323,7 +325,7 @@ export function handleHarness(args: HarnessHandleArgs): HarnessAdvanceResult | H
       history: [
         ...current.history,
         {
-          at: nowIso(),
+          at: args.at ?? nowIso(),
           from: current.stage,
           to,
           op: "advance",
@@ -361,7 +363,7 @@ export function handleHarness(args: HarnessHandleArgs): HarnessAdvanceResult | H
       history: [
         ...current.history,
         {
-          at: nowIso(),
+          at: args.at ?? nowIso(),
           from: current.stage,
           to: "implementing",
           op: "rework",
