@@ -1,0 +1,22 @@
+{
+  "level": 1,
+  "score": 12,
+  "signals": {
+    "filesTouched": 3,
+    "modulesTouched": 2,
+    "blastRadiusNodes": 108,
+    "affectedTests": 39,
+    "touchesPublicApi": false,
+    "maxHotspotScore": 0.33265993265993266,
+    "touchesGlobalFile": false,
+    "onlyDocs": false,
+    "degraded": []
+  },
+  "rationale": "3 file(s), 2 module(s), 39 affected test(s), 108 blast node(s), no public API, no global file, hotspot=0.33 → score 12 → level 1 (cuts 5/16/25)",
+  "degraded": [],
+  "confirmedLevel": 1,
+  "confirmedBy": "measured",
+  "confirmedAt": "2026-10-16T21:28:08.568Z",
+  "promotions": [],
+  "changeType": "feature"
+}

@@ -13,11 +13,10 @@
 - [x] 1.5 Benchmark scripts: full Cortex flow, fan-out and review-only probe vs one agent, in throwaway repos; fix the clean probe (NaN rounding, missing mandatory steps)
 - [x] 1.6 Drop the `compass_diff_context` hint after passing test runs (measured: never followed, +60 s on a one-line fix)
 - [x] 1.7 Reuse the agent's green test run at the stop (same code, same setup step, no filter)
-- [x] 1.8 Time each harness stage from its evidence (Compass log, branch reflog, commits, gate run) instead of the stop's clock; at level 1+ the stop records up to `implementing`
 
 ## 2. Verification
 
-- [x] 2.1 Update the affected tests; add `review-handoff`, `test-nudge`, retired-name, harness-rejection and harness stage-timing tests
+- [x] 2.1 Update the affected tests; add `review-handoff`, `test-nudge`, retired-name and harness-rejection tests
 - [x] 2.2 Verify live that Claude Code fires `PostToolUseFailure` for a failing Bash, with the output in `error`
 - [x] 2.3 Real agent runs (one-line, medium, large) speclaw vs agent alone → `reports/performance.md`
 - [x] 2.4 Version 2.1.0 and CHANGELOG with the BREAKING note
