@@ -6,12 +6,15 @@
 
 | Check | Result | Time |
 |-------|--------|------|
-| `npm run check` | pass | 5.1 s |
-| `npm run build` | pass | 1.8 s |
-| `npm run pretest && node --test dist-test/test/contract/registers.test.js dist-test/test/e2e/cli.test.js dist-test/test/integration/bugfix-flow.test.js dist-test/test/integration/compass.test.js dist-test/test/integration/doctor.test.js dist-test/test/integration/hooks.test.js dist-test/test/integration/index-noop.test.js dist-test/test/integration/integrity.test.js dist-test/test/integration/mcp-surface.test.js dist-test/test/integration/quick.test.js dist-test/test/integration/reindex-file.test.js dist-test/test/integration/reindex.test.js dist-test/test/integration/scaffold.test.js dist-test/test/integration/session-start.test.js dist-test/test/integration/ship.test.js dist-test/test/integration/tool-args.test.js dist-test/test/integration/tool-surface-benchmark.test.js dist-test/test/integration/verify.test.js dist-test/test/integration/watcher.test.js dist-test/test/unit/accept.test.js dist-test/test/unit/add-agent.test.js dist-test/test/unit/budget.test.js dist-test/test/unit/bugfix.test.js dist-test/test/unit/check.test.js dist-test/test/unit/compass-gate.test.js dist-test/test/unit/cortex-status.test.js dist-test/test/unit/diff-context.test.js dist-test/test/unit/doctor-report.test.js dist-test/test/unit/embedding-cache.test.js dist-test/test/unit/engine.test.js dist-test/test/unit/feature-draft.test.js dist-test/test/unit/fragments.test.js dist-test/test/unit/harness.test.js dist-test/test/unit/laws.test.js dist-test/test/unit/levels.test.js dist-test/test/unit/mcp-budget.test.js dist-test/test/unit/review-handoff.test.js dist-test/test/unit/update.test.js` (39 affected test file(s), 94 skipped; the full suite runs in CI) | pass | 38.6 s |
+| `npm run check` | pass | 5.3 s |
+| `npm run build` | pass | 2.0 s |
+| `npm test` (full suite: global file matched (package-lock.json, package.json)) | pass | 45.9 s |
 
 ## Files changed
 
+- `CHANGELOG.md`
+- `package-lock.json`
+- `package.json`
 - `src/modules/cortex/harness.ts`
 - `src/modules/lawbook/ship.ts`
 - `test/integration/ship.test.ts`
@@ -22,7 +25,7 @@
 
 ```text
 
-> @esneiderbravo/speclaw@2.1.0 check
+> @esneiderbravo/speclaw@2.1.1 check
 > prettier --check . && eslint .
 
 Checking formatting...
@@ -33,27 +36,27 @@ All matched files use Prettier code style!
 
 ```text
 
-> @esneiderbravo/speclaw@2.1.0 build
+> @esneiderbravo/speclaw@2.1.1 build
 > tsc && node scripts/copy-assets.mjs
 
 copy-assets: copied assets for 3 module(s)
 ```
 
-### `npm run pretest && node --test dist-test/test/contract/registers.test.js dist-test/test/e2e/cli.test.js dist-test/test/integration/bugfix-flow.test.js dist-test/test/integration/compass.test.js dist-test/test/integration/doctor.test.js dist-test/test/integration/hooks.test.js dist-test/test/integration/index-noop.test.js dist-test/test/integration/integrity.test.js dist-test/test/integration/mcp-surface.test.js dist-test/test/integration/quick.test.js dist-test/test/integration/reindex-file.test.js dist-test/test/integration/reindex.test.js dist-test/test/integration/scaffold.test.js dist-test/test/integration/session-start.test.js dist-test/test/integration/ship.test.js dist-test/test/integration/tool-args.test.js dist-test/test/integration/tool-surface-benchmark.test.js dist-test/test/integration/verify.test.js dist-test/test/integration/watcher.test.js dist-test/test/unit/accept.test.js dist-test/test/unit/add-agent.test.js dist-test/test/unit/budget.test.js dist-test/test/unit/bugfix.test.js dist-test/test/unit/check.test.js dist-test/test/unit/compass-gate.test.js dist-test/test/unit/cortex-status.test.js dist-test/test/unit/diff-context.test.js dist-test/test/unit/doctor-report.test.js dist-test/test/unit/embedding-cache.test.js dist-test/test/unit/engine.test.js dist-test/test/unit/feature-draft.test.js dist-test/test/unit/fragments.test.js dist-test/test/unit/harness.test.js dist-test/test/unit/laws.test.js dist-test/test/unit/levels.test.js dist-test/test/unit/mcp-budget.test.js dist-test/test/unit/review-handoff.test.js dist-test/test/unit/update.test.js`
+### `npm test`
 
 ```text
-✔ a registry version that is not strict semver never reaches the spawn (0.207833ms)
-✔ unsafe argument tokens are dropped before forwarding (0.150417ms)
-✔ no latest version migrates without spawning (0.091959ms)
-✔ the 2.0.9 migration note mentions self-update; the 2.0.1 entry is unchanged (0.24325ms)
-ℹ tests 482
+✔ pkgVersion returns a semver-shaped string (0.259292ms)
+✔ pkgVersion is cached (stable across calls) (0.083583ms)
+✔ viewer HTML draws on the ink tokens (0.584333ms)
+✔ viewer HTML carries no retired color (0.52975ms)
+ℹ tests 1092
 ℹ suites 0
-ℹ pass 482
+ℹ pass 1092
 ℹ fail 0
 ℹ cancelled 0
 ℹ skipped 0
 ℹ todo 0
-ℹ duration_ms 36043.845625
+ℹ duration_ms 43298.799
 ```
 
 ## Pre-existing failures
