@@ -5,6 +5,18 @@ All notable changes to this project are documented here. Speclaw follows
 
 ## [Unreleased]
 
+## [2.1.1] — 2026-10-16
+
+### Fixed
+
+- `harness.json` no longer stamps every stage with the same second. Ship
+  (and the `Stop` hook) writes each stage with the time its evidence shows:
+  exploring at the first Compass lookup or edit since the branch was created,
+  implementing at the first edit, planning when the level was confirmed, and
+  testing/archiving from the gates' own run — never earlier than the entry
+  before it. At level 1+ the stop records the work up to `implementing`; the
+  review verdict stays with the PR.
+
 ## [2.1.0] — 2026-10-08
 
 ### Removed — BREAKING
