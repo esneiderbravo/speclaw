@@ -1355,8 +1355,22 @@ const MEASURE_GRACE_MS = 2 * 60 * 1000;
 
 /** Outcome of {@link shipOnStop}: why it skipped, or the ship result. */
 export type ShipOnStopResult =
-  | { skipped: "not-git" | "base-branch" | "no-changes" | "unchanged-since-last-ship" }
+  | { skipped: "not-git" | "detached" | "no-changes" | "unchanged-since-last-ship" }
+  | {
+      /**
+       * Work on the base branch that no change records yet: the hook cannot
+       * name it from the branch, so it asks the agent to (see {@link unrecordedReason}).
+       */
+      skipped: "unrecorded-base-work";
+      branch: string;
+      files: string[];
+      /** Changes still open under `lawbook/changes/`, which the work may continue. */
+      active: string[];
+    }
   | { skipped: null; change: string; result: ShipResult };
+
+/** Branches a trunk-based project works on directly; there the commit bounds a change. */
+const BASE_BRANCHES = ["main", "master"];
 
 /**
  * Change name for a branch: the part after the last `/`, kebab-cased
@@ -1404,11 +1418,15 @@ function git(projectPath: string, args: string[]): string {
 /** The last shipped work; a manual ship and the hook share it. */
 const SHIP_MARKER = path.join(".speclaw", "ship-last");
 
-/** What the last ship recorded: where, under which change name, and the work's fingerprint. */
+/**
+ * What the last ship recorded: where, under which change name, the work's
+ * fingerprint and the commit it sat on (empty in markers older than 2.1.2).
+ */
 interface ShipMarker {
   branch: string;
   change: string;
   fingerprint: string;
+  head: string;
 }
 
 function currentBranch(projectPath: string): string {
@@ -1422,6 +1440,7 @@ function markShipped(projectPath: string, change: string): void {
     branch: currentBranch(projectPath),
     change,
     fingerprint: workFingerprint(projectPath),
+    head: headCommit(projectPath),
   };
   fs.writeFileSync(marker, JSON.stringify(body) + "\n");
 }
@@ -1434,12 +1453,52 @@ function readMarker(projectPath: string): ShipMarker | null {
   try {
     const m = JSON.parse(raw) as Partial<ShipMarker>;
     if (typeof m.fingerprint === "string") {
-      return { branch: m.branch ?? "", change: m.change ?? "", fingerprint: m.fingerprint };
+      return {
+        branch: m.branch ?? "",
+        change: m.change ?? "",
+        fingerprint: m.fingerprint,
+        head: m.head ?? "",
+      };
     }
   } catch {
     // Legacy marker: the fingerprint alone.
   }
-  return { branch: "", change: "", fingerprint: raw };
+  return { branch: "", change: "", fingerprint: raw, head: "" };
+}
+
+function headCommit(projectPath: string): string {
+  return git(projectPath, ["rev-parse", "HEAD"]).trim();
+}
+
+/**
+ * The change base-branch work continues: the one last shipped on this branch,
+ * as long as no commit landed since. On trunk the commit is what closes a
+ * change, so work after it is new and needs a name of its own.
+ */
+function baseBranchChange(projectPath: string, branch: string): string | null {
+  const marker = readMarker(projectPath);
+  if (!marker?.change || marker.branch !== branch || !marker.head) return null;
+  return marker.head === headCommit(projectPath) ? marker.change : null;
+}
+
+/**
+ * What the Stop hook tells the agent about base-branch work no change records:
+ * how to record it, and which open changes it may be continuing.
+ *
+ * @param out - The `unrecorded-base-work` result of {@link shipOnStop}.
+ * @returns The block reason.
+ */
+export function unrecordedReason(
+  out: Extract<ShipOnStopResult, { skipped: "unrecorded-base-work" }>,
+): string {
+  const lines = [
+    `speclaw: ${out.files.length} file(s) changed on \`${out.branch}\` are not recorded in any change.`,
+    `Record them before finishing: \`speclaw ship <change> --summary "<what and why>"\`, with a kebab-case name for this work.`,
+  ];
+  if (out.active.length > 0) {
+    lines.push(`Open changes it may continue: ${out.active.map((c) => `\`${c}\``).join(", ")}.`);
+  }
+  return lines.join("\n");
 }
 
 /**
@@ -1484,10 +1543,14 @@ function workFingerprint(projectPath: string): string {
 }
 
 /**
- * The `Stop` hook body: when the agent ends a turn on a feature branch with
- * work that changed since the last ship, run {@link shipChange} for the change
- * last shipped on this branch, else the one named after the branch. Skips in
- * milliseconds otherwise, so a turn that only answered a question costs nothing.
+ * The `Stop` hook body: when the agent ends a turn with work that changed
+ * since the last ship, run {@link shipChange} for the change that work belongs
+ * to. Branch-agnostic: on a feature branch that is the change last shipped on
+ * it, else the one named after the branch; on the base branch (trunk-based
+ * work) it is the change last shipped there with no commit since, else the
+ * work is reported as `unrecorded-base-work` so the agent names it — never
+ * dropped in silence. Skips in milliseconds otherwise, so a turn that only
+ * answered a question costs nothing.
  *
  * @param projectPath - Project root.
  * @returns Why it skipped, or the ship result.
@@ -1495,11 +1558,24 @@ function workFingerprint(projectPath: string): string {
 export function shipOnStop(projectPath: string): ShipOnStopResult {
   if (!isGitRepo(projectPath)) return { skipped: "not-git" };
   const branch = currentBranch(projectPath);
-  if (!branch || ["main", "master", "HEAD"].includes(branch)) return { skipped: "base-branch" };
-  if (branchFiles(projectPath).length === 0) return { skipped: "no-changes" };
+  if (!branch || branch === "HEAD") return { skipped: "detached" };
+  const files = branchFiles(projectPath);
+  if (files.length === 0) return { skipped: "no-changes" };
   const marker = readMarker(projectPath);
   if (marker?.fingerprint === workFingerprint(projectPath)) {
     return { skipped: "unchanged-since-last-ship" };
+  }
+  if (BASE_BRANCHES.includes(branch)) {
+    const change = baseBranchChange(projectPath, branch);
+    if (!change) {
+      return {
+        skipped: "unrecorded-base-work",
+        branch,
+        files,
+        active: specList(projectPath).activeChanges,
+      };
+    }
+    return { skipped: null, change, result: shipChange(projectPath, change) };
   }
   // A change shipped by name on this branch keeps receiving the branch's later
   // work; the branch name would point at another (possibly archived) change.

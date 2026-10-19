@@ -5,6 +5,26 @@ All notable changes to this project are documented here. Speclaw follows
 
 ## [Unreleased]
 
+## [2.1.2] — 2026-10-18
+
+### Fixed
+
+- The `Stop` hook no longer skips `main`/`master` in silence. It is now
+  branch-agnostic: on the base branch, work continues the change last shipped
+  there until a commit closes it; otherwise the hook blocks the stop once,
+  telling the agent to record the work with
+  `speclaw ship <change> --summary "<what and why>"` and naming the open
+  changes it may continue, and the user always sees it. Trunk-based projects
+  were never recorded, gated or blocked before. Only a detached HEAD is still
+  skipped.
+
+### Changed
+
+- The generated "speclaw workflow" section of `AGENTS.md` no longer assumes a
+  `<type>/<slug>` branch: it explains how a change is named on a branch and on
+  the base branch, that the `Stop` hook blocks unrecorded work, and that
+  public-API or multi-module work is drafted first.
+
 ## [2.1.1] — 2026-10-16
 
 ### Fixed

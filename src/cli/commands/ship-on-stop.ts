@@ -1,4 +1,9 @@
-import { measureBranchDiff, shipOnStop, stopSummary } from "../../modules/lawbook/ship.js";
+import {
+  measureBranchDiff,
+  shipOnStop,
+  stopSummary,
+  unrecordedReason,
+} from "../../modules/lawbook/ship.js";
 
 /**
  * `speclaw ship-on-stop`: the Claude Code `Stop` hook. Ships the branch's
@@ -7,7 +12,9 @@ import { measureBranchDiff, shipOnStop, stopSummary } from "../../modules/lawboo
  * change's level still owes, or a failing gate, also set `decision: "block"`
  * with the `reason` the agent acts on — once: when the hook already blocked
  * this stop (`stop_hook_active`), it does not block again, so the agent can
- * never loop. A skipped stop prints nothing. It always exits 0.
+ * never loop. Base-branch work no change records is never skipped in silence:
+ * it blocks once with how to record it, and the user always sees it. Any
+ * other skipped stop prints nothing. It always exits 0.
  *
  * @param cwd - Project root (defaults to the process working directory).
  */
@@ -16,6 +23,16 @@ export async function runShipOnStop(cwd: string = process.cwd()): Promise<void> 
   const active = await stopHookActive();
   try {
     const out = shipOnStop(cwd);
+    if (out.skipped === "unrecorded-base-work") {
+      const told = `speclaw: ${out.files.length} file(s) on ${out.branch} not recorded in any change`;
+      process.stdout.write(
+        JSON.stringify({
+          ...(active ? {} : { decision: "block", reason: unrecordedReason(out) }),
+          systemMessage: active ? `${told} — left unrecorded` : `${told} — sent back to the agent`,
+        }) + "\n",
+      );
+      return;
+    }
     if (out.skipped !== null) return;
     const r = out.result;
     const block = !active && (r.pending.length > 0 || !r.gatesPassed);
