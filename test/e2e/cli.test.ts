@@ -10,6 +10,7 @@ import { runCli, cliBuilt } from "../helpers/cli.js";
 import { COMMANDS } from "../../src/cli/lib/help.js";
 import { scaffold } from "../../src/modules/foundation/scaffold.js";
 import { gitInit, commit } from "../helpers/git.js";
+import { specInit } from "../../src/modules/lawbook/engine.js";
 import { spawnSync } from "node:child_process";
 
 // The e2e suite drives the built dist/ CLI. It requires `npm run build` to have
@@ -425,3 +426,41 @@ test("the forced notifier prints for a non-help command (help-table control)", {
   assert.equal(r.code, 0, r.stderr);
   assert.match(r.stderr, /999\.0\.0[\s\S]*available/);
 });
+
+// Covers: req~ship-on-stop-hook~1
+test(
+  "ship-on-stop blocks once on unrecorded base-branch work and always tells the user",
+  { skip },
+  (t) => {
+    const root = tmpRepo(t);
+    const g = (...args: string[]) => spawnSync("git", ["-C", root, ...args], { encoding: "utf8" });
+    g("init", "-q", "-b", "main");
+    g("config", "user.email", "t@t");
+    g("config", "user.name", "t");
+    specInit(root);
+    write(root, "a.js", "export const a = 1;\n");
+    g("add", "-A");
+    g("commit", "-qm", "init");
+    write(root, "a.js", "export const a = 2;\n");
+
+    const first = runCli(["ship-on-stop"], { cwd: root, input: "{}" });
+    assert.equal(first.code, 0);
+    const told = JSON.parse(first.stdout) as {
+      decision?: string;
+      reason?: string;
+      systemMessage: string;
+    };
+    assert.equal(told.decision, "block");
+    assert.match(told.reason ?? "", /changed on `main` are not recorded in any change/);
+    assert.match(told.systemMessage, /not recorded in any change — sent back to the agent$/);
+
+    // Already blocked once: the agent is never looped, the user still sees it.
+    const again = runCli(["ship-on-stop"], {
+      cwd: root,
+      input: JSON.stringify({ stop_hook_active: true }),
+    });
+    const after = JSON.parse(again.stdout) as { decision?: string; systemMessage: string };
+    assert.equal(after.decision, undefined);
+    assert.match(after.systemMessage, /left unrecorded$/);
+  },
+);

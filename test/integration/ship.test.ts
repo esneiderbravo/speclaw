@@ -21,6 +21,7 @@ import {
   shipChange,
   shipOnStop,
   stopSummary,
+  unrecordedReason,
 } from "../../src/modules/lawbook/ship.js";
 
 const PASS = `node -e "process.exit(0)"`;
@@ -191,9 +192,9 @@ function gitFixture(t: Parameters<typeof tmpRepo>[0]): string {
 }
 
 // Covers: req~ship-on-stop-hook~1
-test("shipOnStop skips the base branch and unchanged work, ships changed work once", (t) => {
+test("shipOnStop skips a clean tree and unchanged work, ships changed work once", (t) => {
   const root = gitFixture(t);
-  assert.deepEqual(shipOnStop(root), { skipped: "base-branch" });
+  assert.deepEqual(shipOnStop(root), { skipped: "no-changes" }, "a clean base branch");
   git(root, "checkout", "-qb", "fix/a-value");
   assert.deepEqual(shipOnStop(root), { skipped: "no-changes" });
 
@@ -215,6 +216,68 @@ test("shipOnStop skips the base branch and unchanged work, ships changed work on
   if (again.skipped !== null) return;
   assert.equal(again.result.archivedTo, first.result.archivedTo);
   assert.ok(again.result.report?.startsWith(first.result.archivedTo!));
+});
+
+// Covers: req~ship-on-stop-hook~1
+test("base-branch work no change records is reported, never skipped in silence", (t) => {
+  const root = gitFixture(t);
+  fs.writeFileSync(path.join(root, "a.js"), "export const a = 2;\n");
+  const out = shipOnStop(root);
+  assert.equal(out.skipped, "unrecorded-base-work");
+  if (out.skipped !== "unrecorded-base-work") return;
+  assert.equal(out.branch, "main");
+  assert.deepEqual(out.files, ["a.js"]);
+  assert.deepEqual(out.active, []);
+  const reason = unrecordedReason(out);
+  assert.match(reason, /1 file\(s\) changed on `main` are not recorded in any change/);
+  assert.match(reason, /speclaw ship <change> --summary/);
+  assert.doesNotMatch(reason, /Open changes/, "no open change, no list");
+});
+
+test("on the base branch the change shipped by name keeps the work until a commit closes it", (t) => {
+  const root = gitFixture(t);
+  fs.writeFileSync(path.join(root, "a.js"), "export const a = 3;\n");
+  const manual = shipChange(root, "trunk-value", { summary: "a on trunk" });
+  assert.ok(manual.archivedTo, JSON.stringify(manual.next));
+  assert.deepEqual(shipOnStop(root), { skipped: "unchanged-since-last-ship" });
+
+  // More work before the commit belongs to the same change.
+  fs.writeFileSync(path.join(root, "a.js"), "export const a = 4;\n");
+  const more = shipOnStop(root);
+  assert.equal(more.skipped, null);
+  if (more.skipped !== null) return;
+  assert.equal(more.change, "trunk-value");
+
+  // The commit closes it: work after it is new and must be named again.
+  git(root, "add", "-A");
+  git(root, "commit", "-qm", "feat: trunk value");
+  assert.deepEqual(shipOnStop(root), { skipped: "no-changes" });
+  fs.writeFileSync(path.join(root, "a.js"), "export const a = 5;\n");
+  assert.equal(shipOnStop(root).skipped, "unrecorded-base-work");
+});
+
+test("unrecorded base-branch work names the open changes it may continue", (t) => {
+  const root = gitFixture(t);
+  fs.mkdirSync(path.join(root, "lawbook", "changes", "open-thing"), { recursive: true });
+  fs.writeFileSync(path.join(root, "lawbook", "changes", "open-thing", "proposal.md"), "# x\n");
+  fs.writeFileSync(path.join(root, "a.js"), "export const a = 6;\n");
+  const out = shipOnStop(root);
+  assert.equal(out.skipped, "unrecorded-base-work");
+  if (out.skipped !== "unrecorded-base-work") return;
+  assert.deepEqual(out.active, ["open-thing"]);
+  assert.match(unrecordedReason(out), /Open changes it may continue: `open-thing`\./);
+});
+
+test("a marker without its commit never carries base-branch work into an old change", (t) => {
+  const root = gitFixture(t);
+  fs.writeFileSync(path.join(root, "a.js"), "export const a = 7;\n");
+  shipChange(root, "old-change", { summary: "old" });
+  const marker = path.join(root, ".speclaw", "ship-last");
+  const legacy = JSON.parse(fs.readFileSync(marker, "utf8")) as Record<string, string>;
+  delete legacy.head;
+  fs.writeFileSync(marker, JSON.stringify(legacy));
+  fs.writeFileSync(path.join(root, "a.js"), "export const a = 8;\n");
+  assert.equal(shipOnStop(root).skipped, "unrecorded-base-work");
 });
 
 test("changeNameForBranch keeps the last segment, kebab-cased", () => {
