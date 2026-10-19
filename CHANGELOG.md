@@ -5,6 +5,24 @@ All notable changes to this project are documented here. Speclaw follows
 
 ## [Unreleased]
 
+### Fixed
+
+- The `Stop` hook's test gate no longer reaches packages the project's own
+  `test` script does not run. When the root `scripts.test` names its packages
+  (`--workspace`, `-w`, `--prefix`, `cd <dir> &&`), affected tests elsewhere —
+  a Playwright e2e workspace, for one — are left out, so a stop no longer drives
+  a live stack, and a run cut by the hook's timeout no longer skips its teardown.
+- A change to `testGlobs` in `.speclaw/affected.json` now reaches every indexed
+  file at the next index run or per-file reindex. Files skipped by stat kept
+  their old test flag until `index --force`, so the affected-test selection
+  followed the previous globs.
+
+### Added
+
+- `ship.cooldownMinutes` in `lawbook/config.yaml`: after a passing ship, stops
+  on the same branch within that window leave the newer work for a later stop
+  instead of re-running every gate. Off by default.
+
 ## [2.1.2] — 2026-10-18
 
 ### Fixed
