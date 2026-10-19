@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 import { createHash } from "node:crypto";
 import { changedFiles, isGitRepo, mergeBase, worktreeChangedFiles } from "../../shared/git.js";
 import { isTestPath, loadAffectedConfig, matchesAny } from "../compass/affected-config.js";
-import { affectedTests } from "../compass/affected.js";
+import { affectedTests, planTestCommand, testScriptPackages } from "../compass/affected.js";
 import { readGreenRuns, reuseGreenRuns } from "../../shared/test-runs.js";
 import { COMPASS_DOC, stripCompassMapBlock } from "../../shared/compass-map.js";
 import { handleHarness, readHarness } from "../cortex/harness.js";
@@ -91,6 +91,19 @@ export interface ShipOptions {
 
 const GATE_TAIL_LINES = 12;
 
+/** The `ship:` block of `lawbook/config.yaml`. */
+export interface ShipConfig {
+  gates?: string[];
+  discipline?: string;
+  tests?: "affected" | "full";
+  /**
+   * Minutes after a passing ship during which the `Stop` hook leaves further
+   * work on the same branch for a later stop. 0 or absent: every stop with
+   * changed work ships (the default).
+   */
+  cooldownMinutes?: number;
+}
+
 /**
  * Read the `ship:` block of lawbook/config.yaml (line-oriented, like the other
  * config readers): `gates: [...]` and `discipline: <name>`.
@@ -98,14 +111,10 @@ const GATE_TAIL_LINES = 12;
  * @param projectPath - Project root.
  * @returns The configured gates and discipline, each undefined when absent.
  */
-export function readShipConfig(projectPath: string): {
-  gates?: string[];
-  discipline?: string;
-  tests?: "affected" | "full";
-} {
+export function readShipConfig(projectPath: string): ShipConfig {
   const cfg = path.join(projectPath, "lawbook", "config.yaml");
   if (!fs.existsSync(cfg)) return {};
-  const out: { gates?: string[]; discipline?: string; tests?: "affected" | "full" } = {};
+  const out: ShipConfig = {};
   let inShip = false;
   for (const line of fs.readFileSync(cfg, "utf8").split("\n")) {
     if (/^ship:\s*$/.test(line)) {
@@ -125,6 +134,8 @@ export function readShipConfig(projectPath: string): {
     if (d) out.discipline = d[1];
     const t = /^\s+tests:\s*["']?(affected|full)["']?\s*$/.exec(line);
     if (t) out.tests = t[1] as "affected" | "full";
+    const c = /^\s+cooldownMinutes:\s*(\d+)\s*$/.exec(line);
+    if (c) out.cooldownMinutes = Number(c[1]);
   }
   return out;
 }
@@ -179,6 +190,35 @@ function scopedTestGate(
       const code = files.filter((f) => !matchesAny(f, thresholds.docGlobs));
       if (code.length) return full("no test reaches the changed code");
       return { command: null, scope: "docs only: no test reaches the change" };
+    }
+    // The gate stands in for `npm test`: it never reaches a package that
+    // script does not run (an e2e workspace, say).
+    // Covers: req~test-gate-stays-in-test-script~1
+    const inScope = testScriptPackages(projectPath);
+    const within = (f: string) =>
+      inScope === null || inScope.some((d) => d === "." || f === d || f.startsWith(`${d}/`));
+    const kept = at.tests.map((t) => t.file).filter(within);
+    const outside = at.tests.length - kept.length;
+    if (outside > 0) {
+      const where = `the test script's packages (${inScope!.join(", ")})`;
+      if (kept.length === 0) {
+        return {
+          command: null,
+          scope: `${outside} affected test file(s), none in ${where}; the full suite runs in CI`,
+        };
+      }
+      const plan = planTestCommand(projectPath, kept, "subset");
+      if (plan.command) {
+        return {
+          command: plan.command,
+          scope: `${kept.length} affected test file(s) in ${where}, ${outside} outside it and ${at.skipped.files} more skipped; the full suite runs in CI`,
+          parts: plan.commands.map((c) => ({
+            cwd: c.cwd,
+            command: c.command,
+            tests: c.files.length,
+          })),
+        };
+      }
     }
     return {
       command: at.command,
@@ -1355,7 +1395,15 @@ const MEASURE_GRACE_MS = 2 * 60 * 1000;
 
 /** Outcome of {@link shipOnStop}: why it skipped, or the ship result. */
 export type ShipOnStopResult =
-  | { skipped: "not-git" | "detached" | "no-changes" | "unchanged-since-last-ship" }
+  | {
+      skipped:
+        | "not-git"
+        | "detached"
+        | "no-changes"
+        | "unchanged-since-last-ship"
+        /** Gates passed on this branch less than `ship.cooldownMinutes` ago. */
+        | "cooling-down";
+    }
   | {
       /**
        * Work on the base branch that no change records yet: the hook cannot
@@ -1427,6 +1475,8 @@ interface ShipMarker {
   change: string;
   fingerprint: string;
   head: string;
+  /** When the gates last passed (ISO-8601); empty on a marker older than the field. */
+  at: string;
 }
 
 function currentBranch(projectPath: string): string {
@@ -1441,6 +1491,7 @@ function markShipped(projectPath: string, change: string): void {
     change,
     fingerprint: workFingerprint(projectPath),
     head: headCommit(projectPath),
+    at: new Date().toISOString(),
   };
   fs.writeFileSync(marker, JSON.stringify(body) + "\n");
 }
@@ -1458,12 +1509,26 @@ function readMarker(projectPath: string): ShipMarker | null {
         change: m.change ?? "",
         fingerprint: m.fingerprint,
         head: m.head ?? "",
+        at: m.at ?? "",
       };
     }
   } catch {
     // Legacy marker: the fingerprint alone.
   }
-  return { branch: "", change: "", fingerprint: raw, head: "" };
+  return { branch: "", change: "", fingerprint: raw, head: "", at: "" };
+}
+
+/**
+ * Whether the last passing ship on this branch is recent enough, under
+ * `ship.cooldownMinutes`, to leave the newer work for a later stop. A long
+ * session otherwise re-runs every gate at almost every stop; the deferred work
+ * is not lost — the next stop past the window ships it, and CI gates the PR.
+ */
+function withinCooldown(projectPath: string, marker: ShipMarker, branch: string): boolean {
+  const minutes = readShipConfig(projectPath).cooldownMinutes ?? 0;
+  if (minutes <= 0 || !marker.at || marker.branch !== branch) return false;
+  const age = Date.now() - Date.parse(marker.at);
+  return Number.isFinite(age) && age >= 0 && age < minutes * 60_000;
 }
 
 function headCommit(projectPath: string): string {
@@ -1565,6 +1630,8 @@ export function shipOnStop(projectPath: string): ShipOnStopResult {
   if (marker?.fingerprint === workFingerprint(projectPath)) {
     return { skipped: "unchanged-since-last-ship" };
   }
+  // Covers: req~stop-gates-cooldown~1
+  if (marker && withinCooldown(projectPath, marker, branch)) return { skipped: "cooling-down" };
   if (BASE_BRANCHES.includes(branch)) {
     const change = baseBranchChange(projectPath, branch);
     if (!change) {

@@ -276,6 +276,101 @@ function readPackage(dir: string): PackageInfo | null {
 }
 
 /**
+ * The packages a project's own `test` script runs, when it names them: the
+ * directories behind `--workspace <name>` / `-w <name>` / `--workspace=<name>`,
+ * `--prefix <dir>` and `cd <dir> &&` in the root `scripts.test`. A gate that
+ * replaces `npm test` with an affected-test selection must not reach further
+ * than `npm test` itself — a monorepo whose script runs only its unit-test
+ * workspaces never meant its browser suite to run there.
+ *
+ * Null — no restriction — when the script names no package (it runs a runner
+ * directly), runs every workspace (`--workspaces` / `-ws`), or names one this
+ * cannot place: an unknown reference must widen the selection, never drop tests.
+ *
+ * @param projectPath - Project root.
+ * @returns Repo-relative package directories (`.` for the root), or null.
+ */
+// Covers: req~test-gate-stays-in-test-script~1
+export function testScriptPackages(projectPath: string): string[] | null {
+  const root = readPackageJson(projectPath);
+  const script = root?.scripts?.test;
+  if (!script) return null;
+  if (/(^|\s)(--workspaces|-ws)(\s|$)/.test(script)) return null;
+  const refs: Array<{ kind: "workspace" | "dir"; value: string }> = [];
+  const patterns: Array<[RegExp, "workspace" | "dir"]> = [
+    [/(?:--workspace|-w)(?:=|\s+)("[^"]+"|'[^']+'|[^\s;&|]+)/g, "workspace"],
+    [/--prefix(?:=|\s+)("[^"]+"|'[^']+'|[^\s;&|]+)/g, "dir"],
+    [/(?:^|[;&|]\s*|\(\s*)cd\s+("[^"]+"|'[^']+'|[^\s;&|)]+)/g, "dir"],
+  ];
+  for (const [re, kind] of patterns) {
+    for (const m of script.matchAll(re))
+      refs.push({ kind, value: m[1]!.replace(/^["']|["']$/g, "") });
+  }
+  if (refs.length === 0) return null;
+  const workspaces = workspaceDirs(projectPath, root);
+  const dirs = new Set<string>();
+  for (const ref of refs) {
+    const dir =
+      ref.kind === "dir"
+        ? normalizeDir(ref.value)
+        : (workspaces.get(ref.value) ??
+          (workspaces.has(normalizeDir(ref.value)) ? normalizeDir(ref.value) : null));
+    if (dir === null || !fs.existsSync(path.join(projectPath, dir))) return null;
+    dirs.add(dir);
+  }
+  return [...dirs].sort();
+}
+
+interface RootPackage extends PackageInfo {
+  name?: string;
+  workspaces?: string[] | { packages?: string[] };
+}
+
+function readPackageJson(dir: string): RootPackage | null {
+  return readPackage(dir) as RootPackage | null;
+}
+
+function normalizeDir(dir: string): string {
+  const d = path.posix.normalize(dir.split(path.sep).join("/")).replace(/\/+$/, "");
+  return d === "" ? "." : d.replace(/^\.\//, "");
+}
+
+/**
+ * Workspace name → directory, plus directory → directory, for the root's
+ * `workspaces` (array or `{ packages }`). Globs are expanded one `*` segment
+ * deep (`apps/*`), the form npm workspaces use in practice.
+ */
+function workspaceDirs(projectPath: string, root: RootPackage | null): Map<string, string> {
+  const globs = Array.isArray(root?.workspaces)
+    ? root.workspaces
+    : (root?.workspaces?.packages ?? []);
+  const out = new Map<string, string>();
+  for (const glob of globs) {
+    const g = normalizeDir(glob);
+    const star = g.indexOf("*");
+    const candidates: string[] = [];
+    if (star === -1) candidates.push(g);
+    else {
+      const parent = g.slice(0, g.lastIndexOf("/", star) + 1).replace(/\/$/, "") || ".";
+      try {
+        for (const e of fs.readdirSync(path.join(projectPath, parent), { withFileTypes: true })) {
+          if (e.isDirectory()) candidates.push(parent === "." ? e.name : `${parent}/${e.name}`);
+        }
+      } catch {
+        // No such parent: nothing to add.
+      }
+    }
+    for (const dir of candidates) {
+      const pkg = readPackageJson(path.join(projectPath, dir));
+      if (!pkg) continue;
+      out.set(dir, dir);
+      if (pkg.name) out.set(pkg.name, dir);
+    }
+  }
+  return out;
+}
+
+/**
  * Turn a selection into runnable commands.
  *
  * - `none`: `command` is null with a reason; a run-nothing command is never emitted.

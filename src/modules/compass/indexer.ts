@@ -10,6 +10,8 @@ import {
   postPending,
   setPostPending,
   clearPostPending,
+  storedTestGlobs,
+  setStoredTestGlobs,
   FILE_NODE_KIND,
 } from "./db.js";
 import { langForPath, type LangConfig } from "./languages.js";
@@ -708,6 +710,38 @@ type FragmentStats = Pick<
 >;
 
 /**
+ * Bring every stored `files.is_test` flag in line with the configured test
+ * globs when those changed since the flags were written. A run skips files
+ * whose stat is unchanged, and a per-file reindex only touches its paths, so
+ * without this a `.speclaw/affected.json` edit took effect only after
+ * `index --force`, and affected-test selection kept the old notion of a test.
+ *
+ * @param db - Open index, inside the caller's transaction.
+ * @param cfg - The effective affected-test config.
+ * @returns How many files changed flag (0 when the globs are unchanged).
+ */
+// Covers: req~test-flags-follow-config~1
+export function syncTestFlags(db: DatabaseSync, cfg: AffectedConfig): number {
+  const globs = JSON.stringify(cfg.testGlobs);
+  if (storedTestGlobs(db) === globs) return 0;
+  const update = db.prepare("UPDATE files SET is_test = ? WHERE id = ?");
+  let changed = 0;
+  for (const row of db.prepare("SELECT id, path, is_test FROM files").all() as Array<{
+    id: number;
+    path: string;
+    is_test: number;
+  }>) {
+    const flag = isTestPath(row.path, cfg.testGlobs) ? 1 : 0;
+    if (flag !== row.is_test) {
+      update.run(flag, row.id);
+      changed++;
+    }
+  }
+  setStoredTestGlobs(db, globs);
+  return changed;
+}
+
+/**
  * Prepared statements for writing one file's fragment (its `files` row, nodes,
  * edges, full-text rows, metrics, coverage links, and cached embeddings),
  * shared by the full walk and the per-file reindex so both write identical rows.
@@ -1172,6 +1206,8 @@ export async function buildIndex(
       if (!fileHashes.has(rel)) fileHashes.set(rel, row.hash);
     }
 
+    syncTestFlags(db, cfg);
+
     const dirMap = buildDirHashMap(fileHashes);
     const rootHash = dirMap.get("") ?? "";
     stats.rootUnchanged = Boolean(
@@ -1351,6 +1387,7 @@ export async function indexFiles(projectPath: string, paths: string[]): Promise<
         result.stale = true;
         return result;
       }
+      syncTestFlags(db, w.cfg);
       for (const abs of targets) {
         let c = classifyIndexPath(projectPath, abs);
         // Register only the path a full walk would yield (exact spelling, no

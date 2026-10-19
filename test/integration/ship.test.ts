@@ -965,3 +965,79 @@ test("the stop tells the user what ran and what is left", () => {
   assert.match(stopSummary(owed, true), /^speclaw: level 3 owes design\.md, api\.md — sent back/);
   assert.match(stopSummary(owed, false), /still owed after a second stop: design\.md, api\.md/);
 });
+
+// Covers: req~test-gate-stays-in-test-script~1
+test("the test gate never reaches a package the project's test script does not run", async (t) => {
+  const root = tmpRepo(t);
+  git(root, "init", "-q", "-b", "main");
+  git(root, "config", "user.email", "t@t");
+  git(root, "config", "user.name", "t");
+  specInit(root);
+  const write = (rel: string, body: string) => {
+    fs.mkdirSync(path.dirname(path.join(root, rel)), { recursive: true });
+    fs.writeFileSync(path.join(root, rel), body);
+  };
+  write(
+    "package.json",
+    JSON.stringify({ workspaces: ["apps/*"], scripts: { test: "npm test --workspace api" } }),
+  );
+  write("apps/api/package.json", JSON.stringify({ name: "api", scripts: { test: PASS } }));
+  // Running the browser suite would fail the gate: it must not run at all.
+  write("apps/e2e/package.json", JSON.stringify({ name: "e2e", scripts: { test: FAIL } }));
+  write("apps/api/src/sum.ts", "export function sum(a: number): number {\n  return a;\n}\n");
+  write(
+    "apps/api/src/sum.test.ts",
+    `import { sum } from "./sum.js";\nexport function checks(): number {\n  return sum(1);\n}\n`,
+  );
+  write(
+    "apps/e2e/sum.spec.ts",
+    `import { sum } from "../api/src/sum.js";\nexport function journey(): number {\n  return sum(2);\n}\n`,
+  );
+  fs.appendFileSync(path.join(root, "lawbook", "config.yaml"), `\nship:\n  gates: ["npm test"]\n`);
+  git(root, "add", "-A");
+  git(root, "commit", "-qm", "init");
+  git(root, "checkout", "-q", "-b", "fix/sum");
+  write("apps/api/src/sum.ts", "export function sum(a: number): number {\n  return a + 0;\n}\n");
+  await buildIndex(root);
+
+  const r = shipChange(root, "sum");
+
+  assert.equal(r.gatesPassed, true, JSON.stringify(r.gates, null, 2));
+  const gate = r.gates.find((g) => g.scope?.includes("affected"));
+  assert.ok(gate, JSON.stringify(r.gates));
+  assert.match(
+    gate.scope!,
+    /1 affected test file\(s\) in the test script's packages \(apps\/api\), 1 outside it/,
+  );
+  assert.doesNotMatch(gate.command, /apps\/e2e/);
+});
+
+// Covers: req~stop-gates-cooldown~1
+test("ship.cooldownMinutes leaves new work for a later stop, then ships it", (t) => {
+  const root = gitFixture(t);
+  fs.appendFileSync(path.join(root, "lawbook", "config.yaml"), `  cooldownMinutes: 30\n`);
+  git(root, "commit", "-qam", "cool down the stop hook");
+  git(root, "checkout", "-q", "-b", "feat/widget");
+  fs.writeFileSync(path.join(root, "a.js"), "export const a = 2;\n");
+  const first = shipChange(root, "widget", { summary: "a widget value" });
+  assert.equal(first.gatesPassed, true, JSON.stringify(first.next));
+
+  fs.writeFileSync(path.join(root, "a.js"), "export const a = 3;\n");
+  assert.deepEqual(shipOnStop(root), { skipped: "cooling-down" });
+
+  // Past the window, the deferred work ships.
+  const marker = path.join(root, ".speclaw", "ship-last");
+  const m = JSON.parse(fs.readFileSync(marker, "utf8")) as { at: string };
+  m.at = new Date(Date.now() - 31 * 60_000).toISOString();
+  fs.writeFileSync(marker, JSON.stringify(m));
+  assert.equal(shipOnStop(root).skipped, null);
+});
+
+test("without ship.cooldownMinutes every stop with changed work ships", (t) => {
+  const root = gitFixture(t);
+  git(root, "checkout", "-q", "-b", "feat/widget");
+  fs.writeFileSync(path.join(root, "a.js"), "export const a = 2;\n");
+  assert.equal(shipOnStop(root).skipped, null);
+  fs.writeFileSync(path.join(root, "a.js"), "export const a = 3;\n");
+  assert.equal(shipOnStop(root).skipped, null);
+});

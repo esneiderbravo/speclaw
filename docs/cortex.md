@@ -18,14 +18,27 @@ The agent runs only the tests covering its change (`speclaw affected-tests
 --file <path>`), never the full suite: the stop runs it. There, the test gate
 (`npm test`, `npm run test`, or the pnpm/yarn equivalent) runs the tests the
 diff reaches and the full suite runs in CI; it falls back to the full suite with
-no Compass index, a global file, or changed code no test reaches. A project
-without CI keeps the full suite at the stop:
+no Compass index, a global file, or changed code no test reaches. The selection
+never reaches past what that script runs: when the root `scripts.test` names
+its packages (`--workspace api`, `-w web`, `--prefix apps/x`, `cd apps/x &&`),
+tests in any other package — a browser e2e workspace, say — are left out of the
+gate. A project without CI keeps the full suite at the stop:
 
 ```yaml
 # lawbook/config.yaml
 ship:
   tests: full # affected (default) | full
+  cooldownMinutes: 15 # optional; 0 (default) ships at every stop with changed work
 ```
+
+With `cooldownMinutes`, a stop within that many minutes of the last passing
+ship on the same branch leaves the newer work for a later stop, so a long
+session does not re-run every gate at almost every turn; the next stop past the
+window ships it, and CI still gates the PR.
+
+What counts as a test comes from `.speclaw/affected.json` (`testGlobs`). A change
+to it reaches every indexed file at the next index run or per-file reindex — no
+`index --force` needed.
 
 A diff of at most one source file and ten lines (tests and docs aside), with no
 public API or global file, measures level 0 however central the code it touches.
