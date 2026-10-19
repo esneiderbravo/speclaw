@@ -740,6 +740,26 @@ export function clearNeedsReindex(db: DatabaseSync): void {
 /** `meta` key set by a per-file reindex until the next full post-processing pass. */
 const POST_PENDING_KEY = "post_pending";
 
+/** `meta` key holding the test globs the stored `files.is_test` flags were computed with. */
+const TEST_GLOBS_KEY = "test_globs";
+
+/**
+ * The test globs the stored `is_test` flags were computed with, or null when
+ * none was recorded (an index written before the key existed).
+ */
+export function storedTestGlobs(db: DatabaseSync): string | null {
+  const row = db.prepare("SELECT value FROM meta WHERE key = ?").get(TEST_GLOBS_KEY) as
+    { value: string } | undefined;
+  return row?.value ?? null;
+}
+
+/** Record the test globs the stored `is_test` flags now follow. */
+export function setStoredTestGlobs(db: DatabaseSync, globs: string): void {
+  db.prepare(
+    "INSERT INTO meta(key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+  ).run(TEST_GLOBS_KEY, globs);
+}
+
 /**
  * Whether a per-file reindex left global post-processing (PageRank, the compact
  * map, cache upkeep) for the next full run. While set, a full run may not take

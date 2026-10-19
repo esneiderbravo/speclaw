@@ -582,3 +582,28 @@ test("walkWouldYield reuses a shared listing cache", (t) => {
   assert.equal(walkWouldYield(root, "missing/b.ts", listings), false);
   assert.equal(listings.get(path.join(root, "missing")), undefined);
 });
+
+// Covers: req~test-flags-follow-config~1
+test("a test-glob change reaches files whose stat is unchanged, without --force", async (t) => {
+  const root = tmpRepo(t);
+  seed(root);
+  write(root, "e2e/journey.spec.ts", "export function journey(): number {\n  return 1;\n}\n");
+  await buildIndex(root);
+  const flag = (): unknown =>
+    rows(root, "SELECT is_test FROM files WHERE path = 'e2e/journey.spec.ts'")[0]?.is_test;
+  assert.equal(flag(), 1);
+
+  // Only the config changes: every file keeps its mtime and size.
+  write(
+    root,
+    ".speclaw/affected.json",
+    JSON.stringify({ version: 1, testGlobs: ["test/**", "src/**/*.spec.*"] }),
+  );
+  await buildIndex(root);
+  assert.equal(flag(), 0, "a full run re-flags files skipped by stat");
+
+  write(root, ".speclaw/affected.json", JSON.stringify({ version: 1 }));
+  await indexFiles(root, ["lib/other.ts"]);
+  assert.equal(flag(), 1, "a per-file reindex re-flags the whole index too");
+  assert.equal(meta(root, "test_globs")?.includes("**/*.spec.*"), true);
+});
