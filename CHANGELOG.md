@@ -5,6 +5,8 @@ All notable changes to this project are documented here. Speclaw follows
 
 ## [Unreleased]
 
+## [2.1.3] — 2026-10-19
+
 ### Fixed
 
 - The `Stop` hook's test gate no longer reaches packages the project's own
